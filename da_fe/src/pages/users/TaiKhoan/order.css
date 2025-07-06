@@ -1,0 +1,102 @@
+.quantity-badge-order {
+    position: absolute;
+    background-color: orange;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 10px;
+    margin-top: -105px;
+    margin-left: 78px;
+  }
+  
+  .time-line .scrollbar-container {
+    overflow-x: auto;
+  }
+  
+  .time-line .scrollbar-container::-webkit-scrollbar {
+    width: 3px !important;
+    height: 10px !important;
+  }
+  
+  .time-line .scrollbar-container::-webkit-scrollbar-thumb {
+    background-color: rgb(206, 206, 206) !important;
+  }
+  
+  .time-line .scrollbar-container::-webkit-scrollbar-button {
+    display: none !important;
+  }
+  
+  .time-line {
+    padding-right: 8px;
+  }
+  
+  .time-line .MuiGrid-root .MuiTypography-root {
+    margin: 13px !important;
+  }
+  
+  .profile .MuiContainer-root {
+    padding-left: 50px !important;
+    padding-right: 50px !important;
+  }
+  
+  .chip-da-huy {
+    border: 1px solid rgb(23, 150, 23) !important;
+    color: rgb(23, 150, 23) !important;
+    background: rgb(224, 246, 224) !important;
+    border-color: rgb(23, 150, 23) !important;
+  }
+  
+  .chip-cho-xac-nhan {
+    border: 1px solid rgb(250, 239, 90) !important;
+    color: gold !important;
+    background: rgb(246, 243, 228) !important;
+    border-color: gold !important;
+  }
+  
+  .chip-da-xac-nhan {
+    border: 1px solid orange !important;
+    color: orange !important;
+    background: rgb(245, 237, 222) !important;
+    border-color: orange !important;
+  }
+  
+  .chip-dang-van-chuyen {
+    border: 1px solid #ff4500 !important;
+    color: #ff4500 !important;
+    background: #f6dbd2 !important;
+    border-color: #ff4500 !important;
+  }
+  
+  .chip-da-giao-hang {
+    border: 1px solid red !important;
+    color: red !important;
+    background: rgb(239, 204, 204) !important;
+    border-color: red !important;
+  }
+  
+  .chip-da-thanh-toan {
+    border: 1px solid magenta !important;
+    color: magenta !important;
+    background: rgb(239, 201, 239) !important;
+    border-color: magenta !important;
+  }
+  
+  .chip-cho-thanh-toan {
+    border: 1px solid #2f54eb !important;
+    color: #2f54eb !important;
+    background: #c0c9eb !important;
+    border-color: #2f54eb !important;
+  }
+  
+  .chip-hoan-thanh {
+    border: 1px solid #ff00ff !important;
+    color: #ff00ff !important;
+    background: #f5d7f5 !important;
+    border-color: #ff00ff !important;
+  }
+  

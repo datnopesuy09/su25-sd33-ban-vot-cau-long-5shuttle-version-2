@@ -1,0 +1,24 @@
+server:
+  port: 8080
+  servlet:
+    context-path:
+spring:
+  datasource:
+    url: "jdbc:mysql://localhost:3306/5SHUTTLE"
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    show-sql: true
+
+logging:
+  level:
+    root: INFO
+    com.example.da_be: DEBUG
+
+jwt:
+  signerKey: "Nqkyj/P5Ks0UiJ8bQIVjjuieZk9tzy1LJpKuB0x2h9xAGn97lDma4HFu95WhC/Ab"
