@@ -1,4 +1,6 @@
-﻿DROP DATABASE IF EXISTS 5SHUTTLE;
+-- Chạy từ bảng User xuống trước rồi quay lại đầu trang chạy những bảng còn lại
+
+DROP DATABASE IF EXISTS `5SHUTTLE`;
 CREATE DATABASE 5SHUTTLE CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE 5SHUTTLE;
 
@@ -48,22 +50,7 @@ CREATE TABLE KhuyenMai (
     TrangThai INT
 );
 
-CREATE TABLE TaiKhoan (
-    Id INT AUTO_INCREMENT PRIMARY KEY,
-    Ma NVARCHAR(255),
-    HoTen NVARCHAR(255),
-    Sdt VARCHAR(255),
-    Email NVARCHAR(255),
-    MatKhau NVARCHAR(255),
-    GioiTinh BOOLEAN,
-    VaiTro NVARCHAR(255),
-    Avatar TEXT,
-    NgaySinh DATE,
-    CCCD VARCHAR(50),
-    TrangThai INT
-);
-
-CREATE TABLE Voucher (
+CREATE TABLE PhieuGiamGia (
     Id INT AUTO_INCREMENT PRIMARY KEY,
     Ma NVARCHAR(255),
     Ten NVARCHAR(255),
@@ -118,14 +105,14 @@ CREATE TABLE HinhAnh (
 
 CREATE TABLE DiaChi (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    IdTaiKhoan INT,
+    IdUser INT,
     Ten NVARCHAR(255),
     Sdt VARCHAR(255),
     IdTinh NVARCHAR(255),
     IdHuyen NVARCHAR(255),
     IdXa NVARCHAR(255),
     DiaChiCuThe NVARCHAR(255),
-    FOREIGN KEY (IdTaiKhoan) REFERENCES TaiKhoan(Id)
+    FOREIGN KEY (IdUser) REFERENCES User(Id)
 );
 
 CREATE TABLE ThongBao (
@@ -136,23 +123,23 @@ CREATE TABLE ThongBao (
     IdRedirect NVARCHAR(255),
     KieuThongBao NVARCHAR(255),
     TrangThai INT,
-    FOREIGN KEY (IdKhachHang) REFERENCES TaiKhoan(Id)
+    FOREIGN KEY (IdKhachHang) REFERENCES User(Id)
 );
 
 CREATE TABLE GioHang (
     Id INT AUTO_INCREMENT PRIMARY KEY,
     IdSanPhamCT INT,
-    IdTaiKhoan INT,
+    IdUser INT,
     SoLuong INT,
     NgayTao DATETIME,
     NgaySua DATETIME,
     FOREIGN KEY (IdSanPhamCT) REFERENCES SanPhamCT(Id),
-    FOREIGN KEY (IdTaiKhoan) REFERENCES TaiKhoan(Id)
+    FOREIGN KEY (IdUser) REFERENCES User(Id)
 );
 
 CREATE TABLE HoaDon (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    IdTaiKhoan INT,
+    IdUser INT,
     IdVoucher INT,
     Ma NVARCHAR(255),
     SoLuong INT,
@@ -167,8 +154,8 @@ CREATE TABLE HoaDon (
     NgayTao DATETIME,
     NgaySua DATETIME,
     TrangThai INT,
-    FOREIGN KEY (IdTaiKhoan) REFERENCES TaiKhoan(Id),
-    FOREIGN KEY (IdVoucher) REFERENCES Voucher(Id)
+    FOREIGN KEY (IdUser) REFERENCES User(Id),
+    FOREIGN KEY (IdVoucher) REFERENCES PhieuGiamGia(Id)
 );
 
 CREATE TABLE HoaDonCT (
@@ -193,14 +180,14 @@ CREATE TABLE SanPham_KhuyenMai (
 
 CREATE TABLE ThanhToan (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    IdTaiKhoan INT,
+    IdUser INT,
     IdHoaDon INT,
     Ma NVARCHAR(255),
     TongTien DECIMAL(10,2),
     NgayTao DATETIME,
     PhuongThucThanhToan NVARCHAR(255),
     TrangThai INT,
-    FOREIGN KEY (IdTaiKhoan) REFERENCES TaiKhoan(Id),
+    FOREIGN KEY (IdUser) REFERENCES User(Id),
     FOREIGN KEY (IdHoaDon) REFERENCES HoaDon(Id)
 );
 
@@ -208,18 +195,133 @@ CREATE TABLE KhachHang_Voucher (
     Id INT AUTO_INCREMENT PRIMARY KEY,
     IdKhachHang INT,
     IdVoucher INT,
-    FOREIGN KEY (IdKhachHang) REFERENCES TaiKhoan(Id),
-    FOREIGN KEY (IdVoucher) REFERENCES Voucher(Id)
+    FOREIGN KEY (IdKhachHang) REFERENCES User(Id),
+    FOREIGN KEY (IdVoucher) REFERENCES PhieuGiamGia(Id)
 );
 
 CREATE TABLE LichSuDonHang (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    IdTaiKhoan INT,
+    IdUser INT,
     IdHoaDon INT,
     MoTa NVARCHAR(255),
     NgayTao DATETIME,
     NgaySua DATETIME,
     TrangThai INT,
-    FOREIGN KEY (IdTaiKhoan) REFERENCES TaiKhoan(Id),
+    FOREIGN KEY (IdUser) REFERENCES User(Id),
     FOREIGN KEY (IdHoaDon) REFERENCES HoaDon(Id)
 );
+
+CREATE TABLE User
+(
+    Id         INT AUTO_INCREMENT NOT NULL,
+    Ma         VARCHAR(255)       NULL,
+    HoTen      VARCHAR(255)       NULL,
+    Email      VARCHAR(255)       NULL,
+    MatKhau    VARCHAR(255)       NULL,
+    Sdt        VARCHAR(255)       NULL,
+    NgaySinh   DATE               NULL,
+    GioiTinh   INT                NULL,
+    Avatar     VARCHAR(255)       NULL,
+    CCCD       VARCHAR(255)       NULL,
+    TrangThai  INT                NULL,
+    CONSTRAINT pk_user PRIMARY KEY (Id)
+);
+
+CREATE TABLE `Role`
+(
+    Id            INT AUTO_INCREMENT NOT NULL,
+    Name          VARCHAR(255)       NULL,
+    `Description` VARCHAR(255)       NULL,
+    CONSTRAINT pk_role PRIMARY KEY (Id),
+    CONSTRAINT uc_Role_Description UNIQUE (`Description`)
+);
+
+CREATE TABLE Permission
+(
+    Id            INT AUTO_INCREMENT NOT NULL,
+    Name          VARCHAR(255)       NULL,
+    `Description` VARCHAR(255)       NULL,
+    CONSTRAINT pk_permission PRIMARY KEY (Id)
+);
+
+CREATE TABLE User_Roles
+(
+    IdUser  INT NOT NULL,
+    IdRole  INT NOT NULL,
+    CONSTRAINT pk_user_roles PRIMARY KEY (IdUser, IdRole),
+    CONSTRAINT fk_user_roles_user FOREIGN KEY (IdUser) REFERENCES User (Id),
+    CONSTRAINT fk_user_roles_role FOREIGN KEY (IdRole) REFERENCES `Role` (Id)
+);
+
+CREATE TABLE Role_Permissions
+(
+    IdRole        INT NOT NULL,
+    IdPermission  INT NOT NULL,
+    CONSTRAINT pk_role_permissions PRIMARY KEY (IdRole, IdPermission),
+    CONSTRAINT fk_role_permissions_role FOREIGN KEY (IdRole) REFERENCES `Role` (Id),
+    CONSTRAINT fk_role_permissions_permission FOREIGN KEY (IdPermission) REFERENCES Permission (Id)
+);
+
+-- Bảng Role
+INSERT INTO `Role` (Name, `Description`)
+VALUES ('Customer', 'Vai trò mặc định cho người dùng thông thường'),
+		('Admin', 'Admin'),
+		('Staff', 'Staff');
+
+INSERT INTO User (Ma, HoTen, Email, MatKhau, Sdt, NgaySinh, GioiTinh, Avatar, CCCD, TrangThai)
+VALUES 
+('KH001', 'Nguyen Van A', 'a@gmail.com', '123456', '0901234567', '1990-01-01', 1, NULL, '123456789', 1),
+('KH002', 'Tran Thi B', 'b@gmail.com', '123456', '0912345678', '1995-05-20', 0, NULL, '987654321', 1);
+
+-- Thương hiệu
+INSERT INTO ThuongHieu (Ten, TrangThai) VALUES ('Yonex', 1), ('Lining', 1);
+
+-- Màu sắc
+INSERT INTO MauSac (Ten, TrangThai) VALUES ('Đỏ', 1), ('Xanh', 1);
+
+-- Chất liệu
+INSERT INTO ChatLieu (Ten, TrangThai) VALUES ('Carbon', 1), ('Graphite', 1);
+
+-- Trọng lượng
+INSERT INTO TrongLuong (Ten, TrangThai) VALUES ('3U', 1), ('4U', 1);
+
+-- Điểm cân bằng
+INSERT INTO DiemCanBang (Ten, TrangThai) VALUES ('290mm', 1), ('300mm', 1);
+
+-- Độ cứng
+INSERT INTO DoCung (Ten, TrangThai) VALUES ('Cứng', 1), ('Trung bình', 1);
+
+-- Khuyến mãi
+INSERT INTO KhuyenMai (Ten, TG_BatDau, TG_KetThuc, GiaTri, Loai, TrangThai)
+VALUES ('Sale 10%', NOW(), DATE_ADD(NOW(), INTERVAL 10 DAY), 10, 1, 1);
+
+-- Voucher
+INSERT INTO PhieuGiamGia (Ma, Ten, GiaTri, GiaTriMax, DieuKienNhoNhat, Kieu, KieuGiaTri, SoLuong, NgayBatDau, NgayKetThuc, TrangThai)
+VALUES ('VOUCHER10', 'Giảm 10%', 10, 50000, 100000, 0, 0, 100, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), 1);
+
+-- Sản phẩm
+INSERT INTO SanPham (Ma, Ten, TrangThai)
+VALUES ('SP001', 'Vợt Cầu Lông Yonex', 1);
+
+-- Sản phẩm chi tiết
+INSERT INTO SanPhamCT (IdSanPham, IdThuongHieu, IdMauSac, IdChatLieu, IdTrongLuong, IdDiemCanBang, IdDoCung, Ma, SoLuong, DonGia, MoTa, TrangThai)
+VALUES (1, 1, 1, 1, 1, 1, 1, 'SPCT001', 50, 1500000, 'Vợt chuyên công', 1);
+
+INSERT INTO HinhAnh (IdSanPhamCT, Link, TrangThai)
+VALUES (1, 'https://example.com/image1.jpg', 1);
+
+INSERT INTO DiaChi (IdUser, Ten, Sdt, IdTinh, IdHuyen, IdXa, DiaChiCuThe)
+VALUES (1, 'Nguyen Van A', '0901234567', '01', '001', '0001', '123 Đường ABC');
+
+INSERT INTO GioHang (IdSanPhamCT, IdUser, SoLuong, NgayTao, NgaySua)
+VALUES (1, 1, 2, NOW(), NOW());
+
+INSERT INTO HoaDon (IdUser, IdVoucher, Ma, SoLuong, LoaiHoaDon, PhuongThucThanhToan, TenNguoiNhan, SdtNguoiNhan, EmailNguoiNhan, DiaChiNguoiNhan, PhiShip, TongTien, NgayTao, NgaySua, TrangThai)
+VALUES (1, 1, 'HD001', 2, 'Online', 'COD', 'Nguyen Van A', '0901234567', 'a@gmail.com', '123 Đường ABC', 30000, 2970000, NOW(), NOW(), 1);
+
+INSERT INTO HoaDonCT (IdSanPhamCT, IdHoaDon, SoLuong, GiaBan, TrangThai)
+VALUES (1, 1, 2, 1500000, 1);
+
+
+
+

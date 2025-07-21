@@ -3,6 +3,8 @@ package com.example.da_be.controller;
 import com.example.da_be.dto.request.ApiResponse;
 import com.example.da_be.dto.request.User.UserCreationRequest;
 import com.example.da_be.dto.request.User.UserUpdateRequest;
+import com.example.da_be.dto.response.HoaDonCTResponse;
+import com.example.da_be.dto.response.HoaDonResponse;
 import com.example.da_be.dto.response.UserResponse;
 import com.example.da_be.service.UserService;
 import jakarta.validation.Valid;
@@ -26,15 +28,23 @@ public class UserController {
 
     UserService userService;
 
-    @PostMapping()
-    ApiResponse<UserResponse> createUser(@RequestBody @Valid UserCreationRequest request){
-        return ApiResponse.<UserResponse>builder()
-                .result(userService.createUser(request))
+    @GetMapping("/myOrders")
+    ApiResponse<List<HoaDonResponse>> getAllMyOders(){
+        return ApiResponse.<List<HoaDonResponse>>builder()
+                .result(userService.getMyOders())
+                .code(1000)
                 .build();
-
     }
 
-//    @GetMapping
+    @GetMapping("/myOderDetail/{idHoaDon}")
+    ApiResponse<List<HoaDonCTResponse>> getOderDetail(@PathVariable("idHoaDon") Integer idHoaDon) {
+        return ApiResponse.<List<HoaDonCTResponse>>builder()
+                .result(userService.getMyOdersDetails(idHoaDon))
+                .code(1000)
+                .build();
+    }
+
+    //    @GetMapping
 //    ApiResponse<List<UserResponse>> getUsers(){
 //
 //        var authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -56,7 +66,6 @@ public class UserController {
 //                .code(1000)
 //                .build();
 //    }
-
     @GetMapping("/myInfo")
     ApiResponse<UserResponse> getUser() {
         return ApiResponse.<UserResponse>builder()
@@ -79,4 +88,5 @@ public class UserController {
                 .result(userService.checkEmailExists(email))
                 .build();
     }
+
 }

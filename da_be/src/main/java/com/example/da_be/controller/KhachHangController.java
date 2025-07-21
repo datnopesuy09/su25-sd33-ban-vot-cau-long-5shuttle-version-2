@@ -2,6 +2,8 @@ package com.example.da_be.controller;
 
 import com.example.da_be.dto.request.KhachHangRequest;
 import com.example.da_be.dto.response.KhachHangResponse;
+import com.example.da_be.entity.User;
+import com.example.da_be.repository.KhachHangRepository;
 import com.example.da_be.service.KhachHangSevice;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
@@ -11,11 +13,15 @@ import org.springframework.web.bind.annotation.*;
 
 import java.text.ParseException;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @CrossOrigin(origins = "http://localhost:5173")
 @RequestMapping("/api/customers")
 public class KhachHangController {
+
+    @Autowired
+    private KhachHangRepository khachHangRepository;
 
     @Autowired
     private KhachHangSevice khachHangSevice;
@@ -59,5 +65,16 @@ public class KhachHangController {
         return ResponseEntity.ok(
                 khachHangSevice.searchKhachHang(hoTen, email, sdt, gioiTinh, trangThai, pageable)
         );
+    }
+
+    @GetMapping("/check-mail")
+    public ResponseEntity<?> checkEmail(@RequestParam String email) {
+        Optional<User> customer = khachHangRepository.findByEmail(email);
+
+        if (customer.isPresent()) {
+            return ResponseEntity.ok().body(customer.get());
+        } else {
+            return ResponseEntity.ok().body(null);
+        }
     }
 }

@@ -6,6 +6,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 
+import java.time.LocalDate;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -14,13 +16,15 @@ import java.time.LocalDate;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class UserResponse {
 
-    Integer id;
-    String ma;
+    
+
     String hoTen;
+
     String email;
+
     String matKhau;
+
     String sdt;
-    String avatar;
     LocalDate ngaySinh;
     Integer gioiTinh;
     String cccd;
