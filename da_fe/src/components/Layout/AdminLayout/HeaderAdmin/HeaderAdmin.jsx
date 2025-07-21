@@ -1,38 +1,27 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-
-import { Bell, Settings, Moon, Sun } from 'react-feather';
-import user_icon from '../../../Assets/user_icon.png';
-
 import { Search, Notifications } from '@mui/icons-material';
-
-import { Avatar } from '@mui/material';
-import { LogOut, LogIn, User, Shield, Activity } from 'react-feather';
+import { Avatar, Tooltip, MenuItem, Menu, Typography, IconButton } from '@mui/material';
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import LogoutIcon from '@mui/icons-material/Logout';
+import KeyIcon from '@mui/icons-material/Key';
 import Swal from 'sweetalert2';
 import defaultAvatar from '../../../Assets/user_icon.png';
+import { useAdminAuth } from '../../../../contexts/adminAuthContext';
+import { useRef } from 'react';
+import { useEffect } from 'react';
 
-function parseJwt(token) {
-    try {
-        const base64Url = token.split('.')[1];
-        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        }).join(''));
-        return JSON.parse(jsonPayload);
-    } catch (e) {
-        return {};
-    }
-}
+const roleMap = {
+    "ROLE_ADMIN": "Admin",
+    "ROLE_USER": "Người dùng",
+    "ROLE_STAFF": "Nhân viên"
+};
 
 function HeaderAdmin() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-    const [isLoggedIn, setIsLoggedIn] = useState(true);
-    const [userRole, setUserRole] = useState('Admin');
-    const [isDarkMode, setIsDarkMode] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [user, setUser] = useState(null);
-    const [role, setRole] = useState('');
+    const [anchorElUser, setAnchorElUser] = useState(null);
+    const { admin, role, logoutAdmin } = useAdminAuth();
 
     const [notifications] = useState([
         { id: 1, title: 'Đơn hàng mới', message: 'Có 3 đơn hàng mới cần xử lý', time: '5 phút trước', unread: true },
@@ -50,41 +39,6 @@ function HeaderAdmin() {
     const menuRef = useRef(null);
     const notificationRef = useRef(null);
     const navigate = useNavigate();
-
-
-    useEffect(() => {
-        const token = localStorage.getItem("token");
-        console.log(token)
-        if (token) {
-            fetch("http://localhost:8080/users/myInfo", {
-                method: "GET",
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                },
-            })
-                .then(res => {
-                    if (!res.ok) throw new Error("Không thể lấy thông tin người dùng");
-                    return res.json();
-                })
-                .then(data => {
-                    setUser(data.result);
-                    setIsLoggedIn(true);
-                })
-                .catch(err => {
-                    console.error(err);
-                    setIsLoggedIn(false);
-                });
-
-
-            let decoded;
-            try {
-                decoded = parseJwt(token);
-                setRole(decoded.scope);
-            } catch (e) {
-                setRole("");
-            }
-        }
-}, []);
 
 
     const unreadCount = notifications.filter((n) => n.unread).length;
@@ -125,15 +79,8 @@ function HeaderAdmin() {
     };
 
     const handleConfirm = () => {
-        localStorage.removeItem("token");
-        setIsLoggedIn(false);
-        setUser(null);
-        navigate('/');
-    };
-    const roleMap = {
-        "ROLE_Admin": "Admin",
-        "ROLE_USER": "Người dùng",
-        "ROLE_Staff": "Nhân viên"
+        logoutAdmin();
+        navigate('/admin/login');
     };
 
     return (
@@ -157,106 +104,61 @@ function HeaderAdmin() {
                 {/* User Info */}
                 <div className="flex items-center space-x-1 pr-5">
                     <div className="mr-4 text-center">
-                        <p className="text-gray-800 text-base font-semibold">{user?.hoTen || "..."}</p>
+                        <p className="text-gray-800 text-base font-semibold">{admin?.hoTen || "..."}</p>
                         <p className="text-gray-500 text-sm">-<span className="mx-1">{roleMap[role] || role || ""}</span>-</p>
                     </div>
+                    {/* avatar */}
+                    <div>
+                        <Tooltip title="Mở menu người dùng">
+                            <IconButton onClick={(e) => setAnchorElUser(e.currentTarget)} sx={{ p: 0 }}>
+                                <Avatar alt={admin?.hoTen || "Avatar"} src={admin?.avatar || defaultAvatar} />
+                            </IconButton>
+                        </Tooltip>
+                        <Menu
+                            sx={{ mt: '45px' }}
+                            anchorEl={anchorElUser}
+                            anchorOrigin={{
+                                vertical: 'top',
+                                horizontal: 'right',
+                            }}
+                            keepMounted
+                            transformOrigin={{
+                                vertical: 'top',
+                                horizontal: 'right',
+                            }}
+                            open={Boolean(anchorElUser)}
+                            onClose={() => setAnchorElUser(null)}
+                        >
+                            <MenuItem
+                                onClick={() => {
+                                    setAnchorElUser(null);
+                                    navigate('/admin/tai-khoan-ca-nhan');
+                                }}
+                                sx={{ display: 'flex', alignItems: 'center' }}
+                            >
+                                <ManageAccountsIcon sx={{ mr: 1 }} />
+                                <Typography textAlign="center">Tài khoản của tôi</Typography>
+                            </MenuItem>
 
-                    <div className='relative'>
-                        <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="relative">
-<Avatar src={user?.avatar || defaultAvatar} alt="avatar" className="w-10 h-8" />
-                            {isMenuOpen && (
-                                <ul className="absolute right-0 mt-2 bg-white shadow-lg rounded-md w-48 py-2 text-gray-700 z-50" ref={menuRef}>
-                                    {isLoggedIn ? (
-                                        <>
-                                            <li className="flex px-4 py-2 hover:bg-gray-100 space-x-3">
-                                                <User className='h-5 w-5' />
-                                                <Link to="/profile/user" onClick={() => setIsMenuOpen(false)}>Tài khoản của tôi</Link>
-                                            </li>
-                                            <li className="flex px-4 py-2 hover:bg-gray-100 space-x-3">
-                                                <LogOut className='w-5 h-5' />
-                                                <button onClick={handleAccount}>Đăng xuất</button>
-                                            </li>
-                                        </>
-                                    ) : (
-                                        <li className="flex px-4 py-2 hover:bg-gray-100 space-x-3">
-                                            <LogIn className='w-5 h-5' />
-                                            <Link to="/admin/login" onClick={() => setIsMenuOpen(false)}>Đăng nhập</Link>
-                                        </li>
-                                    )}
-                                </ul>
-                            )}
+                            <MenuItem key="change-password" onClick={() => { setAnchorElUser(null); navigate(''); }}>
+                                <KeyIcon sx={{ mr: 1 }} />
+                                <Typography textAlign="center">Đổi mật khẩu</Typography>
+                            </MenuItem>
 
-                        </button>
+                            <MenuItem
+                                onClick={() => {
+                                    setAnchorElUser(null);
+                                    handleAccount();
+                                }}
+                                sx={{ display: 'flex', alignItems: 'center' }}
+                            >
+                                <LogoutIcon sx={{ mr: 1 }} />
+                                <Typography textAlign="center">Đăng xuất</Typography>
+                            </MenuItem>
 
-                        {/* User Dropdown Menu */}
-                        {isMenuOpen && (
-                            <div className="absolute right-0 mt-3 bg-white shadow-2xl rounded-2xl w-72 py-3 text-gray-700 z-50 border border-gray-100 animate-in slide-in-from-top-2 duration-200">
-                                <div className="absolute top-0 right-4 w-3 h-3 bg-white transform rotate-45 -translate-y-1/2 border-l border-t border-gray-100"></div>
-
-                                {/* User Info Header */}
-                                <div className="px-4 py-4 border-b border-gray-100">
-                                    <div className="flex items-center space-x-3">
-                                        <Avatar src={admin.avatar} className="w-12 h-12" />
-                                        <div className="flex-1">
-                                            <p className="font-semibold text-gray-800">{admin.hoTen}</p>
-                                            <p className="text-sm text-gray-500">{admin.email}</p>
-                                            <div className="flex items-center space-x-1 mt-1">
-                                                <Shield className="w-3 h-3 text-[#2f19ae]" />
-                                                <span className="text-xs text-[#2f19ae] font-medium">
-{admin.vaiTro}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {isLoggedIn ? (
-                                    <>
-                                        {userRole === 'Admin' && (
-                                            <li className="flex items-center px-4 py-3 hover:bg-gradient-to-r hover:from-[#2f19ae]/5 hover:to-purple-500/5 transition-all duration-200 group cursor-pointer">
-                                                <User className="h-5 w-5 text-gray-500 group-hover:text-[#2f19ae] transition-colors duration-200" />
-                                                <Link
-                                                    to="/profile/user"
-                                                    onClick={() => setIsMenuOpen(false)}
-                                                    className="ml-3 text-gray-700 group-hover:text-[#2f19ae] font-medium transition-colors duration-200 flex-1"
-                                                >
-                                                    Tài khoản của tôi
-                                                </Link>
-                                            </li>
-                                        )}
-
-                                        <li className="flex items-center px-4 py-3 hover:bg-gradient-to-r hover:from-[#2f19ae]/5 hover:to-purple-500/5 transition-all duration-200 group cursor-pointer">
-                                            <Settings className="h-5 w-5 text-gray-500 group-hover:text-[#2f19ae] transition-colors duration-200" />
-                                            <span className="ml-3 text-gray-700 group-hover:text-[#2f19ae] font-medium transition-colors duration-200">
-                                                Cài đặt
-                                            </span>
-                                        </li>
-
-                                        <li className="flex items-center px-4 py-3 hover:bg-gradient-to-r hover:from-red-50 hover:to-pink-50 transition-all duration-200 group cursor-pointer border-t border-gray-100 mt-2">
-                                            <LogOut className="w-5 h-5 text-gray-500 group-hover:text-red-500 transition-colors duration-200" />
-                                            <button
-                                                onClick={handleAccount}
-                                                className="ml-3 text-gray-700 group-hover:text-red-500 font-medium transition-colors duration-200 flex-1 text-left"
-                                            >
-                                                Đăng xuất
-                                            </button>
-                                        </li>
-                                    </>
-) : (
-                                    <li className="flex items-center px-4 py-3 hover:bg-gradient-to-r hover:from-[#2f19ae]/5 hover:to-purple-500/5 transition-all duration-200 group cursor-pointer">
-                                        <LogIn className="w-5 h-5 text-gray-500 group-hover:text-[#2f19ae] transition-colors duration-200" />
-                                        <Link
-                                            to="/login"
-                                            onClick={() => setIsMenuOpen(false)}
-                                            className="ml-3 text-gray-700 group-hover:text-[#2f19ae] font-medium transition-colors duration-200"
-                                        >
-                                            Đăng nhập
-                                        </Link>
-                                    </li>
-                                )}
-                            </div>
-                        )}
+                        </Menu>
                     </div>
+
                 </div>
             </div>
         </header>

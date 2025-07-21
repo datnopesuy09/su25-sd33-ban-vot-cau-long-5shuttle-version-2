@@ -2,11 +2,14 @@ package com.example.da_be.service;
 
 import com.example.da_be.dto.request.User.AuthenticationRequest;
 import com.example.da_be.dto.request.User.IntrospectRequest;
+import com.example.da_be.dto.request.User.UserCreationRequest;
 import com.example.da_be.dto.response.AuthenticationResponse;
 import com.example.da_be.dto.response.IntrospectResponse;
+import com.example.da_be.entity.Role;
 import com.example.da_be.entity.User;
 import com.example.da_be.exception.AppException;
 import com.example.da_be.exception.ErrorCode;
+import com.example.da_be.repository.RoleRepository;
 import com.example.da_be.repository.UserRepository;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
@@ -22,13 +25,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.text.ParseException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Date;
-import java.util.StringJoiner;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -36,6 +40,8 @@ import java.util.StringJoiner;
 @RequiredArgsConstructor
 public class AuthenticationService {
     UserRepository userRepository;
+
+    RoleRepository roleRepository;
 
     @NonFinal
     @Value("${jwt.signerKey}")
@@ -46,17 +52,28 @@ public class AuthenticationService {
         var token = request.getToken();
 
         JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
-
         SignedJWT signedJWT = SignedJWT.parse(token);
 
-        Date expityTime = signedJWT.getJWTClaimsSet().getExpirationTime();
-
+        Date expiryTime = signedJWT.getJWTClaimsSet().getExpirationTime();
         var verified = signedJWT.verify(verifier);
+        boolean isValid = verified && expiryTime.after(new Date());
 
-        return  IntrospectResponse.builder()
-                .valid(verified && expityTime.after(new Date()))
+        // Trích xuất scope để lấy danh sách role
+        String scope = (String) signedJWT.getJWTClaimsSet().getClaim("scope");
+        List<String> roles = List.of(); // mặc định rỗng
+
+        if (scope != null && !scope.isEmpty()) {
+            roles = Arrays.stream(scope.split(" "))
+                    .filter(s -> s.startsWith("ROLE_"))
+                    .collect(Collectors.toList());
+        }
+
+        return IntrospectResponse.builder()
+                .valid(isValid)
+                .roles(roles)
                 .build();
     }
+
 
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
         var user = userRepository.findUserByEmail(request.getEmail())
@@ -116,4 +133,5 @@ public class AuthenticationService {
 
         return stringJoiner.toString();
     }
+
 }

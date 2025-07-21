@@ -15,18 +15,43 @@ import LockOutlineIcon from '@mui/icons-material/LockOutlined';
 import shuttlecockImg from '../../components/Assets/closeup-shuttlecock.jpg';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useAdminAuth } from "../../contexts/adminAuthContext";
 
 function AdLogin() {
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState("");
     const [matKhau, setMatKhau] = useState("");
-
+    const { fetchAdminInfo } = useAdminAuth()
     const navigate = useNavigate();
 
     const handleClickShowPassword = () => setShowPassword((show) => !show);
     const handleMouseDownPassword = (event) => event.preventDefault();
 
+    const from = location.state?.from?.pathname || "/admin";
+
+    const [errors, setErrors] = useState({
+        email: '',
+        matKhau: ''
+    });
+
+    const validateForm = () => {
+        const newErrors = {};
+
+        if (!email.trim()) {
+            newErrors.email = 'Bạn chưa nhập email';
+        }
+
+        if (!matKhau) {
+            newErrors.matKhau = 'Bạn chưa nhập mật khẩu';
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
     const handleLogin = async () => {
+        if (!validateForm()) return;
+
         try {
             const res = await fetch("http://localhost:8080/auth/token", {
                 method: "POST",
@@ -37,16 +62,31 @@ function AdLogin() {
             if (!res.ok) throw new Error("Đăng nhập thất bại");
 
             const data = await res.json();
-            console.log("Login success:", data);
+            const accessToken = data?.result?.token;
+            if (!accessToken) throw new Error("Không nhận được token");
 
-            const accessToken  = data.result.token;
+            const introspectRes = await fetch("http://localhost:8080/auth/introspect", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token: accessToken })
+            });
 
-            localStorage.setItem("token", accessToken);
+            const introspectData = await introspectRes.json();
+            const roles = introspectData?.result?.roles || [];
+            const allowedRoles = ["ROLE_ADMIN", "ROLE_STAFF"];
+            const isAllowed = roles.some(role => allowedRoles.includes(role));
 
-            navigate('/admin');
-            window.location.reload();
+            if (!isAllowed) {
+                toast.error("Tài khoản không có quyền truy cập trang quản trị!");
+                return;
+            }
+
+            localStorage.setItem("adminToken", accessToken);
+            await fetchAdminInfo(accessToken);
+            toast.success("Đăng nhập thành công!");
+            navigate(from);
         } catch (err) {
-            console.error(err);
+            console.error("Lỗi đăng nhập:", err);
             toast.error("Email hoặc mật khẩu không chính xác!");
         }
     };
@@ -76,7 +116,12 @@ function AdLogin() {
                         label="Email"
                         variant="standard"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        onChange={(e) => {
+                            setEmail(e.target.value);
+                            setErrors(prev => ({ ...prev, email: '' }));
+                        }}
+                        error={!!errors.email}
+                        helperText={errors.email}
                     />
                 </Box>
 
@@ -88,7 +133,12 @@ function AdLogin() {
                         variant="standard"
                         type={showPassword ? 'text' : 'password'}
                         value={matKhau}
-                        onChange={(e) => setMatKhau(e.target.value)}
+                        onChange={(e) => {
+                            setMatKhau(e.target.value);
+                            setErrors(prev => ({ ...prev, matKhau: '' }));
+                        }}
+                        error={!!errors.matKhau}
+                        helperText={errors.matKhau}
                         InputProps={{
                             endAdornment: (
                                 <InputAdornment position="end">

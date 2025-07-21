@@ -10,44 +10,39 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface NhanVienRepository extends JpaRepository<User, Integer> {
 
+    boolean existsByEmail(String email);
+
+    Optional<User> findUserByEmail(String email);
+
     @Query("""
-            SELECT new com.example.da_be.dto.response.NhanVienResponse(
-                u.id, u.ma, u.hoTen, u.sdt, u.email, u.matKhau, u.gioiTinh,
-                r.id, u.avatar, u.ngaySinh, u.cccd, u.trangThai)
-            FROM User u
-            JOIN u.roles r
-            WHERE r.id IN (2, 3)
-        """)
+                 SELECT new com.example.da_be.dto.response.NhanVienResponse(
+                     u.id, u.ma, u.hoTen, u.email, u.matKhau, u.sdt, u.ngaySinh,
+                     u.gioiTinh, u.avatar, u.cccd, u.trangThai, r.name)
+                            FROM User u
+                            JOIN u.roles r
+                            WHERE r.name IN ('STAFF', 'ADMIN')
+            """)
     List<NhanVienResponse> getAllNhanVien();
 
     @Query("""
-            SELECT new com.example.da_be.dto.response.NhanVienResponse(
-                u.id, u.ma, u.hoTen, u.sdt, u.email, u.matKhau, u.gioiTinh,
-                r.id, u.avatar, u.ngaySinh, u.cccd, u.trangThai)
-            FROM User u
-            JOIN u.roles r
-            WHERE u.id = :id
-        """)
-    NhanVienResponse findNhanVienById(@Param("id") Integer id);
-
-    @Query("""
-            SELECT new com.example.da_be.dto.response.NhanVienResponse(
-                u.id, u.ma, u.hoTen, u.sdt, u.email, u.matKhau, u.gioiTinh,
-                r.id, u.avatar, u.ngaySinh, u.cccd, u.trangThai)
-            FROM User u
-            JOIN u.roles r
-            WHERE r.id IN (2, 3)
-              AND (:ten IS NULL OR u.hoTen LIKE %:ten%)
-              AND (:email IS NULL OR u.email LIKE %:email%)
-              AND (:sdt IS NULL OR u.sdt LIKE %:sdt%)
-              AND (:gioiTinh IS NULL OR u.gioiTinh = :gioiTinh)
-              AND (:trangThai IS NULL OR u.trangThai = :trangThai)
-            ORDER BY u.id DESC
-        """)
+                SELECT new com.example.da_be.dto.response.NhanVienResponse(
+                    u.id, u.ma, u.hoTen, u.email, u.matKhau, u.sdt, u.ngaySinh,
+                    u.gioiTinh, u.avatar, u.cccd, u.trangThai, r.name)
+            
+                FROM User u
+                JOIN u.roles r
+                WHERE r.name IN ('STAFF', 'ADMIN')
+                  AND (:ten IS NULL OR LOWER(u.hoTen) LIKE LOWER(CONCAT('%', :ten, '%')))
+                  AND (:email IS NULL OR LOWER(u.email) LIKE LOWER(CONCAT('%', :email, '%')))
+                  AND (:sdt IS NULL OR u.sdt LIKE CONCAT('%', :sdt, '%'))
+                  AND (:gioiTinh IS NULL OR u.gioiTinh = :gioiTinh)
+                  AND (:trangThai IS NULL OR u.trangThai = :trangThai)
+            """)
     Page<NhanVienResponse> searchNhanVien(
             @Param("ten") String ten,
             @Param("email") String email,
@@ -56,4 +51,5 @@ public interface NhanVienRepository extends JpaRepository<User, Integer> {
             @Param("trangThai") Integer trangThai,
             Pageable pageable
     );
+
 }

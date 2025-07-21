@@ -1,5 +1,6 @@
-package com.example.da_be.dto.request.User;
+package com.example.da_be.dto.request.NhanVien;
 
+import jakarta.persistence.Column;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.springframework.web.multipart.MultipartFile;
@@ -12,13 +13,13 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class UserUpdateRequest {
+public class NVCreationRequest {
 
     String hoTen;
     String email;
     String sdt;
-    MultipartFile avatar;
     LocalDate ngaySinh;
     Integer gioiTinh;
+    MultipartFile avatar;
     String cccd;
 }

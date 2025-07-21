@@ -7,10 +7,11 @@ import {
     InputLabel,
     FormControl,
     Box,
-    Paper,
     Chip,
     IconButton,
     Tooltip,
+    Typography,
+    Divider,
 } from "@mui/material";
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
 import React, { useState, useEffect } from "react";
@@ -69,7 +70,7 @@ function ListStaff() {
         { field: "sdt", headerName: "SĐT" },
         { field: "ngaySinh", headerName: "Ngày sinh" },
         { field: "gioiTinh", headerName: "Giới tính" },
-        { field: "vaiTro", headerName: "Chức vụ" },
+        { field: "role", headerName: "Chức vụ" },
         {
             field: "trangThai",
             headerName: "Trạng thái",
@@ -159,27 +160,30 @@ function ListStaff() {
     useEffect(() => {
         const fetchStaffData = async () => {
             try {
-                const response = await fetch(`http://localhost:8080/nhan-vien`)
-                const data = await response.json()
+                const response = await fetch(`http://localhost:8080/nhan-vien`);
+                const resData = await response.json();
+
+                const data = resData.result || [];
+
                 const mappedData = data
                     .reverse()
                     .map((item, index) => ({
                         ...item,
                         id: item.id || index + 1000,
                         stt: index + 1,
+                        role: item.role === "ADMIN"
+                            ? "Quản lý"
+                            : item.role === "STAFF"
+                                ? "Nhân viên"
+                                : "Khách hàng",
 
-                        vaiTro:
-                            item.vaiTro === 0
-                                ? "Quản lý"
-                                : item.vaiTro === 1
-                                    ? "Nhân viên"
-                                    : "Khách hàng",
                         gioiTinh: item.gioiTinh === 1 ? "Nam" : "Nữ",
                         trangThai: item.trangThai === 1 ? "Hoạt động" : "Không hoạt động",
                     }));
 
-                setOriginalData(mappedData)
-                setStaff(mappedData)
+                setOriginalData(mappedData);
+                setStaff(mappedData);
+
             } catch (error) {
                 console.error("Error fetching staff data:", error)
             }
@@ -206,143 +210,120 @@ function ListStaff() {
 
 
     return (
-        <div>
-            <Box sx={{ p: 2 }}>
-                <Paper elevation={3} sx={{ p: 2, mb: 2 }}>
-                    <Stack
-                        direction={{ xs: "column", sm: "row" }}
-                        justifyContent="space-between"
-                        alignItems={{ xs: "stretch", sm: "center" }}
-                        spacing={2}
+        <Box sx={{ px: 2 }}>
+            <Typography variant="h5" fontWeight={500} mb={2}>
+                Quản lý nhân viên
+            </Typography>
+
+            <Divider sx={{ mb: 2 }} />
+            {/* <Paper elevation={3} sx={{ p: 2, mb: 2 }}> */}
+            <Stack
+                direction={{ xs: "column", sm: "row" }}
+                justifyContent="space-between"
+                alignItems={{ xs: "stretch", sm: "center" }}
+                spacing={2}
+            >
+                <TextField
+                    sx={{ flex: 1 }}
+                    size="small"
+                    label="Tìm kiếm"
+                    type="search"
+                    placeholder="Tên hoặc email hoặc sđt"
+                    variant="outlined"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                />
+                <Button
+                    variant="outlined"
+                    component={Link}
+                    to="/admin/tai-khoan/nhan-vien/add"
+                >
+                    <PersonAddRoundedIcon sx={{ mr: 1 }} />
+                    Tạo Nhân Viên
+                </Button>
+            </Stack>
+
+            <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={2}
+                mt={2}
+                mb={2}
+            >
+                <FormControl variant="standard" sx={{ minWidth: 120 }}>
+                    <InputLabel id="gender-label">Giới tính</InputLabel>
+                    <Select
+                        labelId="gender-label"
+                        value={gender}
+                        onChange={(e) => setGender(e.target.value)}
+                        label="Giới tính"
                     >
-                        <TextField
-                            sx={{ flex: 1 }}
-                            size="small"
-                            label="Tìm kiếm"
-                            type="search"
-                            placeholder="Tên hoặc email hoặc sđt"
-                            variant="filled"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
-                        <Button
-                            variant="outlined"
-                            component={Link}
-                            to="/admin/tai-khoan/nhan-vien/add"
-                        >
-                            <PersonAddRoundedIcon sx={{ mr: 1 }} />
-                            Tạo Nhân Viên
-                        </Button>
-                    </Stack>
+                        <MenuItem value="">
+                            <em>Tất cả</em>
+                        </MenuItem>
+                        <MenuItem value="Nam">Nam</MenuItem>
+                        <MenuItem value="Nữ">Nữ</MenuItem>
+                    </Select>
+                </FormControl>
+                <FormControl variant="standard" sx={{ minWidth: 160 }}>
+                    <InputLabel id="status-label">Trạng thái</InputLabel>
+                    <Select labelId="status-label" label="Trạng thái" value={status}
+                        onChange={(e) => setStatus(e.target.value)}>
+                        <MenuItem value="">
+                            <em>Tất cả</em>
+                        </MenuItem>
+                        <MenuItem value="Hoạt động">Hoạt động</MenuItem>
+                        <MenuItem value="Không hoạt động">Không hoạt động</MenuItem>
+                    </Select>
+                </FormControl>
+            </Stack>
+            <Box
+                sx={{
+                    minWidth: 1000,
+                    height: 400,
+                    "& .MuiDataGrid-cell:focus": { outline: "none" },
+                    "& .MuiDataGrid-cell:focus-within": { outline: "none" },
+                }}
+            >
+                <DataGrid
+                    rows={staff}
+                    columns={columns}
+                    initialState={{
+                        pagination: {
+                            paginationModel: {
+                                pageSize: 5,
+                            },
+                        },
+                    }}
+                    pageSizeOptions={[5]}
+                    disableRowSelectionOnClick
+                    localeText={{
+                        noRowsLabel: "không có dữ liệu",
+                    }}
+                    sx={{
+                        border: 0,
+                        "& .MuiDataGrid-cell:focus": {
+                            outline: "none !important",
+                        },
+                        "& .MuiDataGrid-cell:focus-within": {
+                            outline: "none !important",
+                        },
+                        "& .MuiDataGrid-cell:active": {
+                            outline: "none !important",
+                        },
+                        "& .MuiDataGrid-columnHeader:focus": {
+                            outline: "none !important",
+                        },
+                        "& .MuiDataGrid-columnHeader:focus-within": {
+                            outline: "none !important",
+                        },
+                        "& .MuiDataGrid-columnHeader:active": {
+                            outline: "none !important",
+                        },
+                    }}
+                />
 
-                    <Stack
-                        direction={{ xs: "column", sm: "row" }}
-                        spacing={2}
-                        mt={2}
-                        mb={2}
-                    >
-                        <FormControl variant="standard" sx={{ minWidth: 120 }}>
-                            <InputLabel id="gender-label">Giới tính</InputLabel>
-                            <Select
-                                labelId="gender-label"
-                                value={gender}
-                                onChange={(e) => setGender(e.target.value)}
-                                label="Giới tính"
-                            >
-                                <MenuItem value="">
-                                    <em>Tất cả</em>
-                                </MenuItem>
-                                <MenuItem value="Nam">Nam</MenuItem>
-                                <MenuItem value="Nữ">Nữ</MenuItem>
-                            </Select>
-                        </FormControl>
-
-                        {/* <FormControl variant="standard" sx={{ minWidth: 140 }}>
-                            <InputLabel id="role-label">Chức vụ</InputLabel>
-                            <Select
-                                labelId="role-label"
-                                value={role}
-                                onChange={handleRoleChange}
-                                label="Chức vụ"
-                            >
-                                <MenuItem value="">
-                                    <em>Tất cả</em>
-                                </MenuItem>
-                                <MenuItem value="Quản lý">Quản lý</MenuItem>
-                                <MenuItem value="Nhân viên">Nhân viên</MenuItem>
-                            </Select>
-                        </FormControl> */}
-
-                        <FormControl variant="standard" sx={{ minWidth: 160 }}>
-                            <InputLabel id="status-label">Trạng thái</InputLabel>
-                            <Select labelId="status-label" label="Trạng thái" value={status}
-                                onChange={(e) => setStatus(e.target.value)}>
-                                <MenuItem value="">
-                                    <em>Tất cả</em>
-                                </MenuItem>
-                                <MenuItem value="Hoạt động">Hoạt động</MenuItem>
-                                <MenuItem value="Không hoạt động">Không hoạt động</MenuItem>
-                            </Select>
-                        </FormControl>
-                    </Stack>
-
-                    <Box
-                    // sx={{
-                    //     width: "100%",
-                    //     overflowX: "auto",
-                    // }}
-                    >
-                        <Box
-                            sx={{
-                                minWidth: 1000,
-                                height: 400,
-                                "& .MuiDataGrid-cell:focus": { outline: "none" },
-                                "& .MuiDataGrid-cell:focus-within": { outline: "none" },
-                            }}
-                        >
-                            <DataGrid
-                                rows={staff}
-                                columns={columns}
-                                initialState={{
-                                    pagination: {
-                                        paginationModel: {
-                                            pageSize: 5,
-                                        },
-                                    },
-                                }}
-                                pageSizeOptions={[5]}
-                                disableRowSelectionOnClick
-                                localeText={{
-                                    noRowsLabel: "không có dữ liệu",
-                                }}
-                                sx={{
-                                    border: 0,
-                                    "& .MuiDataGrid-cell:focus": {
-                                        outline: "none !important",
-                                    },
-                                    "& .MuiDataGrid-cell:focus-within": {
-                                        outline: "none !important",
-                                    },
-                                    "& .MuiDataGrid-cell:active": {
-                                        outline: "none !important",
-                                    },
-                                    "& .MuiDataGrid-columnHeader:focus": {
-                                        outline: "none !important",
-                                    },
-                                    "& .MuiDataGrid-columnHeader:focus-within": {
-                                        outline: "none !important",
-                                    },
-                                    "& .MuiDataGrid-columnHeader:active": {
-                                        outline: "none !important",
-                                    },
-                                }}
-                            />
-
-                        </Box>
-                    </Box>
-                </Paper>
             </Box>
-        </div>
+        </Box>
     );
 }
 export default ListStaff;

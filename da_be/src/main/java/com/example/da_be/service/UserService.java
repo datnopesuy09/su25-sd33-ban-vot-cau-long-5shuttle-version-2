@@ -19,6 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -34,21 +35,33 @@ public class UserService {
     RoleRepository roleRepository;
 
     public UserResponse createUser(UserCreationRequest request){
-        if(userRepository.existsTaiKhoanByEmail(request.getEmail()))
+        if(userRepository.existsByEmail(request.getEmail()))
             throw new AppException(ErrorCode.EMAIL_EXISTS);
 
         User user = userMapper.toUser(request);
 
+        user.setTrangThai(1);
+
         user.setMatKhau(passwordEncoder.encode(user.getMatKhau()));
 
-        var userRole = roleRepository.findByName("Staff")
+        var userRole = roleRepository.findByName("USER")
                 .orElseThrow(() -> new AppException(ErrorCode.ROLENAME_NOT_EXISTS));
 
         Set<Role> roles = new HashSet<>();
         roles.add(userRole);
         user.setRoles(roles);
 
-        return userMapper.toUserResponse(userRepository.save(user));
+        // Bước 1: Lưu lần đầu để lấy ID
+        user = userRepository.save(user);
+
+        // Bước 2: Sinh mã KH + id định dạng KH00001
+        String maKH = String.format("KH%05d", user.getId());
+        user.setMa(maKH);
+
+        // Bước 3: Lưu lại lần 2 để cập nhật mã
+        user = userRepository.save(user);
+
+        return userMapper.toUserResponse(user);
     }
 
     public UserResponse updateUser(UserUpdateRequest request, Integer userId){
@@ -56,9 +69,13 @@ public class UserService {
                 .orElseThrow(() -> new AppException(ErrorCode.USERID_NOT_EXISTS));
 
         userMapper.updateUser(user, request);
+
+        if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
+            String fileName = request.getAvatar().getOriginalFilename();
+            user.setAvatar(fileName);
+        }
+
         userRepository.save(user);
-
-
         return userMapper.toUserResponse(user);
     }
 
@@ -69,6 +86,16 @@ public class UserService {
         User user = userRepository.findUserByEmail(email)
                 .orElseThrow(() -> new RuntimeException(ErrorCode.EMAIL_NOT_EXISTS.getMessage()));
 
-        return userMapper.toUserResponse(user);
+        UserResponse response = userMapper.toUserResponse(user);
+
+        // 🧪 Test:
+        System.out.println("Mapped ID: " + response.getId());
+
+        return response;
     }
+
+    public boolean checkEmailExists(String email) {
+        return userRepository.existsByEmail(email);
+    }
+
 }

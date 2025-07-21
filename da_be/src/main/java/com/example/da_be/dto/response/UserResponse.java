@@ -2,6 +2,9 @@ package com.example.da_be.dto.response;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -18,5 +21,8 @@ public class UserResponse {
     String matKhau;
     String sdt;
     String avatar;
+    LocalDate ngaySinh;
+    Integer gioiTinh;
     String cccd;
+    Integer trangThai;
 }

@@ -10,6 +10,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -64,11 +65,18 @@ public class UserController {
                 .build();
     }
 
-    @PutMapping("/{userId}")
-    ApiResponse<UserResponse> updateUser(@PathVariable("userId") Integer userId, @RequestBody UserUpdateRequest request) {
+    @PutMapping(value = "/{userId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    ApiResponse<UserResponse> updateUser(@PathVariable("userId") Integer userId, @ModelAttribute UserUpdateRequest request) {
         return ApiResponse.<UserResponse>builder()
                 .result(userService.updateUser(request, userId))
                 .code(1000)
+                .build();
+    }
+
+    @GetMapping("/check-email")
+    ApiResponse<Boolean> checkEmailExists(@RequestParam String email) {
+        return ApiResponse.<Boolean>builder()
+                .result(userService.checkEmailExists(email))
                 .build();
     }
 }

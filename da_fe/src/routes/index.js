@@ -46,6 +46,11 @@ import UpdatePhieuGiamGia from '../pages/admin/Giảm Giá/PhieuGiamGia/update.j
 import UserOrder from '../pages/users/TaiKhoan/order.jsx';
 import OrderDetail from '../pages/users/TaiKhoan/orderDetail.jsx';
 import ThongKe from '../pages/admin/HoaDon/ThongKe';
+import ResponsiveAppBar from '../pages/admin';
+import ChangePassword from '../pages/users/TaiKhoan/changePass.jsx';
+import AddressUser from '../pages/users/TaiKhoan/userAdress.jsx';
+import MyVoucher from '../pages/users/TaiKhoan/myVoucher.jsx';
+import AdminInfo from '../pages/admin/ad-info.jsx';
 
 
 // Public routes
@@ -86,16 +91,22 @@ const publicRoutes = [
     { path: '/admin/tai-khoan/nhan-vien', component: ListStaff, layout: AdminLayout },
     { path: '/admin/tai-khoan/nhan-vien/add', component: AddStaff, layout: AdminLayout },
     { path: '/admin/tai-khoan/nhan-vien/edit/:id', component: EditStaff, layout: AdminLayout },
-    { path: '/admin/login', component: AdLogin },
+    { path: '/admin/login', component: AdLogin, layout: null },
+    { path: '/admin/tai-khoan-ca-nhan', component: AdminInfo, layout: AdminLayout },
     { path: '/profile', component: Profile, children: [
-        { path: 'user', component: UserInfo },
+        { path: 'user', component: UserInfo, layout: null },
         { path: 'order', component: UserOrder, layout: null},
         { path: 'order-detail/:id', component: OrderDetail, layout: null },
+        { path: 'change-password', component: ChangePassword, layout: null }, 
+        { path: 'address', component: AddressUser, layout: null },
+        { path: 'my-voucher', component: MyVoucher, layout: null }
     ] },
     { path: '/login', component: Sign },
 
     { path: '/forgot-password', component: ForgotPassword },
     { path: '/admin/thong-ke', component: ThongKe, layout: AdminLayout },
+
+    { path: '/test', component: ResponsiveAppBar, layout: null }
 
 
 ];

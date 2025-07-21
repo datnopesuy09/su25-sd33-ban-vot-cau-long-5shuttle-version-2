@@ -1,271 +1,230 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from 'react';
 import {
-  Avatar,
-  Box,
-  Button,
-  Grid,
-  Radio,
-  RadioGroup,
-  FormControlLabel,
-  FormControl,
-  FormLabel,
   TextField,
   Typography,
-  Paper,
-  Container,
+  Button,
+  Box,
+  Grid,
+  Avatar,
   Divider,
-} from "@mui/material";
-import Swal from "sweetalert2";
-import axios from "axios";
+  Stack,
+  FormControl,
+  RadioGroup,
+  FormControlLabel,
+  Radio
+} from '@mui/material';
+import { useUserAuth } from '../../../contexts/userAuthContext';
+import Swal from 'sweetalert2';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-export default function UserInfo() {
-  const [previewImage, setPreviewImage] = useState(null);
-  const [khachHang, setKhachHang] = useState({
-    id: 1,
-    hoTen: "",
-    email: "",
-    sdt: "",
-    ngaySinh: "",
-    gioiTinh: 0,
-    avatar: "",
-  });
-
-  const [errorsKH, setErrorsKH] = useState({
-    fullName: "",
-    phoneNumber: "",
-    dateBirth: "",
-    gender: "",
+const UserInfo = () => {
+  const { user, setUser } = useUserAuth();
+  const [formData, setFormData] = useState({
+    hoTen: '',
+    email: '',
+    sdt: '',
+    ngaySinh: '',
+    gioiTinh: '',
+    avatar: null
   });
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      axios.get("http://localhost:8080/api/tai-khoan/my-info", {
+    if (user) {
+      setFormData({
+        hoTen: user.hoTen || '',
+        email: user.email || '',
+        sdt: user.sdt || '',
+        ngaySinh: user.ngaySinh || '',
+        gioiTinh: String(user.gioiTinh ?? ''),
+        avatar: null
+      });
+    }
+  }, [user]);
+
+  const handleChange = (e) => {
+    const { name, value, files } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: files ? files[0] : value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const confirm = await Swal.fire({
+      title: 'Xác nhận',
+      text: 'Bạn có chắc chắn muốn cập nhật thông tin?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Cập nhật',
+      cancelButtonText: 'Hủy',
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    try {
+      const token = localStorage.getItem("userToken");
+      const form = new FormData();
+
+      form.append("hoTen", formData.hoTen);
+      form.append("email", formData.email);
+      form.append("sdt", formData.sdt);
+      form.append("ngaySinh", formData.ngaySinh);
+      form.append("gioiTinh", parseInt(formData.gioiTinh));
+      if (formData.avatar) {
+        form.append("avatar", formData.avatar);
+      }
+
+      const res = await fetch(`http://localhost:8080/users/${user.id}`, {
+        method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      }).then((res) => {
-        setKhachHang(res.data);
-        setPreviewImage(res.data.avatar);
-      }).catch((error) => {
-        Swal.fire("Lỗi", "Không thể tải thông tin người dùng", "error");
-      });
-    }
-  }, []);
-
-  const handleInputChange = (event) => {
-    setKhachHang({ ...khachHang, [event.target.name]: event.target.value });
-  };
-
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setKhachHang({ ...khachHang, avatar: file });
-      const reader = new FileReader();
-      reader.onload = () => {
-        setPreviewImage(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleUpdateCustomer = async (event) => {
-    event.preventDefault();
-    const newErrors = {};
-    let check = 0;
-    const currentDate = new Date();
-    const minBirthYear = 1900;
-    const cleanedFullName = khachHang.hoTen.trim();
-
-    if (!cleanedFullName) {
-      newErrors.fullName = "*Bạn chưa nhập họ tên";
-      check++;
-    } else if (cleanedFullName.length > 100) {
-      newErrors.fullName = "*Họ tên không dài quá 100 ký tự";
-      check++;
-    } else if (/[!@#$%^&*(),.?":{}|<>]/.test(cleanedFullName)) {
-      newErrors.fullName = "*Họ tên không chứa ký tự đặc biệt";
-      check++;
-    }
-
-    if (!khachHang.sdt.trim()) {
-      newErrors.phoneNumber = "*Bạn chưa nhập số điện thoại";
-      check++;
-    } else if (!/^(0[1-9][0-9]{8})$/.test(khachHang.sdt.trim())) {
-      newErrors.phoneNumber = "*Số điện thoại không hợp lệ";
-      check++;
-    }
-
-    if (!khachHang.ngaySinh) {
-      newErrors.dateBirth = "*Bạn chưa nhập ngày sinh";
-      check++;
-    } else {
-      const ngaySinh = new Date(khachHang.ngaySinh);
-      if (isNaN(ngaySinh.getTime())) {
-        newErrors.dateBirth = "*Ngày sinh không hợp lệ";
-        check++;
-      } else if (ngaySinh.getFullYear() < minBirthYear) {
-        newErrors.dateBirth = "*Năm sinh không hợp lệ";
-        check++;
-      } else if (ngaySinh > currentDate) {
-        newErrors.dateBirth = "*Ngày sinh không được lớn hơn ngày hiện tại";
-        check++;
-      }
-    }
-
-    if (khachHang.gioiTinh === null) {
-      newErrors.gender = "*Bạn chưa chọn giới tính";
-      check++;
-    }
-
-    if (check > 0) {
-      setErrorsKH(newErrors);
-      return;
-    }
-
-    try {
-      const formData = new FormData();
-      formData.append("hoTen", khachHang.hoTen);
-      formData.append("email", khachHang.email);
-      formData.append("sdt", khachHang.sdt);
-      formData.append("ngaySinh", khachHang.ngaySinh);
-      formData.append("gioiTinh", khachHang.gioiTinh);
-      if (khachHang.avatar instanceof File) {
-        formData.append("avatar", khachHang.avatar);
-      }
-
-      await axios.put(`http://localhost:8080/api/tai-khoan/updateTaiKhoan/${khachHang.id}`, formData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+        body: form,
       });
 
-      Swal.fire("Thành công", "Cập nhật tài khoản thành công!", "success");
-    } catch (error) {
-      Swal.fire("Lỗi", "Có lỗi xảy ra khi cập nhật tài khoản!", "error");
+      if (!res.ok) throw new Error("Cập nhật thất bại");
+
+      const data = await res.json();
+      setUser(data.result);
+      toast.success("Cập nhật thành công!");
+    } catch (err) {
+      console.error("Lỗi cập nhật:", err);
+      toast.error("Đã xảy ra lỗi khi cập nhật!");
     }
   };
+
+
+
+  if (!user) {
+    return <Typography>Đang tải thông tin người dùng...</Typography>;
+  }
 
   return (
-    <Container maxWidth="md" sx={{ py: 5 }}>
-      <Typography variant="h5" fontWeight="bold" gutterBottom>
+    <Box>
+      <Typography variant="h5" fontWeight={500} mb={1}>
         Hồ sơ của tôi
       </Typography>
-      <Typography variant="body2" color="text.secondary" gutterBottom>
+      <Typography variant="body2" color="text.secondary" mb={1}>
         Quản lý thông tin hồ sơ tài khoản
       </Typography>
-      <Divider sx={{ my: 3 }} />
 
-      <Grid container spacing={4}>
-        <Grid item xs={12} md={8}>
-          <Box component="form" noValidate autoComplete="off" sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              label="Tên khách hàng"
-              name="hoTen"
-              fullWidth
-              value={khachHang.hoTen}
-              onChange={(e) => {
-                handleInputChange(e);
-                setErrorsKH({ ...errorsKH, fullName: "" });
-              }}
-              error={!!errorsKH.fullName}
-              helperText={errorsKH.fullName}
-            />
-            <TextField
-              label="Email"
-              value={khachHang.email}
-              fullWidth
-              disabled
-            />
-            <TextField
-              label="Số điện thoại"
-              name="sdt"
-              fullWidth
-              value={khachHang.sdt}
-              onChange={(e) => {
-                handleInputChange(e);
-                setErrorsKH({ ...errorsKH, phoneNumber: "" });
-              }}
-              error={!!errorsKH.phoneNumber}
-              helperText={errorsKH.phoneNumber}
-            />
-            <TextField
-              type="date"
-              label="Ngày sinh"
-              name="ngaySinh"
-              InputLabelProps={{ shrink: true }}
-              fullWidth
-              value={khachHang.ngaySinh}
-              onChange={(e) => {
-                handleInputChange(e);
-                setErrorsKH({ ...errorsKH, dateBirth: "" });
-              }}
-              error={!!errorsKH.dateBirth}
-              helperText={errorsKH.dateBirth}
-            />
-            <FormControl error={!!errorsKH.gender}>
-              <FormLabel>Giới tính</FormLabel>
-              <RadioGroup
-                row
-                name="gioiTinh"
-                value={khachHang.gioiTinh}
-                onChange={(e) => {
-                  setKhachHang({ ...khachHang, gioiTinh: parseInt(e.target.value) });
-                  setErrorsKH({ ...errorsKH, gender: "" });
-                }}
-              >
-                <FormControlLabel value={0} control={<Radio />} label="Nam" />
-                <FormControlLabel value={1} control={<Radio />} label="Nữ" />
-              </RadioGroup>
-              {errorsKH.gender && (
-                <Typography variant="caption" color="error">
-                  {errorsKH.gender}
+      <Divider sx={{ mb: 2 }} />
+
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="md:col-span-1 space-y-4">
+            <Stack spacing={2}>
+              <Box>
+                <Typography>
+                  Họ tên
                 </Typography>
-              )}
-            </FormControl>
-
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleUpdateCustomer}
-              sx={{ mt: 2, alignSelf: "flex-start" }}
-            >
-              Lưu
-            </Button>
-          </Box>
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <Paper elevation={2} sx={{ p: 3, textAlign: "center" }}>
-            <label htmlFor="avatar-upload">
-              <input
-                hidden
-                id="avatar-upload"
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-              />
+                <TextField
+                  id="outlined-basic"
+                  variant="outlined"
+                  type="text"
+                  size="small"
+                  name="hoTen"
+                  value={formData.hoTen}
+                  onChange={handleChange}
+                  fullWidth
+                />
+              </Box>
+              <Box>
+                <Typography>
+                  Email
+                </Typography>
+                <TextField
+                  id="outlined-basic"
+                  variant="outlined"
+                  type="text"
+                  size="small"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  fullWidth
+                />
+              </Box>
+              <Box>
+                <Typography>
+                  Số điện thoại
+                </Typography>
+                <TextField
+                  id="outlined-basic"
+                  variant="outlined"
+                  type="text"
+                  size="small"
+                  name="sdt"
+                  value={formData.sdt}
+                  onChange={handleChange}
+                  fullWidth
+                />
+              </Box>
+              <Box>
+                <Typography>
+                  Ngày sinh
+                </Typography>
+                <TextField
+                  id="outlined-basic"
+                  variant="outlined"
+                  size="small"
+                  name="ngaySinh"
+                  type="date"
+                  value={formData.ngaySinh}
+                  onChange={handleChange}
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Box>
+              <Box>
+                <Typography>
+                  Giới tính
+                </Typography>
+                <FormControl component="fieldset">
+                  <RadioGroup
+                    row
+                    name="gioiTinh"
+                    value={formData.gioiTinh}
+                    onChange={handleChange}>
+                    <FormControlLabel value="0" control={<Radio />} label="Nam" />
+                    <FormControlLabel value="1" control={<Radio />} label="Nữ" />
+                  </RadioGroup>
+                </FormControl>
+              </Box>
+              <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                sx={{ mt: 2, width: 'fit-content', alignSelf: 'flex-start' }}>
+                Cập nhật
+              </Button>
+            </Stack>
+          </div>
+          <div>
+            <Box textAlign="center">
               <Avatar
-                src={previewImage}
-                sx={{ width: 128, height: 128, margin: "auto", cursor: "pointer" }}
+                src={
+                  formData.avatar
+                    ? URL.createObjectURL(formData.avatar)
+                    : user?.avatar || ''
+                }
+                sx={{ width: 150, height: 150, mx: 'auto', mb: 2 }}
               />
-            </label>
-            <Button
-              variant="outlined"
-              sx={{ mt: 2 }}
-              onClick={() => document.getElementById("avatar-upload").click()}
-            >
-              Chọn ảnh
-            </Button>
-            <Typography variant="caption" display="block" mt={1}>
-              Dung lượng tối đa 1 MB
-            </Typography>
-            <Typography variant="caption" display="block">
-              Định dạng: JPEG, PNG
-            </Typography>
-          </Paper>
-        </Grid>
-      </Grid>
-    </Container>
+              <Button variant="outlined" component="label">
+                Chọn ảnh
+                <input type="file" hidden name="avatar" accept="image/*" onChange={handleChange} />
+              </Button>
+              <Typography variant="caption" display="block" mt={1}>
+                Dung lượng tối đa 1 MB <br /> Định dạng: JPEG, PNG
+              </Typography>
+            </Box>
+          </div>
+        </div>
+      </form>
+    </Box>
   );
-}
+};
+
+export default UserInfo;

@@ -29,11 +29,12 @@ function DefaultLayout({ children }) {
     // }, []);
 
     return (
-        <div className="DefaultLayout">
+        <div className="flex flex-col min-h-screen bg-[#f5f5f5]">
             <Navbar />
-            <div className="container mt-[70px]">
-                <div className="content">{children}</div>
-            </div>
+            {/* Main content */}
+            <main className="flex-1 pt-[90px]">
+                {children}
+            </main>
             <Footer />
         </div>
     );
