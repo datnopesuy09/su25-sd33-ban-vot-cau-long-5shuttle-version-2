@@ -11,11 +11,13 @@ public class LichSuDonHang {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(name = "IdUser")
-    private Integer idTaiKhoan;
+    @ManyToOne
+    @JoinColumn(name = "IdUser")
+    private User user;
 
-    @Column(name = "IdHoaDon")
-    private Integer idHoaDon;
+    @ManyToOne
+    @JoinColumn(name = "IdHoaDon")
+    private HoaDon hoaDon;
 
     @Column(name = "MoTa")
     private String moTa;
@@ -38,20 +40,20 @@ public class LichSuDonHang {
         this.id = id;
     }
 
-    public Integer getIdTaiKhoan() {
-        return idTaiKhoan;
+    public User getUser() {
+        return user;
     }
 
-    public void setIdTaiKhoan(Integer idTaiKhoan) {
-        this.idTaiKhoan = idTaiKhoan;
+    public void setUser(User user) {
+        this.user = user;
     }
 
-    public Integer getIdHoaDon() {
-        return idHoaDon;
+    public HoaDon getHoaDon() {
+        return hoaDon;
     }
 
-    public void setIdHoaDon(Integer idHoaDon) {
-        this.idHoaDon = idHoaDon;
+    public void setHoaDon(HoaDon hoaDon) {
+        this.hoaDon = hoaDon;
     }
 
     public String getMoTa() {

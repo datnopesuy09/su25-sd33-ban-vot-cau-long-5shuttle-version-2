@@ -1,5 +1,6 @@
 package com.example.da_be.dto.response;
 
+import com.example.da_be.entity.SanPhamCT;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

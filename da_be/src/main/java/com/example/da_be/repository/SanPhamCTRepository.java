@@ -1,15 +1,11 @@
 package com.example.da_be.repository;
 
 
-
-import com.example.da_be.entity.SanPhamCT;
-
 import com.example.da_be.dto.SanPhamCTListDTOo;
 import com.example.da_be.entity.SanPhamCT;
 import com.example.da_be.entity.SanPham;
 
 import com.example.da_be.entity.SanPhamKhuyenMai;
-
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -23,7 +19,6 @@ public interface SanPhamCTRepository extends JpaRepository<SanPhamCT, Integer> {
     Optional<SanPhamCT> findById(Long id);
 
     List<SanPhamCT> findBySanPham_Id(Integer productId);
-
 
     @Query("SELECT spkm FROM SanPhamKhuyenMai spkm WHERE spkm.sanPhamCT.id = :sanPhamCTId AND spkm.khuyenMai.trangThai = 1")
     List<SanPhamKhuyenMai> findActivePromotionsBySanPhamCTId(@Param("sanPhamCTId") Integer sanPhamCTId);
@@ -41,5 +36,6 @@ public interface SanPhamCTRepository extends JpaRepository<SanPhamCT, Integer> {
             "WHERE km.trangThai = 1", nativeQuery = true)
     List<SanPhamCTListDTOo> findAllWithPromotions();
 
-
+    @Query("SELECT spct FROM SanPhamCT spct WHERE spct.sanPham.id = :idSanPham")
+    List<SanPhamCT> findBySanPhamId(@Param("idSanPham") Long idSanPham);
 }

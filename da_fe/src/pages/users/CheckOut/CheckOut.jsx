@@ -1,174 +1,188 @@
+import { useEffect, useState } from 'react';
 import axios from 'axios';
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import swal from 'sweetalert';
+import { useNavigate, useLocation } from 'react-router-dom';
 import ShippingInfo from './ShippingInfo';
 import OrderSummary from './OrderSummary';
-import DiscountModal from './DiscountModal'
+import DiscountModal from './DiscountModal';
 
 const CheckOut = () => {
-    const [carts, setCarts] = useState([]);
-    const [totalPrice, setTotalPrice] = useState(0);
-    const [promoCode, setPromoCode] = useState('');
-    const [promoDiscount, setPromoDiscount] = useState(0);
-    const [discounts, setDiscounts] = useState([]);
-    const [selectedDiscount, setSelectedDiscount] = useState(null);
-    const idTaiKhoan = 1;
-
-    const [provinces, setProvinces] = useState([]);
-    const [districts, setDistricts] = useState([]);
-    const [wards, setWards] = useState([]);
     const navigate = useNavigate();
-
-    const [showModal, setShowModal] = useState(false);
-
+    const location = useLocation();
+    // Giả sử idTaiKhoan được truyền qua location.state hoặc dùng giá trị mặc định
+    const idTaiKhoan = location.state?.idTaiKhoan || 1; // Mặc định idTaiKhoan = 1 để test
+    const [carts, setCarts] = useState([]);
     const [formData, setFormData] = useState({
         addressName: '',
         addressDetail: '',
+        mobile: '',
         province: '',
         district: '',
         ward: '',
-        mobile: '',
+        provinceName: '',
+        districtName: '',
+        wardName: '',
     });
     const [errors, setErrors] = useState({});
+    const [provinces, setProvinces] = useState([]);
+    const [districts, setDistricts] = useState([]);
+    const [wards, setWards] = useState([]);
+    const [discounts, setDiscounts] = useState([]);
+    const [selectedDiscount, setSelectedDiscount] = useState(null);
+    const [promoCode, setPromoCode] = useState('');
+    const [promoDiscount, setPromoDiscount] = useState(0);
+    const [totalPrice, setTotalPrice] = useState(0);
+    const [discountedPrice, setDiscountedPrice] = useState(0);
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
+    const [showModal, setShowModal] = useState(false);
+    const [shippingFee, setShippingFee] = useState(0);
 
-    const handleSelectDiscount = (discount) => {
-    // Kiểm tra điều kiện tối thiểu
-    if (totalPrice < discount.dieuKienNhoNhat) {
-        swal('Lỗi', `Đơn hàng phải có tổng giá trị từ ${discount.dieuKienNhoNhat.toLocaleString()} VNĐ`, 'error');
-        return;
-    }
-
-    // Tính toán giảm giá và kiểm tra giá trị tối đa
-    let discountAmount = (totalPrice * discount.giaTri) / 100;
-    
-    // Đảm bảo không vượt quá giá trị tối đa
-    if (discountAmount > discount.giaTriMax) {
-        discountAmount = discount.giaTriMax;
-        swal('Thông báo', `Giảm giá tối đa là ${discount.giaTriMax.toLocaleString()} VNĐ`, 'info');
-    }
-
-    setSelectedDiscount(discount);
-    setPromoDiscount(discountAmount);
-    setPromoCode(discount.ma);
-    setShowModal(false);
-};
-
-
-    const handleDeselectDiscount = () => {
-    setSelectedDiscount(null);
-    setPromoDiscount(0); // Reset the discount
-};
+    useEffect(() => {
+        fetchCart();
+        fetchProvinces();
+        fetchDiscounts();
+    }, [idTaiKhoan]);
 
     const fetchCart = async () => {
         try {
             const res = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}`);
             setCarts(res.data);
-            const totalRes = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}/total`);
-            setTotalPrice(totalRes.data);
+            const total = res.data.reduce((sum, item) => {
+                const price = item.sanPhamCT.giaKhuyenMai || item.sanPhamCT.donGia;
+                return sum + price * item.soLuong;
+            }, 0);
+            setTotalPrice(total);
+            setDiscountedPrice(total);
         } catch (error) {
             console.error('Lỗi lấy giỏ hàng:', error);
+            swal('Lỗi', 'Không thể lấy giỏ hàng. Vui lòng thử lại.', 'error');
         }
     };
 
     const fetchProvinces = async () => {
         try {
-            const res = await axios.get('https://provinces.open-api.vn/api/');
+            const res = await axios.get('https://provinces.open-api.vn/api/p/');
             setProvinces(res.data);
         } catch (error) {
             console.error('Lỗi lấy danh sách tỉnh:', error);
+            swal('Lỗi', 'Không thể lấy danh sách tỉnh/thành phố.', 'error');
+        }
+    };
+
+    const fetchDistricts = async (provinceCode) => {
+        try {
+            const res = await axios.get(`https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`);
+            setDistricts(res.data.districts);
+            setWards([]);
+            setShippingFee(provinceCode === 'someProvinceCode' ? 30000 : 50000);
+        } catch (error) {
+            console.error('Lỗi lấy danh sách quận/huyện:', error);
+            swal('Lỗi', 'Không thể lấy danh sách quận/huyện.', 'error');
+        }
+    };
+
+    const fetchWards = async (districtCode) => {
+        try {
+            const res = await axios.get(`https://provinces.open-api.vn/api/d/${districtCode}?depth=2`);
+            setWards(res.data.wards);
+        } catch (error) {
+            console.error('Lỗi lấy danh sách xã/phường:', error);
+            swal('Lỗi', 'Không thể lấy danh sách xã/phường.', 'error');
         }
     };
 
     const fetchDiscounts = async () => {
         try {
             const res = await axios.get('http://localhost:8080/api/phieu-giam-gia/hien-thi');
-            setDiscounts(res.data);
+            const validDiscounts = res.data.filter(
+                (discount) => new Date(discount.ngayKetThuc) >= new Date() && discount.soLuong > 0,
+            );
+            setDiscounts(validDiscounts);
         } catch (error) {
             console.error('Lỗi lấy phiếu giảm giá:', error);
+            swal('Lỗi', 'Không thể lấy danh sách phiếu giảm giá.', 'error');
         }
     };
 
-    const fetchDistricts = async (provinceCode) => {
-        if (!provinceCode) return;
-        try {
-            const res = await axios.get(`https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`);
-            if (res.data && res.data.districts) {
-                setDistricts(res.data.districts);
-            }
-        } catch (error) {
-            console.error('Lỗi lấy danh sách quận/huyện:', error);
+    const validateDiscount = (discount, totalPrice) => {
+        if (totalPrice < discount.dieuKienNhoNhat) {
+            swal('Lỗi', `Đơn hàng phải có tổng giá trị từ ${discount.dieuKienNhoNhat.toLocaleString()} VNĐ`, 'error');
+            return null;
+        }
+        let discountAmount = (totalPrice * discount.giaTri) / 100;
+        if (discountAmount > discount.giaTriMax) {
+            discountAmount = discount.giaTriMax;
+            swal('Thông báo', `Giảm giá tối đa là ${discount.giaTriMax.toLocaleString()} VNĐ`, 'info');
+        }
+        return discountAmount;
+    };
+
+    const handleSelectDiscount = (discount) => {
+        const discountAmount = validateDiscount(discount, totalPrice);
+        if (discountAmount !== null) {
+            setSelectedDiscount(discount);
+            setPromoDiscount(discountAmount);
+            setPromoCode(discount.ma);
+            setShowModal(false);
+            setDiscountedPrice(totalPrice - discountAmount + shippingFee);
         }
     };
 
-    const fetchWards = async (districtCode) => {
-        if (!districtCode) return;
-        try {
-            const res = await axios.get(`https://provinces.open-api.vn/api/d/${districtCode}?depth=2`);
-            if (res.data && res.data.wards) {
-                setWards(res.data.wards);
-            }
-        } catch (error) {
-            console.error('Lỗi lấy danh sách xã/phường:', error);
-        }
+    const handleRemoveDiscount = () => {
+        setSelectedDiscount(null);
+        setPromoDiscount(0);
+        setPromoCode('');
+        setDiscountedPrice(totalPrice + shippingFee);
     };
-
-    useEffect(() => {
-        fetchCart();
-        fetchProvinces();
-        fetchDiscounts(); // Fetch discounts on component mount
-    }, []);
-
-    useEffect(() => {
-        if (formData.province) {
-            fetchDistricts(formData.province);
-        }
-    }, [formData.province]);
-
-    useEffect(() => {
-        if (formData.district) {
-            fetchWards(formData.district);
-        }
-    }, [formData.district]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setFormData((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
-        // Clear error when user starts typing
+        setFormData((prev) => {
+            const newFormData = { ...prev, [name]: value };
+            if (name === 'province') {
+                newFormData.district = '';
+                newFormData.ward = '';
+                newFormData.provinceName = provinces.find((p) => p.code === value)?.name || '';
+                setDistricts([]);
+                setWards([]);
+                fetchDistricts(value);
+            } else if (name === 'district') {
+                newFormData.ward = '';
+                newFormData.districtName = districts.find((d) => d.code === value)?.name || '';
+                setWards([]);
+                fetchWards(value);
+            } else if (name === 'ward') {
+                newFormData.wardName = wards.find((w) => w.code === value)?.name || '';
+            }
+            return newFormData;
+        });
         if (errors[name]) {
-            setErrors((prev) => ({
-                ...prev,
-                [name]: false,
-            }));
+            setErrors((prev) => ({ ...prev, [name]: false }));
         }
     };
-    const discountedPrice = totalPrice - promoDiscount;
-
 
     const validateForm = () => {
         const newErrors = {};
-        if (!formData.addressName.trim()) newErrors.addressName = true;
-        if (!formData.addressDetail.trim()) newErrors.addressDetail = true;
-        if (!formData.province) newErrors.province = true;
-        if (!formData.district) newErrors.district = true;
-        if (!formData.ward) newErrors.ward = true;
-        if (!formData.mobile.trim()) newErrors.mobile = true;
-
+        if (!formData.addressName.trim()) newErrors.addressName = 'Họ và tên là bắt buộc';
+        if (!formData.addressDetail.trim()) newErrors.addressDetail = 'Địa chỉ chi tiết là bắt buộc';
+        if (!formData.province) newErrors.province = 'Vui lòng chọn tỉnh/thành phố';
+        if (!formData.district) newErrors.district = 'Vui lòng chọn quận/huyện';
+        if (!formData.ward) newErrors.ward = 'Vui lòng chọn xã/phường';
+        if (!formData.mobile.trim()) {
+            newErrors.mobile = 'Số điện thoại là bắt buộc';
+        } else if (!/^(0\d{9})$/.test(formData.mobile)) {
+            newErrors.mobile = 'Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 0';
+        }
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleApplyPromoCode = () => {
-    setShowModal(true); // Mở modal khi nhấn nút "Chọn"
-};
-
     const handleSubmit = async () => {
+        if (carts.length === 0) {
+            swal('Lỗi', 'Giỏ hàng của bạn đang trống!', 'error');
+            return;
+        }
         if (!validateForm()) return;
-
         if (!selectedPaymentMethod) {
             swal('Lỗi', 'Vui lòng chọn phương thức thanh toán.', 'error');
             return;
@@ -177,89 +191,102 @@ const CheckOut = () => {
         const newAddress = {
             sdt: formData.mobile,
             hoTen: formData.addressName,
-            diaChiCuThe: formData.addressDetail,
-            province: formData.province,
-            district: formData.district,
-            ward: formData.ward,
+            diaChiCuThe: `${formData.addressDetail}, ${formData.wardName}, ${formData.districtName}, ${formData.provinceName}`,
         };
 
+        const cartItems = carts.map((item) => ({
+            sanPhamCTId: item.sanPhamCT.id,
+            soLuong: item.soLuong,
+        }));
+
         const orderData = {
-            idTaiKhoan: idTaiKhoan,
-            cartItems: carts.map((item) => ({
-                sanPhamCTId: item.sanPhamCT.id,
-                soLuong: item.soLuong,
-            })),
+            idTaiKhoan,
             thongTinGiaoHang: newAddress,
-            discountId: selectedDiscount ? selectedDiscount.id : null,
-            discountAmount: promoDiscount,
+            cartItems,
+            discountId: selectedDiscount?.id || null,
+            phuongThucThanhToan: selectedPaymentMethod,
         };
-        console.log("o do data: ", orderData);
+
         try {
             const response = await axios.post('http://localhost:8080/api/dat-hang', orderData);
             if (response.status === 200) {
-                swal('Thành công', 'Đặt hàng thành công!', 'success').then(async () => {
-                    await axios.delete(`http://localhost:8080/api/gio-hang/xoa/${idTaiKhoan}`);
-                    navigate('/xac-nhan-don-hang');
-                });
+                if (response.data.trangThai === 9) {
+                    swal({
+                        title: 'Sản phẩm tạm hết hàng',
+                        text: 'Một số sản phẩm trong đơn hàng của bạn hiện không đủ hàng. Chúng tôi đã ghi nhận yêu cầu và sẽ thông báo khi hàng về. Bạn có muốn tiếp tục chờ?',
+                        icon: 'warning',
+                        buttons: ['Hủy', 'Chờ nhập hàng'],
+                    }).then(async (confirm) => {
+                        if (confirm) {
+                            await axios.delete(`http://localhost:8080/api/gio-hang/xoa/${idTaiKhoan}`);
+                            navigate('/xac-nhan-don-hang', { state: { order: response.data } });
+                        } else {
+                            await axios.delete(`http://localhost:8080/api/hoa-don/${response.data.id}`);
+                            navigate('/gio-hang');
+                        }
+                    });
+                } else {
+                    swal('Thành công', 'Đặt hàng thành công!', 'success').then(async () => {
+                        await axios.delete(`http://localhost:8080/api/gio-hang/xoa/${idTaiKhoan}`);
+                        navigate('/xac-nhan-don-hang', { state: { order: response.data } });
+                    });
+                }
             }
         } catch (error) {
             console.error('Lỗi đặt hàng:', error);
-            swal('Lỗi', 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại.', 'error');
+            if (error.response?.data === 'Sản phẩm tạm hết hàng. Đã tạo yêu cầu đặt trước.') {
+                const orderId = error.response.data.orderId; // Giả sử backend trả về orderId
+                swal({
+                    title: 'Sản phẩm tạm hết hàng',
+                    text: 'Chúng tôi đã ghi nhận yêu cầu đặt trước. Bạn có muốn tiếp tục chờ?',
+                    icon: 'warning',
+                    buttons: ['Hủy', 'Chờ nhập hàng'],
+                }).then(async (confirm) => {
+                    if (confirm) {
+                        navigate('/xac-nhan-don-hang', { state: { orderId } });
+                    } else {
+                        await axios.delete(`http://localhost:8080/api/hoa-don/${orderId}`);
+                        navigate('/gio-hang');
+                    }
+                });
+            } else {
+                swal('Lỗi', 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại.', 'error');
+            }
         }
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#2f19ae] via-[#4c2eb5] to-[#6b46c1] py-8">
-            <div className="container mx-auto px-4">
-                {/* Header */}
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-white mb-2">Thanh Toán</h1>
-                    <p className="text-blue-100">Hoàn tất đơn hàng của bạn</p>
-                </div>
-
-                <div className="max-w-7xl mx-auto">
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                        {/* Left Side - Address Form */}
-                        <div className="lg:col-span-7">
-                            <ShippingInfo
-                                formData={formData}
-                                handleInputChange={handleInputChange}
-                                errors={errors}
-                                provinces={provinces}
-                                districts={districts}
-                                wards={wards}
-                            />
-                        </div>
-
-                        {/* Right Side - Order Summary */}
-                        <div className="lg:col-span-5">
-                            <OrderSummary
-                                carts={carts}
-                                totalPrice={totalPrice}
-                                selectedPaymentMethod={selectedPaymentMethod}
-                                setSelectedPaymentMethod={setSelectedPaymentMethod}
-                                handleSubmit={handleSubmit}
-                                promoCode={promoCode}
-                                promoDiscount={promoDiscount}
-                                setPromoCode={setPromoCode}
-                                handleApplyPromoCode={handleApplyPromoCode}
-                                selectedDiscount={selectedDiscount}
-                                setSelectedDiscount={setSelectedDiscount}
-                                discountedPrice={discountedPrice}
-                            />
-                        </div>
-                    </div>
-                </div>
+        <div className="container mx-auto p-4">
+            <h1 className="text-2xl font-bold mb-4">Thanh toán</h1>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <ShippingInfo
+                    formData={formData}
+                    setFormData={setFormData}
+                    errors={errors}
+                    provinces={provinces}
+                    districts={districts}
+                    wards={wards}
+                    handleInputChange={handleInputChange}
+                />
+                <OrderSummary
+                    carts={carts}
+                    totalPrice={totalPrice}
+                    discountedPrice={discountedPrice}
+                    promoCode={promoCode}
+                    setShowModal={setShowModal}
+                    selectedPaymentMethod={selectedPaymentMethod}
+                    setSelectedPaymentMethod={setSelectedPaymentMethod}
+                    handleSubmit={handleSubmit}
+                    shippingFee={shippingFee}
+                />
             </div>
-
-            {/* Modal cho mã giảm giá */}
             <DiscountModal
                 showModal={showModal}
                 setShowModal={setShowModal}
                 discounts={discounts}
-                selectedDiscount={selectedDiscount}
+                totalPrice={totalPrice}
                 handleSelectDiscount={handleSelectDiscount}
-                handleDeselectDiscount={handleDeselectDiscount}
+                handleRemoveDiscount={handleRemoveDiscount}
             />
         </div>
     );

@@ -28,7 +28,18 @@ function DefaultLayout({ children }) {
     //     loadCarts(1); // Thay đổi ID tài khoản nếu cần
     // }, []);
 
+    // return (
+    //     <div className="DefaultLayout">
+    //         <Navbar />
+    //         <div className="container mt-[70px]">
+    //             <div className="content">{children}</div>
+    //         </div>
+    //         <Footer />
+    //     </div>
+    // );
+
     return (
+
         <div className="flex flex-col min-h-screen bg-[#f5f5f5]">
             <Navbar />
             {/* Main content */}

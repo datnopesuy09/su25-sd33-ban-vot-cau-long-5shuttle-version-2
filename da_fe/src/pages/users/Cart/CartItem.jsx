@@ -8,9 +8,7 @@ const CartItem = ({ cart, onQuantityChange = () => {}, onDeleteCart = () => {} }
     const [isFavorite, setIsFavorite] = useState(false);
 
     // Calculate total price
-
     const totalPrice = cart.sanPhamCT.giaKhuyenMai ? cart.sanPhamCT.giaKhuyenMai * quantity : cart.sanPhamCT.donGia * quantity;
-
 
     const handleQuantityChange = (e) => {
         const newValue = e.target.value;
@@ -122,7 +120,6 @@ const CartItem = ({ cart, onQuantityChange = () => {}, onDeleteCart = () => {} }
                     {/* Price Section - Inline */}
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex flex-col">
-
                             {cart.sanPhamCT.giaKhuyenMai ? (
                                 <>
                                     <span className="text-lg font-bold text-red-600">

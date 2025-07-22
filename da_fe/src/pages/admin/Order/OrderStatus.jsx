@@ -12,38 +12,164 @@ import PaymentDetails from './PaymentDetai';
 import swal from 'sweetalert';
 import axios from 'axios';
 import ProductModal from '../Sale/ProductModal';
+import SockJS from 'sockjs-client';
+import { Stomp } from '@stomp/stompjs';
 
 function OrderStatus() {
-    // Trạng thái hiện tại của đơn hàng
-
-    const [quantity, setQuantity] = useState(4);
-    const [isLiked, setIsLiked] = useState(false);
-
-    const [discountCode, setDiscountCode] = useState('');
-    const [discountPercent, setDiscountPercent] = useState(0);
-
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [customerMoney, setCustomerMoney] = useState(0);
-    const [note, setNote] = useState('');
-    const [paymentMethod, setPaymentMethod] = useState(''); // 'cash' or 'Chuyển khoản'
-
-    const [isAnimating, setIsAnimating] = useState(false);
-    const [showProductModal, setShowProductModal] = useState(false);
-
     const location = useLocation();
-    const orderData = location.state?.order || {}; // Lấy dữ liệu đơn hàng từ state
-    // const orderDetailDatas = location.state?.orderDetails || {};
+    const orderData = location.state?.order || {};
     const [orderDetailDatas, setOrderDetailDatas] = useState(location.state?.orderDetails || []);
     const [checkOut, setCheckOuts] = useState(location.state?.checkOut || []);
     const [currentOrderStatus, setCurrentOrderStatus] = useState(orderData.trangThai || 3);
-
-    // State để lưu tổng tiền
+    const [isOrderInTransit, setIsOrderInTransit] = useState(orderData.trangThai === 3);
+    const [hoaDonId, setHoaDonId] = useState(orderData.id || null);
+    const [returnHistory, setReturnHistory] = useState([]);
+    const [preOrders, setPreOrders] = useState([]);
+    const [quantity, setQuantity] = useState(1);
+    const [isLiked, setIsLiked] = useState(false);
+    const [discountCode, setDiscountCode] = useState('');
+    const [discountPercent, setDiscountPercent] = useState(0);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [customerMoney, setCustomerMoney] = useState(0);
+    const [note, setNote] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState('');
+    const [isAnimating, setIsAnimating] = useState(false);
+    const [showProductModal, setShowProductModal] = useState(false);
     const [subtotal, setSubtotal] = useState(0);
     const [discountAmount, setDiscountAmount] = useState(0);
     const [total, setTotal] = useState(0);
-    const shippingFee = 30000; // Phí ship cố định
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importQuantity, setImportQuantity] = useState(1);
+    const [selectedProductId, setSelectedProductId] = useState(null);
+    const shippingFee = 30000;
+    const [stompClient, setStompClient] = useState(null);
 
-    console.log('blabal: ', orderDetailDatas);
+    const fetchPreOrders = async () => {
+        try {
+            const response = await axios.get(`http://localhost:8080/api/pre-order/hoa-don/${hoaDonId}`);
+            setPreOrders(response.data);
+        } catch (error) {
+            console.error('Lỗi khi lấy danh sách đặt trước:', error);
+            swal('Lỗi!', 'Không thể lấy danh sách đặt trước', 'error');
+        }
+    };
+
+    const fetchBillDetails = async (idHoaDon) => {
+        try {
+            const response = await axios.get(`http://localhost:8080/api/hoa-don-ct/hoa-don/${idHoaDon}`);
+            setOrderDetailDatas(response.data);
+        } catch (error) {
+            console.error('Lỗi khi lấy chi tiết hóa đơn:', error);
+            swal('Lỗi!', 'Không thể lấy chi tiết hóa đơn', 'error');
+        }
+    };
+
+    useEffect(() => {
+        if (hoaDonId) {
+            const fetchReturnHistory = async () => {
+                try {
+                    const response = await axios.get(`http://localhost:8080/api/tra-hang/hoa-don/${hoaDonId}`);
+                    setReturnHistory(response.data);
+                } catch (error) {
+                    console.error('Lỗi khi lấy lịch sử trả hàng:', error);
+                    swal('Lỗi!', 'Không thể lấy lịch sử trả hàng', 'error');
+                }
+            };
+            fetchReturnHistory();
+            fetchPreOrders();
+
+            // Kết nối WebSocket
+            const socket = new SockJS('http://localhost:8080/ws');
+            const client = Stomp.over(socket);
+            client.connect({}, () => {
+                client.subscribe(`/user/${orderData.taiKhoan?.id}/queue/notifications`, (message) => {
+                    const notification = JSON.parse(message.body);
+                    swal('Thông báo', notification.noiDung, 'info');
+                    fetchPreOrders();
+                    fetchBillDetails(hoaDonId);
+                });
+            });
+            setStompClient(client);
+
+            return () => {
+                if (client) client.disconnect();
+            };
+        }
+    }, [hoaDonId, orderData.taiKhoan?.id]);
+
+    useEffect(() => {
+        setIsOrderInTransit(currentOrderStatus === 3);
+    }, [currentOrderStatus]);
+
+    useEffect(() => {
+        if (orderData.id) {
+            setHoaDonId(orderData.id);
+        }
+    }, [orderData.id]);
+
+    useEffect(() => {
+        const newSubtotal = orderDetailDatas.reduce((sum, item) => {
+            return sum + item.sanPhamCT.donGia * item.soLuong;
+        }, 0);
+
+        const newDiscountAmount = (newSubtotal * discountPercent) / 100;
+        const newTotal = newSubtotal - newDiscountAmount + shippingFee;
+
+        setSubtotal(newSubtotal);
+        setDiscountAmount(newDiscountAmount);
+        setTotal(newTotal);
+    }, [orderDetailDatas, discountPercent]);
+
+    useEffect(() => {
+        if (orderData.voucher) {
+            setDiscountCode(orderData.voucher.ma);
+            setDiscountPercent(orderData.voucher.giaTri);
+        }
+    }, [orderData]);
+
+    const handleConfirmAddProduct = async (selectedProduct, quantity) => {
+        if (!selectedProduct || !orderData.id) {
+            swal('Lỗi', 'Vui lòng chọn sản phẩm và hóa đơn', 'error');
+            return;
+        }
+
+        try {
+            const response = await axios.post('http://localhost:8080/api/hoa-don-ct/add-to-bill', {
+                idHoaDon: orderData.id,
+                idSanPhamCT: selectedProduct.id,
+                soLuong: quantity,
+            });
+
+            if (response.status === 200) {
+                if (response.data.trangThai === 9) {
+                    swal({
+                        title: 'Sản phẩm tạm hết hàng',
+                        text: 'Sản phẩm này hiện không đủ hàng. Yêu cầu đặt trước đã được ghi nhận.',
+                        icon: 'warning',
+                        button: 'OK',
+                    });
+                    fetchPreOrders();
+                } else {
+                    swal('Thành công!', 'Thêm sản phẩm vào hóa đơn thành công', 'success');
+                }
+                setShowProductModal(false);
+                fetchBillDetails(orderData.id);
+            }
+        } catch (error) {
+            console.error('Lỗi khi thêm sản phẩm:', error);
+            if (error.response?.data === 'Sản phẩm tạm hết hàng. Đã tạo yêu cầu đặt trước.') {
+                swal({
+                    title: 'Sản phẩm tạm hết hàng',
+                    text: 'Yêu cầu đặt trước đã được ghi nhận. Vui lòng nhập thêm hàng.',
+                    icon: 'warning',
+                    button: 'OK',
+                });
+                fetchPreOrders();
+            } else {
+                swal('Lỗi', error.response?.data || 'Không thể thêm sản phẩm', 'error');
+            }
+        }
+    };
 
     const updateQuantity = async (orderDetailId, newQuantity) => {
         try {
@@ -59,7 +185,6 @@ function OrderStatus() {
                 throw new Error('Không thể cập nhật số lượng');
             }
 
-            // Cập nhật số lượng trong orderDetailDatas
             const updatedOrderDetails = orderDetailDatas.map((item) => {
                 if (item.id === orderDetailId) {
                     return {
@@ -74,54 +199,54 @@ function OrderStatus() {
             setOrderDetailDatas(updatedOrderDetails);
         } catch (error) {
             console.error('Error updating quantity:', error);
+            swal('Lỗi!', 'Không thể cập nhật số lượng', 'error');
         }
     };
 
     const handleQuantityChange = async (delta, orderDetailId) => {
-        const newQuantity = Math.max(1, quantity + delta);
+        const currentItem = orderDetailDatas.find((item) => item.id === orderDetailId);
+        const newQuantity = Math.max(1, currentItem.soLuong + delta);
         await updateQuantity(orderDetailId, newQuantity);
-        setQuantity(newQuantity);
     };
 
-    useEffect(() => {
-        if (orderData.voucher) {
-            setDiscountCode(orderData.voucher.ma); // Thiết lập mã giảm giá
-            setDiscountPercent(orderData.voucher.giaTri); // Thiết lập giá trị giảm giá
-        }
-    }, [orderData]);
-
-    console.log('hahahah', orderData);
-
-    // const calculateTotalAmount = () => {
-    //     const shippingFee = 30000; // Phí ship mặc định
-    //     const totalAmount = orderDetailDatas.reduce((total, orderDetail) => {
-    //         return total + orderDetail.sanPhamCT.donGia * orderDetail.soLuong; // Cộng giá bán của từng sản phẩm
-    //     }, 0);
-    //     return totalAmount + shippingFee; // Cộng phí ship
-    // };
-    // const total = calculateTotalAmount();
-
-    // Tính toán lại tổng tiền khi có thay đổi
-    useEffect(() => {
-        const newSubtotal = orderDetailDatas.reduce((sum, item) => {
-            return sum + item.sanPhamCT.donGia * item.soLuong;
-        }, 0);
-
-        const newDiscountAmount = (newSubtotal * discountPercent) / 100;
-        const newTotal = newSubtotal - newDiscountAmount + shippingFee;
-
-        setSubtotal(newSubtotal);
-        setDiscountAmount(newDiscountAmount);
-        setTotal(newTotal);
-    }, [orderDetailDatas, discountPercent]);
-
-    // Hàm mở ProductModal
     const handleOpenProductModal = () => {
         setShowProductModal(true);
     };
-    // Hàm đóng ProductModal
+
     const handleCloseProductModal = () => {
         setShowProductModal(false);
+    };
+
+    const handleOpenImportModal = (productId) => {
+        setSelectedProductId(productId);
+        setImportQuantity(1);
+        setShowImportModal(true);
+    };
+
+    const handleCloseImportModal = () => {
+        setShowImportModal(false);
+        setSelectedProductId(null);
+        setImportQuantity(1);
+    };
+
+    const handleConfirmImport = async () => {
+        if (importQuantity <= 0) {
+            swal('Lỗi', 'Số lượng nhập hàng phải lớn hơn 0', 'error');
+            return;
+        }
+        try {
+            await axios.post('http://localhost:8080/api/hoa-don/import-stock', {
+                sanPhamCTId: selectedProductId,
+                quantity: importQuantity,
+            });
+            swal('Thành công', 'Nhập hàng thành công!', 'success');
+            fetchBillDetails(hoaDonId);
+            fetchPreOrders();
+            handleCloseImportModal();
+        } catch (error) {
+            console.error('Lỗi khi nhập hàng:', error);
+            swal('Lỗi', error.response?.data || 'Không thể nhập hàng', 'error');
+        }
     };
 
     const getStatusLabel = (status) => {
@@ -142,8 +267,35 @@ function OrderStatus() {
                 return { label: 'Đã hủy', color: 'bg-red-200 text-red-800' };
             case 8:
                 return { label: 'Trả hàng', color: 'bg-red-400 text-white' };
+            case 9:
+                return { label: 'Chờ nhập hàng', color: 'bg-orange-200 text-orange-800' };
             default:
                 return { label: 'Không xác định', color: 'bg-gray-200 text-gray-800' };
+        }
+    };
+
+    const getStatusInfo = (status) => {
+        switch (status) {
+            case 1:
+                return { label: 'Chờ xác nhận', color: '#ebd534', icon: Clock };
+            case 2:
+                return { label: 'Chờ giao hàng', color: '#34e5eb', icon: Package };
+            case 3:
+                return { label: 'Đang vận chuyển', color: '#345feb', icon: Truck };
+            case 4:
+                return { label: 'Đã giao hàng', color: '#e342f5', icon: CheckCircle };
+            case 5:
+                return { label: 'Đã thanh toán', color: '#42f5e0', icon: CreditCard };
+            case 6:
+                return { label: 'Hoàn thành', color: '#4caf50', icon: CheckCircle };
+            case 7:
+                return { label: 'Đã hủy', color: '#f5425d', icon: XCircle };
+            case 8:
+                return { label: 'Trả hàng', color: '#f54278', icon: RotateCcw };
+            case 9:
+                return { label: 'Chờ nhập hàng', color: '#ff9800', icon: AlertCircle };
+            default:
+                return { label: 'Không xác định', color: '#f54278', icon: AlertCircle };
         }
     };
 
@@ -151,7 +303,6 @@ function OrderStatus() {
         switch (status) {
             case 1:
                 return { label: 'Thành công', color: 'bg-yellow-200 text-yellow-800' };
-
             default:
                 return { label: 'Không xác định', color: 'bg-gray-200 text-gray-800' };
         }
@@ -176,30 +327,6 @@ function OrderStatus() {
         }
     };
 
-    const getStatusInfo = (status) => {
-        switch (status) {
-            case 1:
-                return { label: 'Chờ xác nhận', color: '#ebd534', icon: Clock };
-            case 2:
-                return { label: 'Chờ giao hàng', color: '#34e5eb', icon: Package };
-            case 3:
-                return { label: 'Đang vận chuyển', color: '#345feb', icon: Truck };
-            case 4:
-                return { label: 'Đã giao hàng', color: '#e342f5', icon: CheckCircle };
-            case 5:
-                return { label: 'Đã thanh toán', color: '#42f5e0', icon: CreditCard };
-            case 6:
-                return { label: 'Hoàn thành', color: '#4caf50', icon: CheckCircle };
-            case 7:
-                return { label: 'Đã hủy', color: '#f5425d', icon: XCircle };
-            case 8:
-                return { label: 'Trả hàng', color: '#f54278', icon: RotateCcw };
-            default:
-                return { label: 'Không xác định', color: '#f54278', icon: AlertCircle };
-        }
-    };
-
-    // Sửa lại logic nút hành động chính
     const getActionButtonText = (status) => {
         switch (status) {
             case 1:
@@ -209,7 +336,6 @@ function OrderStatus() {
             case 3:
                 return 'Xác nhận lấy hàng';
             case 4:
-                // Nếu đã lấy hàng xong thì không hiện nút ở đây nữa
                 return 'Thanh toán';
             case 5:
                 return 'Hoàn thành';
@@ -219,6 +345,8 @@ function OrderStatus() {
                 return 'Đơn hàng đã hủy';
             case 8:
                 return 'Đơn hàng đã trả';
+            case 9:
+                return 'Nhập hàng';
             default:
                 return 'Không xác định';
         }
@@ -226,7 +354,7 @@ function OrderStatus() {
 
     const updateOrderStatus = async (newStatus) => {
         try {
-            const response = await fetch(`http://localhost:8080/api/hoa-don/${orderData.id}/status`, {
+            const response = await fetch(`http://localhost:8080/api/hoa-don/${hoaDonId}/status`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -236,56 +364,46 @@ function OrderStatus() {
             if (!response.ok) {
                 throw new Error('Không thể cập nhật trạng thái hóa đơn');
             }
-            const updatedOrder = await response.json();
-
-            // Cập nhật trạng thái đơn hàng trong state ngay lập tức
-            setCurrentOrderStatus(newStatus); // Cập nhật trạng thái hiện tại
-            setOrderDetailDatas((prev) => {
-                return prev.map((order) => {
-                    if (order.id === updatedOrder.id) {
-                        return { ...order, trangThai: newStatus }; // Cập nhật trạng thái cho đơn hàng
-                    }
-                    return order;
-                });
-            });
+            setCurrentOrderStatus(newStatus);
+            if (newStatus === 8) {
+                const response = await axios.get(`http://localhost:8080/api/tra-hang/hoa-don/${hoaDonId}`);
+                setReturnHistory(response.data);
+            }
         } catch (error) {
             console.error('Error updating order status:', error);
+            swal('Lỗi!', 'Không thể cập nhật trạng thái đơn hàng', 'error');
         }
     };
 
-    // Sửa lại logic click nút hành động chính
     const handleActionButtonClick = () => {
         if (currentOrderStatus === 3) {
-            // Khi click "Xác nhận lấy hàng", cập nhật trạng thái sang 4
             updateOrderStatus(4);
         } else if (currentOrderStatus === 4) {
             setIsModalOpen(true);
-            // Khi đã thanh toán xong, cho phép nhấn "Hoàn thành"
+        } else if (currentOrderStatus === 9) {
+            setShowImportModal(true);
         } else if (currentOrderStatus < 7) {
             updateOrderStatus(currentOrderStatus + 1);
         }
     };
 
     const calculateChange = () => {
-        return customerMoney - total; // Tổng tiền đã tính toán
+        return customerMoney - total;
     };
 
-    // Khi lưu thanh toán xong, cập nhật trạng thái và chuyển nút "Hoàn thành" về vị trí cũ
     const handleSave = async () => {
         try {
-            // Tạo đối tượng thanh toán mới
             const newPayment = {
-                hoaDon: { id: orderData.id }, // Truyền đối tượng hoaDon với ID
-                taiKhoan: { id: 1 }, // Truyền đối tượng taiKhoan với ID (data cứng tạm thời)
-                ma: `PT-${Date.now()}`, // Mã thanh toán (có thể thay đổi theo logic của bạn)
-                tongTien: total, // Tổng tiền
-                phuongThucThanhToan: paymentMethod, // Phương thức thanh toán
-                ghiChu: note, // Ghi chú
-                trangThai: 1, // Trạng thái thanh toán
-                ngayTao: new Date().toISOString(), // Ngày tạo
+                hoaDon: { id: hoaDonId },
+                taiKhoan: { id: orderData.taiKhoan?.id || 1 },
+                ma: `PT-${Date.now()}`,
+                tongTien: total,
+                phuongThucThanhToan: paymentMethod,
+                ghiChu: note,
+                trangThai: 1,
+                ngayTao: new Date().toISOString(),
             };
 
-            // Gửi yêu cầu POST đến API để thêm thanh toán mới
             const response = await fetch('http://localhost:8080/api/thanh-toan', {
                 method: 'POST',
                 headers: {
@@ -298,75 +416,15 @@ function OrderStatus() {
                 throw new Error('Không thể thêm thanh toán');
             }
 
-            // Cập nhật trạng thái đơn hàng
-            await updateOrderStatus(5); // Cập nhật trạng thái thành "Đã thanh toán"
-            setIsModalOpen(false); // Đóng modal
-
-            // Cập nhật danh sách thanh toán trong state
-            const savedPayment = await response.json(); // Lấy dữ liệu thanh toán vừa lưu
-            setCheckOuts((prev) => [...prev, savedPayment]); // Cập nhật danh sách thanh toán
-
-            // Thông báo thành công
-            console.log('Lưu thanh toán thành công');
+            await updateOrderStatus(5);
+            setIsModalOpen(false);
+            const savedPayment = await response.json();
+            setCheckOuts((prev) => [...prev, savedPayment]);
+            swal('Thành công!', 'Lưu thanh toán thành công', 'success');
         } catch (error) {
             console.error('Error saving payment:', error);
+            swal('Lỗi!', 'Không thể thêm thanh toán', 'error');
         }
-    };
-
-    // const handleAddProduct = async (product) => {
-    //     const newBillDetail = {
-    //         sanPhamCT: { id: product.id },
-    //         hoaDon: { id: orderData.id },
-    //         soLuong: 1, // Hoặc số lượng mặc định bạn muốn
-    //         giaBan: product.donGia,
-    //         trangThai: 1,
-    //     };
-    //     try {
-    //         const response = await fetch('http://localhost:8080/api/hoa-don-ct', {
-    //             method: 'POST',
-    //             headers: {
-    //                 'Content-Type': 'application/json',
-    //             },
-    //             body: JSON.stringify(newBillDetail),
-    //         });
-    //         if (!response.ok) {
-    //             throw new Error('Không thể thêm sản phẩm vào hóa đơn');
-    //         }
-    //         const addedProduct = await response.json();
-    //         setOrderDetailDatas((prev) => [...prev, addedProduct]); // Cập nhật danh sách sản phẩm
-    //     } catch (error) {
-    //         console.error('Error adding product to invoice:', error);
-    //     }
-    // };
-
-    const handleAddBillDetail = (billDetail) => {
-        // Kiểm tra xem sản phẩm đã tồn tại trong billDetails chưa
-        const productExists = orderDetailDatas.some((detail) => detail.sanPhamCT.id === billDetail.idSanPhamCT);
-
-        if (productExists) {
-            swal('Thất bại!', 'Sản phẩm đã tồn tại trong hóa đơn!', 'warning');
-            return; // Không thêm sản phẩm nếu đã tồn tại
-        }
-
-        const newBillDetail = {
-            sanPhamCT: { id: billDetail.idSanPhamCT },
-            hoaDon: { id: billDetail.idHoaDon },
-            soLuong: billDetail.soLuong,
-            giaBan: billDetail.giaBan,
-            trangThai: 1,
-        };
-
-        axios
-            .post('http://localhost:8080/api/hoa-don-ct', newBillDetail)
-            .then((response) => {
-                // Chỉ hiển thị thông báo thành công nếu sản phẩm được thêm thành công
-
-                swal('Thành công!', 'Sản phẩm đã được thêm vào hóa đơn!', 'success');
-            })
-            .catch((error) => {
-                console.error('Lỗi khi thêm chi tiết hóa đơn:', error);
-                swal('Lỗi!', 'Không thể thêm sản phẩm vào hóa đơn', 'error');
-            });
     };
 
     const handleClose = () => {
@@ -385,7 +443,6 @@ function OrderStatus() {
 
     const isInsufficientFunds = paymentMethod === 'Tiền mặt' && customerMoney > 0 && customerMoney < total;
 
-    // Sửa lại logic hiển thị nút hành động chính
     const shouldShowActionButton = (status) => {
         return status !== 7 && status !== 8 && status !== 9;
     };
@@ -397,11 +454,11 @@ function OrderStatus() {
         if (status === 6) {
             return 'bg-gradient-to-r from-gray-400 to-gray-500 text-white cursor-not-allowed';
         }
+        if (status === 9) {
+            return 'bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700';
+        }
         return 'text-blue-600 border-2 border-blue-300 hover:bg-blue-50';
     };
-
-    console.log('Trạng thái hiện tại:', currentOrderStatus);
-    console.log('Trạng thái từ API:', orderData.trangThai);
 
     const getInvoiceTypeStyle = (type) => {
         switch (type) {
@@ -418,7 +475,6 @@ function OrderStatus() {
     const generateTimeline = (currentStatus) => {
         const timeline = [];
         const baseTime = new Date('2023-12-21T13:48:17');
-        // Tạo mốc thời gian mẫu cho từng bước
         const timeOffsets = [
             0,
             4 * 60 * 1000,
@@ -429,13 +485,10 @@ function OrderStatus() {
         ];
         for (let i = 0; i < ORDER_STEPS.length; i++) {
             const step = ORDER_STEPS[i];
-            let completed = currentOrderStatus > step;
-            let current = currentOrderStatus === step;
-            // Nếu trạng thái đã vượt qua bước này thì completed=true
-            // Nếu trạng thái đang ở bước này thì current=true
+            let completed = currentStatus > step;
+            let current = currentStatus === step;
             let time = new Date(baseTime.getTime() + timeOffsets[i]).toLocaleString('vi-VN');
-            // Nếu là bước cuối cùng (Hoàn thành) và chưa hoàn thành thì để "Đang chờ..."
-            if (step === 6 && currentOrderStatus < 6) {
+            if (step === 6 && currentStatus < 6) {
                 time = 'Đang chờ...';
             }
             timeline.push({
@@ -450,11 +503,8 @@ function OrderStatus() {
 
     const timeline = generateTimeline(currentOrderStatus);
 
-    // Tiến độ: số bước đã hoàn thành (completed=true) + bước hiện tại (current=true) / tổng số bước
-    // Nếu trạng thái là 1 (Chờ xác nhận) thì chỉ 1/6, trạng thái 2 là 2/6, v.v.
     const totalSteps = timeline.length;
     const currentStepIndex = ORDER_STEPS.indexOf(ORDER_STEPS.find((s) => s === currentOrderStatus));
-    // Nếu trạng thái không nằm trong các bước (ví dụ: hủy, trả hàng, ...) thì tiến độ là 0
     let progressPercentage = 0;
     if (currentStepIndex !== -1) {
         progressPercentage = ((currentStepIndex + 1) / totalSteps) * 100;
@@ -462,13 +512,61 @@ function OrderStatus() {
         progressPercentage = 100;
     }
 
-     const handleCancelOrder = async () => {
+    const handleCancelOrder = async () => {
         try {
-            await updateOrderStatus(7); // Cập nhật trạng thái thành "Đã hủy"
+            await updateOrderStatus(7);
             swal('Thành công!', 'Đơn hàng đã được hủy!', 'success');
         } catch (error) {
             console.error('Error canceling order:', error);
             swal('Lỗi!', 'Không thể hủy đơn hàng', 'error');
+        }
+    };
+
+    const handleApproveReturn = async (traHangId) => {
+        const isConfirmed = await swal({
+            title: 'Xác nhận duyệt trả hàng',
+            text: 'Bạn có chắc chắn muốn duyệt yêu cầu trả hàng này?',
+            icon: 'warning',
+            buttons: ['Hủy', 'Xác nhận'],
+            dangerMode: true,
+        });
+
+        if (isConfirmed) {
+            try {
+                await axios.put(`http://localhost:8080/api/hoa-don-ct/return/${traHangId}/approve`);
+                const response = await axios.get(`http://localhost:8080/api/tra-hang/hoa-don/${hoaDonId}`);
+                setReturnHistory(response.data);
+                const fetchResponse = await axios.get(`http://localhost:8080/api/hoa-don-ct/hoa-don/${hoaDonId}`);
+                setOrderDetailDatas(fetchResponse.data);
+                const hoaDonResponse = await axios.get(`http://localhost:8080/api/hoa-don/${hoaDonId}`);
+                setCurrentOrderStatus(hoaDonResponse.data.trangThai);
+                swal('Thành công!', 'Yêu cầu trả hàng đã được duyệt', 'success');
+            } catch (error) {
+                console.error('Lỗi khi duyệt yêu cầu trả hàng:', error);
+                swal('Lỗi!', error.response?.data?.message || 'Không thể duyệt yêu cầu trả hàng', 'error');
+            }
+        }
+    };
+
+    const handleRejectReturn = async (traHangId) => {
+        const isConfirmed = await swal({
+            title: 'Xác nhận từ chối trả hàng',
+            text: 'Bạn có chắc chắn muốn từ chối yêu cầu trả hàng này?',
+            icon: 'warning',
+            buttons: ['Hủy', 'Xác nhận'],
+            dangerMode: true,
+        });
+
+        if (isConfirmed) {
+            try {
+                await axios.put(`http://localhost:8080/api/hoa-don-ct/return/${traHangId}/reject`);
+                const response = await axios.get(`http://localhost:8080/api/tra-hang/hoa-don/${hoaDonId}`);
+                setReturnHistory(response.data);
+                swal('Thành công!', 'Yêu cầu trả hàng đã bị từ chối', 'success');
+            } catch (error) {
+                console.error('Lỗi khi từ chối yêu cầu trả hàng:', error);
+                swal('Lỗi!', error.response?.data?.message || 'Không thể từ chối yêu cầu trả hàng', 'error');
+            }
         }
     };
 
@@ -490,7 +588,6 @@ function OrderStatus() {
             </div>
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 max-w-5xl mx-auto mt-8">
-                {/* Header */}
                 <OrderInfo
                     orderData={orderData}
                     currentOrderStatus={currentOrderStatus}
@@ -506,15 +603,123 @@ function OrderStatus() {
                     handleQuantityChange={handleQuantityChange}
                     isLiked={isLiked}
                     setIsLiked={setIsLiked}
-                    isOrderInTransit={currentOrderStatus === 3} // Truyền trạng thái đơn hàng
+                    isOrderInTransit={isOrderInTransit}
+                    setOrderDetailDatas={setOrderDetailDatas}
+                    hoaDonId={hoaDonId}
+                    setReturnHistory={setReturnHistory}
+                    currentOrderStatus={currentOrderStatus}
                 />
+                {preOrders.length > 0 && (
+                    <div className="p-6">
+                        <h2 className="text-xl font-bold text-gray-800 mb-4">Danh sách đặt trước</h2>
+                        <div className="space-y-4">
+                            {preOrders.map((preOrder) => (
+                                <div
+                                    key={preOrder.id}
+                                    className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200"
+                                >
+                                    <p className="text-sm text-gray-600">
+                                        <span className="font-medium">Sản phẩm:</span>{' '}
+                                        {preOrder.sanPhamCT?.sanPham?.ten}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                        <span className="font-medium">Số lượng đặt trước:</span> {preOrder.soLuong}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                        <span className="font-medium">Trạng thái:</span>{' '}
+                                        <span
+                                            className={`px-2 py-1 rounded-full ${
+                                                preOrder.trangThai === 0
+                                                    ? 'bg-orange-200 text-orange-800'
+                                                    : 'bg-green-200 text-green-800'
+                                            }`}
+                                        >
+                                            {preOrder.trangThai === 0 ? 'Chờ nhập hàng' : 'Đã nhập hàng'}
+                                        </span>
+                                    </p>
+                                    {preOrder.trangThai === 0 && (
+                                        <button
+                                            onClick={() => handleOpenImportModal(preOrder.sanPhamCT.id)}
+                                            className="mt-2 px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
+                                        >
+                                            Nhập hàng
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {returnHistory.length > 0 && (
+                    <div className="p-6">
+                        <h2 className="text-xl font-bold text-gray-800 mb-4">Lịch sử trả hàng</h2>
+                        <div className="space-y-4">
+                            {returnHistory.map((returnItem) => (
+                                <div
+                                    key={returnItem.id}
+                                    className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200"
+                                >
+                                    <p className="text-sm text-gray-600">
+                                        <span className="font-medium">Sản phẩm:</span>{' '}
+                                        {returnItem.hoaDonCT.sanPhamCT.ten}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                        <span className="font-medium">Số lượng trả:</span> {returnItem.soLuong}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                        <span className="font-medium">Lý do:</span> {returnItem.lyDo || 'Không có'}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                        <span className="font-medium">Ngày trả:</span>{' '}
+                                        {new Date(returnItem.ngayTao).toLocaleString('vi-VN')}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                        <span className="font-medium">Trạng thái:</span>{' '}
+                                        <span
+                                            className={`px-2 py-1 rounded-full ${
+                                                returnItem.trangThai === 0
+                                                    ? 'bg-yellow-200 text-yellow-800'
+                                                    : returnItem.trangThai === 1
+                                                      ? 'bg-green-200 text-green-800'
+                                                      : 'bg-red-200 text-red-800'
+                                            }`}
+                                        >
+                                            {returnItem.trangThai === 0
+                                                ? 'Chờ duyệt'
+                                                : returnItem.trangThai === 1
+                                                  ? 'Đã duyệt'
+                                                  : 'Từ chối'}
+                                        </span>
+                                    </p>
+                                    {returnItem.trangThai === 0 && (
+                                        <div className="flex space-x-2 mt-2">
+                                            <button
+                                                onClick={() => handleApproveReturn(returnItem.id)}
+                                                className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                                            >
+                                                Duyệt
+                                            </button>
+                                            <button
+                                                onClick={() => handleRejectReturn(returnItem.id)}
+                                                className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                                            >
+                                                Từ chối
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
             {showProductModal && (
                 <ProductModal
                     showProductModal={showProductModal}
                     handleCloseProductModal={handleCloseProductModal}
                     selectedBill={orderData}
-                    onAddBillDetail={handleAddBillDetail}
+                    fetchBillDetails={fetchBillDetails}
+                    handleConfirmAddProduct={handleConfirmAddProduct}
                 />
             )}
             <PaymentDetails
@@ -541,6 +746,37 @@ function OrderStatus() {
                 formatCurrency={formatCurrency}
                 calculateChange={calculateChange}
             />
+            {showImportModal && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                        <h2 className="text-lg font-semibold mb-4">Nhập hàng</h2>
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700">Số lượng nhập</label>
+                            <input
+                                type="number"
+                                value={importQuantity}
+                                onChange={(e) => setImportQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                                className="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm"
+                                min="1"
+                            />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                            <button
+                                onClick={handleCloseImportModal}
+                                className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={handleConfirmImport}
+                                className="bg-orange-500 text-white px-4 py-2 rounded-md text-sm hover:bg-orange-600"
+                            >
+                                Xác nhận
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

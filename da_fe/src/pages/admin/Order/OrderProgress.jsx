@@ -212,7 +212,6 @@ const OrderProgress = ({
                     </button>
                 )}
 
-
                     <button className="text-purple-600 hover:text-purple-800 transition-colors duration-300 font-medium px-4 py-2 rounded-lg hover:bg-purple-50">
                         Chi tiết →
                     </button>

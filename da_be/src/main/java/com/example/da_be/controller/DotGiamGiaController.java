@@ -17,12 +17,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = "http://localhost:5173", allowCredentials = "true")
 @RequestMapping("/api/dot-giam-gia")
 public class DotGiamGiaController {
     @Autowired
@@ -34,8 +35,8 @@ public class DotGiamGiaController {
     }
 
     @GetMapping("/list-san-pham")
-    public List<SanPhamResponse> getAllSanPham() {
-        return dotGiamGiaService.getAllSanPham();
+    public List<SanPhamResponse> getAllSanPham(@RequestParam(value = "ten", defaultValue = "") String ten) {
+        return dotGiamGiaService.getAllSanPhamByTen(ten);
     }
 
     @GetMapping("/list-san-pham-chi-tiet")
@@ -44,7 +45,7 @@ public class DotGiamGiaController {
     }
 
     @GetMapping("/get-san-pham-chi-tiet-by-san-pham")
-    public List<SanPhamCTResponse> getSanPhamChiTietBySanPham(@RequestParam List<Integer> id) {
+    public List<SanPhamCTResponse> getSanPhamChiTietBySanPham(@RequestParam(name = "id") List<Integer> id) {
         return dotGiamGiaService.getSanPhamChiTietBySanPham(id);
     }
 
@@ -63,14 +64,21 @@ public class DotGiamGiaController {
         return dotGiamGiaService.getKhuyenMaiById(id);
     }
 
-    @GetMapping("/get-id-san-pham-va-san-pham-chi-tiet-by-id-khuyen-mai/{idKhuyenMai}")
-    public List<Integer> getIdSanPhamVaSanPhamChiTietByIdKhuyenMai(@PathVariable Integer idKhuyenMai) {
-        return dotGiamGiaService.getIdSanPhamVaSanPhamChiTietByIdKhuyenMai(idKhuyenMai);
+    //Lấy id sản phẩm by id khuyến mãi
+    @GetMapping("/get-id-san-pham-by-id-khuyen-mai/{idKhuyenMai}")
+    public List<Integer> getIdSanPhamByIdKhuyenMai(@PathVariable Integer idKhuyenMai) {
+        return dotGiamGiaService.getIdSanPhamByIdKhuyenMai(idKhuyenMai);
     }
 
+    //Lấy id sản phẩm chi tiết by id khuyến mãi
     @GetMapping("/get-id-san-pham-chi-tiet-by-id-khuyen-mai/{idKhuyenMai}")
     public List<Integer> getIdSanPhamChiTietByIdKhuyenMai(@PathVariable Integer idKhuyenMai) {
         return dotGiamGiaService.getIdSanPhamChiTietByIdKhuyenMai(idKhuyenMai);
+    }
+
+    @GetMapping("/san-pham-ct/san-pham/{id}")
+    public List<SanPhamCTResponse> getAllBySanPhamId(@PathVariable("id") Long idSanPham) {
+        return dotGiamGiaService.getAllBySanPhamId(idSanPham);
     }
 
     @PutMapping("/delete/{id}")

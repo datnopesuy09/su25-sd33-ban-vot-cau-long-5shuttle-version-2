@@ -4,16 +4,24 @@ import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import CloseIcon from '@mui/icons-material/Close';
 import swal from 'sweetalert';
 import axios from 'axios';
+import SockJS from 'sockjs-client';
+import { Stomp } from '@stomp/stompjs';
 import ProductModal from './ProductModal';
 import ProductList from './ProductList';
-import PaymentSummary from './PaymentSummary'; // Adjust the path as necessary
+import PaymentSummary from './PaymentSummary';
 
 function OfflineSale() {
     const [bills, setBills] = useState([]);
     const [selectedBill, setSelectedBill] = useState(null);
     const [showProductModal, setShowProductModal] = useState(false);
     const [billDetails, setBillDetails] = useState([]);
-    const [subtotal, setSubtotal] = useState(0); // Initialize subtotal state
+    const [subtotal, setSubtotal] = useState(0);
+    const [quantity, setQuantity] = useState(1);
+    const [preOrders, setPreOrders] = useState([]);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importQuantity, setImportQuantity] = useState(1);
+    const [selectedProductId, setSelectedProductId] = useState(null);
+    const [stompClient, setStompClient] = useState(null);
 
     useEffect(() => {
         fetchBills();
@@ -25,6 +33,7 @@ function OfflineSale() {
             setBills(response.data);
         } catch (error) {
             console.error('Lỗi khi lấy danh sách hóa đơn:', error);
+            swal('Lỗi!', 'Không thể lấy danh sách hóa đơn', 'error');
         }
     };
 
@@ -33,7 +42,18 @@ function OfflineSale() {
             const response = await axios.get(`http://localhost:8080/api/hoa-don-ct/hoa-don/${idHoaDon}`);
             setBillDetails(response.data);
         } catch (error) {
-            console.error('Lỗi khi lấy danh sách hóa đơn:', error);
+            console.error('Lỗi khi lấy chi tiết hóa đơn:', error);
+            swal('Lỗi!', 'Không thể lấy chi tiết hóa đơn', 'error');
+        }
+    };
+
+    const fetchPreOrders = async (idHoaDon) => {
+        try {
+            const response = await axios.get(`http://localhost:8080/api/pre-order/hoa-don/${idHoaDon}`);
+            setPreOrders(response.data);
+        } catch (error) {
+            console.error('Lỗi khi lấy danh sách đặt trước:', error);
+            swal('Lỗi!', 'Không thể lấy danh sách đặt trước', 'error');
         }
     };
 
@@ -67,53 +87,172 @@ function OfflineSale() {
     const handleBillClick = (bill) => {
         setSelectedBill(bill);
         fetchBillDetails(bill.id);
+        fetchPreOrders(bill.id);
+    };
+
+    const handleConfirmAddProduct = async (selectedProduct, quantity) => {
+        if (!selectedProduct || !selectedBill) {
+            swal('Lỗi', 'Vui lòng chọn sản phẩm và hóa đơn', 'error');
+            return;
+        }
+
+        if (quantity <= 0) {
+            swal('Lỗi', 'Số lượng phải lớn hơn 0', 'error');
+            return;
+        }
+
+        try {
+            const response = await axios.post('http://localhost:8080/api/hoa-don-ct/add-to-bill', {
+                idHoaDon: selectedBill.id,
+                idSanPhamCT: selectedProduct.id,
+                soLuong: quantity,
+            });
+
+            if (response.status === 200) {
+                if (response.data.trangThai === 9) {
+                    swal({
+                        title: 'Sản phẩm tạm hết hàng',
+                        text: 'Sản phẩm này hiện không đủ hàng. Yêu cầu đặt trước đã được ghi nhận.',
+                        icon: 'warning',
+                        button: 'OK',
+                    });
+                    fetchPreOrders(selectedBill.id);
+                } else {
+                    swal('Thành công!', 'Thêm sản phẩm vào hóa đơn thành công', 'success');
+                }
+                setShowProductModal(false);
+                fetchBillDetails(selectedBill.id);
+            }
+        } catch (error) {
+            console.error('Lỗi khi thêm sản phẩm:', error);
+            if (error.response?.data === 'Sản phẩm tạm hết hàng. Đã tạo yêu cầu đặt trước.') {
+                swal({
+                    title: 'Sản phẩm tạm hết hàng',
+                    text: 'Yêu cầu đặt trước đã được ghi nhận. Vui lòng nhập thêm hàng.',
+                    icon: 'warning',
+                    button: 'OK',
+                });
+                fetchPreOrders(selectedBill.id);
+            } else {
+                swal('Lỗi', error.response?.data || 'Không thể thêm sản phẩm', 'error');
+            }
+        }
+    };
+
+    const handleOpenImportModal = (productId) => {
+        setSelectedProductId(productId);
+        setImportQuantity(1);
+        setShowImportModal(true);
+    };
+
+    const handleCloseImportModal = () => {
+        setShowImportModal(false);
+        setSelectedProductId(null);
+        setImportQuantity(1);
+    };
+
+    const handleConfirmImport = async () => {
+        if (importQuantity <= 0) {
+            swal('Lỗi', 'Số lượng nhập hàng phải lớn hơn 0', 'error');
+            return;
+        }
+        try {
+            await axios.post('http://localhost:8080/api/hoa-don/import-stock', {
+                sanPhamCTId: selectedProductId,
+                quantity: importQuantity,
+            });
+            swal('Thành công', 'Nhập hàng thành công!', 'success');
+            fetchBillDetails(selectedBill.id);
+            fetchPreOrders(selectedBill.id);
+            handleCloseImportModal();
+        } catch (error) {
+            console.error('Lỗi khi nhập hàng:', error);
+            swal('Lỗi', error.response?.data || 'Không thể nhập hàng', 'error');
+        }
     };
 
     useEffect(() => {
+        if (selectedBill) {
+            // Kết nối WebSocket
+            const socket = new SockJS('http://localhost:8080/ws');
+            const client = Stomp.over(socket);
+            client.connect({}, () => {
+                client.subscribe(`/user/${selectedBill.taiKhoan?.id || 1}/queue/notifications`, (message) => {
+                    const notification = JSON.parse(message.body);
+                    swal('Thông báo', notification.noiDung, 'info');
+                    fetchPreOrders(selectedBill.id);
+                    fetchBillDetails(selectedBill.id);
+                });
+            });
+            setStompClient(client);
+
+            return () => {
+                if (client) client.disconnect();
+            };
+        }
+    }, [selectedBill]);
+
+    useEffect(() => {
         const newSubtotal = billDetails.reduce((total, orderDetail) => {
-            return total + orderDetail.sanPhamCT.donGia * orderDetail.soLuong;
+            const priceToUse =
+                orderDetail.sanPhamCT.giaKhuyenMai && orderDetail.sanPhamCT.giaKhuyenMai < orderDetail.sanPhamCT.donGia
+                    ? orderDetail.sanPhamCT.giaKhuyenMai
+                    : orderDetail.sanPhamCT.donGia;
+
+            return total + priceToUse * orderDetail.soLuong;
         }, 0);
-        setSubtotal(newSubtotal); // Update subtotal whenever billDetails change
+        setSubtotal(newSubtotal);
     }, [billDetails]);
 
-    console.log('billDetails in offlinesale: ', billDetails);
+    const updateQuantity = async (orderDetailId, newQuantity) => {
+        try {
+            const response = await fetch(`http://localhost:8080/api/hoa-don-ct/update-quantity/${orderDetailId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ soLuong: newQuantity }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Không thể cập nhật số lượng');
+            }
+
+            const updatedOrderDetails = billDetails.map((item) => {
+                if (item.id === orderDetailId) {
+                    return {
+                        ...item,
+                        soLuong: newQuantity,
+                        giaBan: item.sanPhamCT.donGia * newQuantity,
+                    };
+                }
+                return item;
+            });
+
+            setBillDetails(updatedOrderDetails);
+        } catch (error) {
+            console.error('Error updating quantity:', error);
+            swal('Lỗi!', 'Không thể cập nhật số lượng', 'error');
+        }
+    };
+
+    const handleQuantityChange = async (delta, orderDetailId) => {
+        const currentItem = billDetails.find((item) => item.id === orderDetailId);
+        const newQuantity = Math.max(1, currentItem.soLuong + delta);
+        await updateQuantity(orderDetailId, newQuantity);
+        setQuantity(newQuantity);
+    };
 
     const handleProductModal = () => {
+        if (!selectedBill) {
+            swal('Lỗi', 'Vui lòng chọn hoặc tạo một hóa đơn trước!', 'error');
+            return;
+        }
         setShowProductModal(true);
     };
 
     const handleCloseProductModal = () => {
         setShowProductModal(false);
-    };
-
-    const handleAddBillDetail = (billDetail) => {
-        // Kiểm tra xem sản phẩm đã tồn tại trong billDetails chưa
-        const productExists = billDetails.some((detail) => detail.sanPhamCT.id === billDetail.idSanPhamCT);
-
-        if (productExists) {
-            swal('Thất bại!', 'Sản phẩm đã tồn tại trong hóa đơn!', 'warning');
-            return; // Không thêm sản phẩm nếu đã tồn tại
-        }
-
-        const newBillDetail = {
-            sanPhamCT: { id: billDetail.idSanPhamCT },
-            hoaDon: { id: billDetail.idHoaDon },
-            soLuong: billDetail.soLuong,
-            giaBan: billDetail.giaBan,
-            trangThai: 1,
-        };
-
-        axios
-            .post('http://localhost:8080/api/hoa-don-ct', newBillDetail)
-            .then((response) => {
-                // Chỉ hiển thị thông báo thành công nếu sản phẩm được thêm thành công
-                setBillDetails((prev) => [...prev, response.data]);
-                swal('Thành công!', 'Sản phẩm đã được thêm vào hóa đơn!', 'success');
-            })
-            .catch((error) => {
-                console.error('Lỗi khi thêm chi tiết hóa đơn:', error);
-                swal('Lỗi!', 'Không thể thêm sản phẩm vào hóa đơn', 'error');
-            });
     };
 
     const updateBills = async () => {
@@ -122,12 +261,13 @@ function OfflineSale() {
             setBills(response.data);
         } catch (error) {
             console.error('Lỗi khi lấy danh sách hóa đơn:', error);
+            swal('Lỗi!', 'Không thể lấy danh sách hóa đơn', 'error');
         }
     };
 
     return (
         <div className="min-h-screen bg-gray-50 p-4">
-            <div className="flex flex-col gap-4 h-[calc(100vh-2rem)] ">
+            <div className="flex flex-col gap-4 h-[calc(100vh-2rem)]">
                 <div className="flex-1 bg-white rounded-lg shadow-sm p-6 overflow-hidden flex flex-col">
                     <div className="flex justify-between items-center mb-6">
                         <h1 className="font-bold text-2xl text-gray-800">Bán hàng</h1>
@@ -198,11 +338,54 @@ function OfflineSale() {
                             <div className="flex-1 overflow-y-auto">
                                 <ProductList
                                     orderDetailDatas={billDetails}
-                                    handleOpenProductModal={handleProductModal}
+                                    handleQuantityChange={handleQuantityChange}
                                     isLiked={false}
                                     setIsLiked={() => {}}
                                 />
                             </div>
+
+                            {preOrders.length > 0 && (
+                                <div className="p-6">
+                                    <h2 className="text-xl font-bold text-gray-800 mb-4">Danh sách đặt trước</h2>
+                                    <div className="space-y-4">
+                                        {preOrders.map((preOrder) => (
+                                            <div
+                                                key={preOrder.id}
+                                                className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200"
+                                            >
+                                                <p className="text-sm text-gray-600">
+                                                    <span className="font-medium">Sản phẩm:</span>{' '}
+                                                    {preOrder.sanPhamCT?.sanPham?.ten}
+                                                </p>
+                                                <p className="text-sm text-gray-600">
+                                                    <span className="font-medium">Số lượng đặt trước:</span>{' '}
+                                                    {preOrder.soLuong}
+                                                </p>
+                                                <p className="text-sm text-gray-600">
+                                                    <span className="font-medium">Trạng thái:</span>{' '}
+                                                    <span
+                                                        className={`px-2 py-1 rounded-full ${
+                                                            preOrder.trangThai === 0
+                                                                ? 'bg-orange-200 text-orange-800'
+                                                                : 'bg-green-200 text-green-800'
+                                                        }`}
+                                                    >
+                                                        {preOrder.trangThai === 0 ? 'Chờ nhập hàng' : 'Đã nhập hàng'}
+                                                    </span>
+                                                </p>
+                                                {preOrder.trangThai === 0 && (
+                                                    <button
+                                                        onClick={() => handleOpenImportModal(preOrder.sanPhamCT.id)}
+                                                        className="mt-2 px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
+                                                    >
+                                                        Nhập hàng
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -221,8 +404,41 @@ function OfflineSale() {
                 showProductModal={showProductModal}
                 handleCloseProductModal={handleCloseProductModal}
                 selectedBill={selectedBill}
-                onAddBillDetail={handleAddBillDetail}
+                fetchBillDetails={fetchBillDetails}
+                handleConfirmAddProduct={handleConfirmAddProduct}
             />
+
+            {showImportModal && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-md">
+                        <h2 className="text-lg font-semibold mb-4">Nhập hàng</h2>
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700">Số lượng nhập</label>
+                            <input
+                                type="number"
+                                value={importQuantity}
+                                onChange={(e) => setImportQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                                className="mt-1 block w-full border border-gray-300 rounded-md p-2 text-sm"
+                                min="1"
+                            />
+                        </div>
+                        <div className="flex justify-end gap-2">
+                            <button
+                                onClick={handleCloseImportModal}
+                                className="bg-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={handleConfirmImport}
+                                className="bg-orange-500 text-white px-4 py-2 rounded-md text-sm hover:bg-orange-600"
+                            >
+                                Xác nhận
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

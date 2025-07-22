@@ -51,6 +51,7 @@ import ChangePassword from '../pages/users/TaiKhoan/changePass.jsx';
 import AddressUser from '../pages/users/TaiKhoan/userAdress.jsx';
 import MyVoucher from '../pages/users/TaiKhoan/myVoucher.jsx';
 import AdminInfo from '../pages/admin/ad-info.jsx';
+import MyOrderDetail from '../pages/admin/nhanvien/draft.jsx';
 
 
 // Public routes
@@ -99,14 +100,15 @@ const publicRoutes = [
         { path: 'order-detail/:id', component: OrderDetail, layout: null },
         { path: 'change-password', component: ChangePassword, layout: null }, 
         { path: 'address', component: AddressUser, layout: null },
-        { path: 'my-voucher', component: MyVoucher, layout: null }
+        { path: 'my-voucher', component: MyVoucher, layout: null },
     ] },
     { path: '/login', component: Sign },
 
     { path: '/forgot-password', component: ForgotPassword },
     { path: '/admin/thong-ke', component: ThongKe, layout: AdminLayout },
 
-    { path: '/test', component: ResponsiveAppBar, layout: null }
+    { path: '/test', component: ResponsiveAppBar, layout: null },
+     { path: '/check', component: MyOrderDetail, layout: null }
 
 
 ];

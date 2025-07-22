@@ -7,7 +7,6 @@ public class SanPhamCTDTO {
     private ThuongHieuDTO thuongHieu;
     private MauSacDTO mauSac;
     private TrongLuongDTO trongLuong;
-
     private Integer giaKhuyenMai; // Thêm thuộc tính này
     private Integer giaTriKhuyenMai; // Thêm thuộc tính này
     // Các trường khác của SanPhamCT
@@ -15,7 +14,6 @@ public class SanPhamCTDTO {
 
     public SanPhamCTDTO() {
     }
-
 
     public SanPhamCTDTO(Integer id, String ten, Double donGia, Integer soLuong, ThuongHieuDTO thuongHieu, MauSacDTO mauSac, TrongLuongDTO trongLuong, Integer giaKhuyenMai, Integer giaTriKhuyenMai) {
         this.id = id;
@@ -25,7 +23,6 @@ public class SanPhamCTDTO {
         this.thuongHieu = thuongHieu;
         this.mauSac = mauSac;
         this.trongLuong = trongLuong;
-
         this.giaKhuyenMai = giaKhuyenMai;
         this.giaTriKhuyenMai = giaTriKhuyenMai;
     }
@@ -101,5 +98,4 @@ public class SanPhamCTDTO {
     public void setGiaTriKhuyenMai(Integer giaTriKhuyenMai) {
         this.giaTriKhuyenMai = giaTriKhuyenMai;
     }
-
 }

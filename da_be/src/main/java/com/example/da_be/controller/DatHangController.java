@@ -22,7 +22,7 @@ public class DatHangController {
     private static final Logger log = LoggerFactory.getLogger(DatHangController.class);
 
     @Autowired
-    private UserRepository taiKhoanRepository;
+    private UserRepository userRepository;
 
     @Autowired
     private SanPhamCTRepository sanPhamCTRepository;
@@ -52,7 +52,7 @@ public class DatHangController {
             log.info("Đặt hàng với thông tin: {}", orderRequest);
 
             // 1. Lấy tài khoản người đặt hàng
-            User taiKhoan = taiKhoanRepository.findById(orderRequest.getIdTaiKhoan())
+            User taiKhoan = userRepository.findById(orderRequest.getIdTaiKhoan())
                     .orElseThrow(() -> new ResourceNotFoundException("Tài khoản không tồn tại"));
 
             List<DatHangRequestDTO.CartItemDTO> cartItems = orderRequest.getCartItems();
@@ -69,9 +69,7 @@ public class DatHangController {
                 if (item.getSoLuong() > spct.getSoLuong()) {
                     return ResponseEntity.badRequest().body("Số lượng sản phẩm vượt quá tồn kho: " + spct.getSanPham().getTen());
                 }
-
-                BigDecimal gia = BigDecimal.valueOf(spct.getDonGia());
-                //BigDecimal gia;
+                BigDecimal gia;
                 // Kiểm tra giá khuyến mãi
                 if (spct.getGiaKhuyenMai() != null) {
                     gia = BigDecimal.valueOf(spct.getGiaKhuyenMai());
@@ -99,7 +97,6 @@ public class DatHangController {
             hoaDon.setDiaChiNguoiNhan(orderRequest.getThongTinGiaoHang().getDiaChiCuThe());
             hoaDon.setLoaiHoaDon("Trực tuyến");
 
-
             // Kiểm tra và áp dụng phiếu giảm giá nếu có
             if (orderRequest.getDiscountId() != null) {
                 // Lấy voucher từ cơ sở dữ liệu
@@ -109,6 +106,7 @@ public class DatHangController {
                 BigDecimal discountAmount = tongTien.multiply(BigDecimal.valueOf(voucher.getGiaTri())).divide(BigDecimal.valueOf(100));
                 BigDecimal tongTienSauGiam = tongTien.subtract(discountAmount);
                 hoaDon.setTongTien(tongTienSauGiam); // Lưu tổng tiền sau khi giảm
+                voucher.setSoLuong(voucher.getSoLuong()-1);
                 log.info("Áp dụng phiếu giảm giá: {}, giảm giá: {}, tổng tiền sau giảm: {}", voucher.getMa(), discountAmount, tongTienSauGiam);
             } else {
                 hoaDon.setTongTien(tongTien); // Lưu tổng tiền gốc nếu không có phiếu giảm giá
@@ -146,8 +144,8 @@ public class DatHangController {
 
             // 5. Lưu lịch sử đơn hàng
             LichSuDonHang lichSuDonHang = new LichSuDonHang();
-            lichSuDonHang.setIdTaiKhoan(taiKhoan.getId());
-            lichSuDonHang.setIdHoaDon(hoaDon.getId());
+//            lichSuDonHang.setIdTaiKhoan(taiKhoan.getId());
+//            lichSuDonHang.setIdHoaDon(hoaDon.getId());
             lichSuDonHang.setMoTa("Đặt hàng thành công");
             lichSuDonHang.setNgayTao(new Date());
             lichSuDonHang.setTrangThai(1);

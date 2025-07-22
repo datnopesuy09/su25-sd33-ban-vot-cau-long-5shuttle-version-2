@@ -6,6 +6,7 @@ const UserAuthContext = createContext();
 export const UserAuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    
 
     const fetchUserInfo = async (token) => {
         try {
