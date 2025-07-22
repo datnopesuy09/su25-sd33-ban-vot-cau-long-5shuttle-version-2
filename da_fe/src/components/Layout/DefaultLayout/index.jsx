@@ -39,9 +39,11 @@ function DefaultLayout({ children }) {
     // );
 
     return (
-        <div className="DefaultLayout flex flex-col min-h-screen">
+
+        <div className="flex flex-col min-h-screen bg-[#f5f5f5]">
             <Navbar />
-            <main className="flex-1 container mx-auto px-4 pt-[70px]">
+            {/* Main content */}
+            <main className="flex-1 pt-[90px]">
                 {children}
             </main>
             <Footer />

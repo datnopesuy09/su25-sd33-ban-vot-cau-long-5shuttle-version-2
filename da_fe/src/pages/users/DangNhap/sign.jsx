@@ -15,37 +15,97 @@ import AccountCircle from '@mui/icons-material/AccountCircle';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import Lock from '@mui/icons-material/Lock';
+import { useLocation, useNavigate } from "react-router-dom";
+import { useUserAuth } from "../../../contexts/userAuthContext";
+import axios from 'axios';
+import { toast } from 'react-toastify';
+import Swal from 'sweetalert2';
 
 const LoginPanel = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    const [matKhau, setMatKhau] = useState('');
+    const [errors, setErrors] = useState({});
+    const navigate = useNavigate();
+    const location = useLocation();
+    const from = location.state?.from?.pathname || "/";
+    const { fetchUserInfo } = useUserAuth();
 
     const handleClickShowPassword = () => setShowPassword((show) => !show);
 
+    const handleLogin = async () => {
+        const newErrors = {};
+
+        if (!email.trim()) newErrors.email = '*Bạn chưa nhập email';
+        if (!matKhau) newErrors.matKhau = '*Bạn chưa nhập mật khẩu';
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            return;
+        }
+
+        try {
+            const res = await axios.post("http://localhost:8080/auth/token", {
+                email,
+                matKhau
+            });
+
+            const accessToken = res.data?.result?.token;
+            if (!accessToken) throw new Error("Không nhận được token");
+
+            const introspectRes = await axios.post("http://localhost:8080/auth/introspect", {
+                token: accessToken
+            });
+
+            const roles = introspectRes.data?.result?.roles || [];
+            if (!roles.includes("ROLE_USER")) {
+                toast.error("Tài khoản không có quyền truy cập trang người dùng!");
+                return;
+            }
+
+            localStorage.setItem("userToken", accessToken);
+            await fetchUserInfo(accessToken);
+            toast.success("Đăng nhập thành công!");
+            navigate(from);
+
+        } catch (err) {
+            console.error("Đăng nhập lỗi:", err);
+            const message = "*Email hoặc mật khẩu không chính xác";
+            setErrors({ email: message, matKhau: message });
+            // toast.error(message);
+        }
+    };
+
     return (
         <>
-            <FormControl variant="standard" fullWidth sx={{ mb: 2 }}>
+            <FormControl variant="standard" fullWidth sx={{ mb: 2 }} error={!!errors.email}>
                 <InputLabel htmlFor="email">Email</InputLabel>
                 <Input
                     id="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (errors.email) setErrors(prev => ({ ...prev, email: '' }));
+                    }}
                     startAdornment={
                         <InputAdornment position="start">
                             <AccountCircle />
                         </InputAdornment>
                     }
                 />
+                {errors.email && <Typography variant="caption" color="error">{errors.email}</Typography>}
             </FormControl>
 
-            <FormControl variant="standard" fullWidth sx={{ mb: 1 }}>
-                <InputLabel htmlFor="password">Password</InputLabel>
+            <FormControl variant="standard" fullWidth sx={{ mb: 1 }} error={!!errors.matKhau}>
+                <InputLabel htmlFor="password">Mật khẩu</InputLabel>
                 <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={matKhau}
+                    onChange={(e) => {
+                        setMatKhau(e.target.value);
+                        if (errors.matKhau) setErrors(prev => ({ ...prev, matKhau: '' }));
+                    }}
                     startAdornment={
                         <InputAdornment position="start">
                             <Lock />
@@ -63,10 +123,11 @@ const LoginPanel = () => {
                         </InputAdornment>
                     }
                 />
+                {errors.matKhau && <Typography variant="caption" color="error">{errors.matKhau}</Typography>}
             </FormControl>
 
             <Box display="flex" justifyContent="flex-end" mb={3}>
-                <Link href="#" underline="hover" fontSize="0.9rem">
+                <Link href="/forgot-password" underline="hover" fontSize="0.9rem">
                     Quên mật khẩu?
                 </Link>
             </Box>
@@ -75,6 +136,7 @@ const LoginPanel = () => {
                 variant="contained"
                 color="primary"
                 fullWidth
+                onClick={handleLogin}
                 sx={{ textTransform: 'none', fontWeight: 'bold' }}
             >
                 Đăng nhập
@@ -83,95 +145,139 @@ const LoginPanel = () => {
     );
 };
 
-const RegisterPanel = () => {
+const RegisterPanel = ({ setIsLogin }) => {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [error, setError] = useState('');
-    const [success, setSuccess] = useState('');
+    const [errors, setErrors] = useState({});
 
     const handleTogglePassword = () => setShowPassword((prev) => !prev);
     const handleToggleConfirmPassword = () => setShowConfirmPassword((prev) => !prev);
 
-    const handleRegister = async () => {
-        setError('');
-        setSuccess('');
-
-        if (password !== confirmPassword) {
-            setError("Mật khẩu xác nhận không khớp");
-            return;
+    const checkMail = async (email) => {
+        try {
+            const response = await axios.get(`http://localhost:8080/users/check-email?email=${email}`);
+            return response.data?.result === true;
+        } catch (error) {
+            console.error("Lỗi khi kiểm tra email:", error);
+            return false;
         }
+    };
+
+    const isValidEmail = (email) => {
+        const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return regex.test(email);
+    };
+
+    const handleRegister = async () => {
+        const newErrors = {};
+
+        if (!name.trim()) newErrors.name = '*Bạn chưa nhập họ tên';
+        else if (name.length > 100) newErrors.name = '*Họ tên không dài quá 100 ký tự';
+
+        if (!email.trim()) newErrors.email = '*Bạn chưa nhập email';
+        else if (!isValidEmail(email)) newErrors.email = '*Địa chỉ email không hợp lệ';
+
+        if (!password) newErrors.password = '*Bạn chưa nhập mật khẩu';
+        else if (password.length < 6) newErrors.password = '*Mật khẩu phải có ít nhất 6 ký tự';
+
+        if (!confirmPassword) newErrors.confirmPassword = '*Bạn chưa nhập lại mật khẩu';
+        else if (confirmPassword !== password) newErrors.confirmPassword = '*Mật khẩu xác nhận không khớp';
+
+        const emailExists = await checkMail(email);
+        if (emailExists) newErrors.email = '*Email đã được sử dụng';
+
+        setErrors(newErrors);
+        if (Object.keys(newErrors).length > 0) return;
+
+        const result = await Swal.fire({
+            title: 'Xác nhận đăng ký',
+            text: 'Bạn có chắc muốn tạo tài khoản không?',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Đăng ký',
+            cancelButtonText: 'Hủy',
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33'
+        });
+
+        if (!result.isConfirmed) return;
 
         try {
-            const response = await fetch("http://localhost:8080/shuttle/users", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    hoTen: name,
-                    email: email,
-                    matKhau: password
-                })
+            const res = await axios.post("http://localhost:8080/users", {
+                hoTen: name,
+                email: email,
+                matKhau: password
             });
 
-            const data = await response.json();
-
-            if (!response.ok || !data.result) {
-                throw new Error(data.message || "Đăng ký thất bại");
+            if (res.data?.result) {
+                toast.success("Đăng ký thành công! Bạn có thể đăng nhập ngay.");
+                setName('');
+                setEmail('');
+                setPassword('');
+                setConfirmPassword('');
+                setTimeout(() => setIsLogin(true), 1500);
             }
 
-            setSuccess("Đăng ký thành công! Bạn có thể đăng nhập ngay.");
-            setName('');
-            setEmail('');
-            setPassword('');
-            setConfirmPassword('');
         } catch (err) {
             console.error("Đăng ký lỗi:", err);
-            setError(err.message || "Có lỗi xảy ra khi đăng ký.");
+            const message = err.response?.data?.message || "Có lỗi xảy ra khi đăng ký.";
+            toast.error(message);
         }
     };
 
     return (
         <>
-            <FormControl variant="standard" fullWidth sx={{ mb: 2 }}>
+            <FormControl variant="standard" fullWidth sx={{ mb: 2 }} error={!!errors.name}>
                 <InputLabel htmlFor="name">Họ tên</InputLabel>
                 <Input
                     id="name"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={(e) => {
+                        setName(e.target.value);
+                        if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+                    }}
                     startAdornment={
                         <InputAdornment position="start">
                             <AccountCircle />
                         </InputAdornment>
                     }
                 />
+                {errors.name && <Typography variant="caption" color="error">{errors.name}</Typography>}
             </FormControl>
 
-            <FormControl variant="standard" fullWidth sx={{ mb: 2 }}>
+            <FormControl variant="standard" fullWidth sx={{ mb: 2 }} error={!!errors.email}>
                 <InputLabel htmlFor="email">Email</InputLabel>
                 <Input
                     id="email"
+                    type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (errors.email) setErrors(prev => ({ ...prev, email: '' }));
+                    }}
                     startAdornment={
                         <InputAdornment position="start">
                             <AccountCircle />
                         </InputAdornment>
                     }
                 />
+                {errors.email && <Typography variant="caption" color="error">{errors.email}</Typography>}
             </FormControl>
 
-            <FormControl variant="standard" fullWidth sx={{ mb: 2 }}>
+            <FormControl variant="standard" fullWidth sx={{ mb: 2 }} error={!!errors.password}>
                 <InputLabel htmlFor="password">Mật khẩu</InputLabel>
                 <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (errors.password) setErrors(prev => ({ ...prev, password: '' }));
+                    }}
                     startAdornment={
                         <InputAdornment position="start">
                             <Lock />
@@ -179,24 +285,25 @@ const RegisterPanel = () => {
                     }
                     endAdornment={
                         <InputAdornment position="end">
-                            <IconButton
-                                onClick={handleTogglePassword}
-                                disableRipple
-                            >
+                            <IconButton onClick={handleTogglePassword} disableRipple>
                                 {showPassword ? <VisibilityOff /> : <Visibility />}
                             </IconButton>
                         </InputAdornment>
                     }
                 />
+                {errors.password && <Typography variant="caption" color="error">{errors.password}</Typography>}
             </FormControl>
 
-            <FormControl variant="standard" fullWidth sx={{ mb: 3 }}>
+            <FormControl variant="standard" fullWidth sx={{ mb: 3 }} error={!!errors.confirmPassword}>
                 <InputLabel htmlFor="confirm-password">Xác nhận mật khẩu</InputLabel>
                 <Input
                     id="confirm-password"
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        if (errors.confirmPassword) setErrors(prev => ({ ...prev, confirmPassword: '' }));
+                    }}
                     startAdornment={
                         <InputAdornment position="start">
                             <Lock />
@@ -204,28 +311,14 @@ const RegisterPanel = () => {
                     }
                     endAdornment={
                         <InputAdornment position="end">
-                            <IconButton
-                                onClick={handleToggleConfirmPassword}
-                                disableRipple
-                            >
+                            <IconButton onClick={handleToggleConfirmPassword} disableRipple>
                                 {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
                             </IconButton>
                         </InputAdornment>
                     }
                 />
+                {errors.confirmPassword && <Typography variant="caption" color="error">{errors.confirmPassword}</Typography>}
             </FormControl>
-
-            {error && (
-                <Typography color="error" fontSize="0.9rem" mb={1}>
-                    {error}
-                </Typography>
-            )}
-
-            {success && (
-                <Typography color="primary" fontSize="0.9rem" mb={1}>
-                    {success}
-                </Typography>
-            )}
 
             <Button
                 variant="contained"
@@ -239,7 +332,6 @@ const RegisterPanel = () => {
         </>
     );
 };
-
 
 function Sign() {
     const [isLogin, setIsLogin] = useState(true);
@@ -289,7 +381,7 @@ function Sign() {
                 </div>
 
                 {/* Panel */}
-                {isLogin ? <LoginPanel /> : <RegisterPanel />}
+                {isLogin ? <LoginPanel /> : <RegisterPanel setIsLogin={setIsLogin} />}
             </Paper>
         </Box>
     );

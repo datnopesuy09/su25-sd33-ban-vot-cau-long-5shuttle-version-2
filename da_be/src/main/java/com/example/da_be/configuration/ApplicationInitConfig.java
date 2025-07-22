@@ -31,7 +31,7 @@ public class ApplicationInitConfig {
     ApplicationRunner applicationRunner(UserRepository userRepository) {
         return args -> {
             // Kiểm tra nếu người dùng admin chưa tồn tại
-            if(!userRepository.existsTaiKhoanByEmail("admin")) {
+            if(!userRepository.existsByEmail("admin")) {
                 // Tìm hoặc tạo vai trò ADMIN
                 Optional<Role> adminRoleOpt = roleRepository.findByName("ADMIN");
                 Role adminRole;

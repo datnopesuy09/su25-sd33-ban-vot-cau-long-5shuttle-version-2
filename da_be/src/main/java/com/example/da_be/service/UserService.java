@@ -2,24 +2,34 @@ package com.example.da_be.service;
 
 import com.example.da_be.dto.request.User.UserCreationRequest;
 import com.example.da_be.dto.request.User.UserUpdateRequest;
+import com.example.da_be.dto.response.HoaDonCTResponse;
+import com.example.da_be.dto.response.HoaDonResponse;
 import com.example.da_be.dto.response.UserResponse;
+import com.example.da_be.entity.HoaDon;
+import com.example.da_be.entity.HoaDonCT;
 import com.example.da_be.entity.Role;
 import com.example.da_be.entity.User;
+import com.example.da_be.enums.LoaiHoaDon;
 import com.example.da_be.exception.AppException;
 import com.example.da_be.exception.ErrorCode;
+import com.example.da_be.mapper.HoaDonChiTietMapper;
+import com.example.da_be.mapper.HoaDonMapper;
 import com.example.da_be.mapper.UserMapper;
+import com.example.da_be.repository.HoaDonCTRepository;
+import com.example.da_be.repository.HoaDonRepository;
 import com.example.da_be.repository.RoleRepository;
 import com.example.da_be.repository.UserRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.mapstruct.MappingTarget;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Slf4j
@@ -32,23 +42,39 @@ public class UserService {
     UserMapper userMapper;
     PasswordEncoder passwordEncoder;
     RoleRepository roleRepository;
+    HoaDonRepository hoaDonRepository;
+    HoaDonMapper hoaDonMapper;
+    HoaDonCTRepository hoaDonCTRepository;
+    HoaDonChiTietMapper hoaDonCTMapper;
 
     public UserResponse createUser(UserCreationRequest request){
-        if(userRepository.existsTaiKhoanByEmail(request.getEmail()))
+        if(userRepository.existsByEmail(request.getEmail()))
             throw new AppException(ErrorCode.EMAIL_EXISTS);
 
         User user = userMapper.toUser(request);
 
+        user.setTrangThai(1);
+
         user.setMatKhau(passwordEncoder.encode(user.getMatKhau()));
 
-        var userRole = roleRepository.findByName("Staff")
+        var userRole = roleRepository.findByName("USER")
                 .orElseThrow(() -> new AppException(ErrorCode.ROLENAME_NOT_EXISTS));
 
         Set<Role> roles = new HashSet<>();
         roles.add(userRole);
         user.setRoles(roles);
 
-        return userMapper.toUserResponse(userRepository.save(user));
+        // Bước 1: Lưu lần đầu để lấy ID
+        user = userRepository.save(user);
+
+        // Bước 2: Sinh mã KH + id định dạng KH00001
+        String maKH = String.format("KH%05d", user.getId());
+        user.setMa(maKH);
+
+        // Bước 3: Lưu lại lần 2 để cập nhật mã
+        user = userRepository.save(user);
+
+        return userMapper.toUserResponse(user);
     }
 
     public UserResponse updateUser(UserUpdateRequest request, Integer userId){
@@ -56,9 +82,13 @@ public class UserService {
                 .orElseThrow(() -> new AppException(ErrorCode.USERID_NOT_EXISTS));
 
         userMapper.updateUser(user, request);
+
+        if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
+            String fileName = request.getAvatar().getOriginalFilename();
+            user.setAvatar(fileName);
+        }
+
         userRepository.save(user);
-
-
         return userMapper.toUserResponse(user);
     }
 
@@ -69,6 +99,41 @@ public class UserService {
         User user = userRepository.findUserByEmail(email)
                 .orElseThrow(() -> new RuntimeException(ErrorCode.EMAIL_NOT_EXISTS.getMessage()));
 
-        return userMapper.toUserResponse(user);
+        UserResponse response = userMapper.toUserResponse(user);
+
+        // 🧪 Test:
+        System.out.println("Mapped ID: " + response.getId());
+
+        return response;
     }
+
+    public boolean checkEmailExists(String email) {
+        return userRepository.existsByEmail(email);
+    }
+
+    public List<HoaDonResponse> getMyOders() {
+        var context = SecurityContextHolder.getContext();
+        var email = context.getAuthentication().getName();
+
+        Integer idUser = userRepository.findIdByEmail(email);
+
+        List<HoaDon> hoaDon = hoaDonRepository.findHoaDonByTaiKhoan_IdAndLoaiHoaDon(idUser, LoaiHoaDon.ONLINE.getName());
+
+        return hoaDon.stream().map(hoaDonMapper::toHoaDonResponse).toList();
+    }
+
+    public List<HoaDonCTResponse> getMyOdersDetails(Integer idHoaDon) {
+
+//        var context = SecurityContextHolder.getContext();
+//        var email = context.getAuthentication().getName();
+//
+//        Integer idUser = userRepository.findIdByEmail(email);
+//
+//        List<HoaDon> hoaDon = hoaDonRepository.findHoaDonByTaiKhoan_IdAndLoaiHoaDon(idUser, LoaiHoaDon.ONLINE.getName());
+
+        List<HoaDonCT> hdct = hoaDonCTRepository.findByHoaDonId(idHoaDon);
+
+        return hdct.stream().map(hoaDonCTMapper::toHoaDonChiTietResponse).toList();
+    }
+
 }

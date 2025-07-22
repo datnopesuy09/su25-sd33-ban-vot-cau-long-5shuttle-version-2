@@ -9,36 +9,37 @@ import java.time.LocalDate;
 
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class NhanVienResponse {
-    private Integer id;
-    private String ma;
-    private String hoTen;
-    private String sdt;
-    private String email;
-    private String matKhau;
-    private Integer gioiTinh;
-    private Integer roleId;
-    private String avatar;
-    private LocalDate ngaySinh;
-    private String cccd;
-    private Integer trangThai;
+    Integer id;
+    String ma;
+    String hoTen;
+    String email;
+    String matKhau;
+    String sdt;
+    LocalDate ngaySinh;
+    Integer gioiTinh;
+    String avatar;
+    String cccd;
+    Integer trangThai;
 
-//    public NhanVienResponse(Integer id, String maNV, String hoTen, String sdt, String email,
-//                            String matKhau, Integer gioiTinh, VaiTro vaiTro, String avatar,
-//                            LocalDate ngaySinh, String cccd, Integer trangThai) {
-//        this.id = id;
-//        this.maNV = maNV;
-//        this.hoTen = hoTen;
-//        this.sdt = sdt;
-//        this.email = email;
-//        this.matKhau = matKhau;
-//        this.gioiTinh = gioiTinh;
-//        this.vaiTro = vaiTro.ordinal();
-//        this.avatar = avatar;
-//        this.ngaySinh = ngaySinh;
-//        this.cccd = cccd;
-//        this.trangThai = trangThai;
-//    }
+    String role;
+
+    public NhanVienResponse(Integer id, String ma, String hoTen, String email,
+                            String matKhau, String sdt, LocalDate ngaySinh,
+                            Integer gioiTinh, String avatar, String cccd,
+                            Integer trangThai, String role) {
+        this.id = id;
+        this.ma = ma;
+        this.hoTen = hoTen;
+        this.email = email;
+        this.matKhau = matKhau;
+        this.sdt = sdt;
+        this.ngaySinh = ngaySinh;
+        this.gioiTinh = gioiTinh;
+        this.avatar = avatar;
+        this.cccd = cccd;
+        this.trangThai = trangThai;
+        this.role = role;
+    }
 
 }
