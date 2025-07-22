@@ -94,22 +94,9 @@ export default function Product() {
         }
     };
 
-    // const loadProducts = async () => {
-    //     try {
-    //         setLoading(true);
-    //         const response = await axios.get('http://localhost:8080/api/san-pham-ct/summary');
-    //         setProducts(response.data);
-    //     } catch (error) {
-    //         console.error('Failed to fetch Products', error);
-    //     } finally {
-    //         setLoading(false);
-    //     }
-    // };
-
     const loadProducts = async () => {
         try {
             setLoading(true);
-
             const response = await axios.get('http://localhost:8080/api/san-pham-ct/summaryy');
             const products = response.data;
 
@@ -122,8 +109,6 @@ export default function Product() {
             setLoading(false);
         }
     };
-
-    console.log('combines: ', products);
 
     useEffect(() => {
         const fetchData = async () => {

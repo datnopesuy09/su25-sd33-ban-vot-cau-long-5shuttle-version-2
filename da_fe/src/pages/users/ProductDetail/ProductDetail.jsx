@@ -16,8 +16,6 @@ export default function ProductDetail() {
     const [mainImage, setMainImage] = useState('');
     const [currentPrice, setCurrentPrice] = useState(0);
     const [currentQuantity, setCurrentQuantity] = useState(0);
-
-
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState('');
     const [newRating, setNewRating] = useState(1);
@@ -27,12 +25,10 @@ export default function ProductDetail() {
     useEffect(() => {
         const fetchProductDetail = async () => {
             try {
-
                 const response = await axios.get(`http://localhost:8080/api/san-pham-ct/${id}/detaill-with-promotion`);
                 const productData = response.data;
 
                 setProduct(productData);
-
 
                 // Chọn màu sắc và trọng lượng đầu tiên
                 setSelectedColor(productData.mauSac[0]);
@@ -40,7 +36,6 @@ export default function ProductDetail() {
                 setCurrentImages(productData.hinhAnhUrls);
                 setMainImage(productData.hinhAnhUrls[0]);
                 setCurrentQuantity(productData.soLuong);
-
                 
                 // Tìm variant đầu tiên để set giá ban đầu
                 const firstVariant = productData.variants.find(
@@ -67,7 +62,6 @@ export default function ProductDetail() {
             if (selectedVariant) {
                 setCurrentImages(selectedVariant.hinhAnhUrls);
                 setMainImage(selectedVariant.hinhAnhUrls[0]);
-
                 setCurrentPrice(selectedVariant.giaKhuyenMai || selectedVariant.donGia);
                 setCurrentQuantity(selectedVariant.soLuong);
                 setQuantity(1);
@@ -210,7 +204,6 @@ export default function ProductDetail() {
                                                     <div key={variant.id} className="flex items-center space-x-2">
                                                         {/* Giá khuyến mãi */}
                                                         <span className="text-3xl font-bold text-red-600">
-
                                                             {(variant.giaKhuyenMai || variant.donGia).toLocaleString()} ₫
                                                         </span>
 
@@ -261,9 +254,7 @@ export default function ProductDetail() {
                                                     if (foundVariant) {
                                                         setCurrentImages(foundVariant.hinhAnhUrls);
                                                         setMainImage(foundVariant.hinhAnhUrls[0]);
-
                                                         setCurrentPrice(foundVariant.giaKhuyenMai || foundVariant.donGia);
-
                                                         setCurrentQuantity(foundVariant.soLuong);
                                                         setQuantity(1);
                                                     }
@@ -299,7 +290,6 @@ export default function ProductDetail() {
                                                     <span className="text-lg font-bold text-red-600">
                                                         {product.variants
                                                             .find((v) => v.mauSacTen === color)
-
                                                             ?.giaKhuyenMai?.toLocaleString() || 
                                                             product.variants
                                                             .find((v) => v.mauSacTen === color)
@@ -307,7 +297,6 @@ export default function ProductDetail() {
                                                         <span className="text-sm ml-1">₫</span>
                                                     </span>
                                                     {product.variants.find((v) => v.mauSacTen === color)?.giaKhuyenMai && (
-
                                                         <span className="text-sm text-gray-500 line-through">
                                                             {product.variants
                                                                 .find((v) => v.mauSacTen === color)

@@ -3,6 +3,7 @@ package com.example.da_be.controller;
 import com.example.da_be.dto.ThanhToanRequestDTO;
 import com.example.da_be.entity.HoaDon;
 import com.example.da_be.exception.ResourceNotFoundException;
+import com.example.da_be.service.HoaDonCTService;
 import com.example.da_be.service.HoaDonService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -19,6 +20,8 @@ public class HoaDonController {
 
     @Autowired
     private HoaDonService hoaDonService;
+    @Autowired
+    private HoaDonCTService hoaDonCTService;
 
     // Lấy danh sách tất cả hóa đơn
     @GetMapping
@@ -84,4 +87,29 @@ public class HoaDonController {
         }
     }
 
+
+
+    @PostMapping("/import-stock")
+    public ResponseEntity<?> importStock(@RequestBody ImportStockRequest request) {
+        try {
+            hoaDonCTService.importStock(request.getSanPhamCTId(), request.getQuantity());
+            return ResponseEntity.ok("Nhập hàng thành công");
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi khi nhập hàng: " + e.getMessage());
+        }
+    }
+
+}
+
+class ImportStockRequest {
+    private Integer sanPhamCTId;
+    private Integer quantity;
+
+    public Integer getSanPhamCTId() { return sanPhamCTId; }
+    public void setSanPhamCTId(Integer sanPhamCTId) { this.sanPhamCTId = sanPhamCTId; }
+    public Integer getQuantity() { return quantity; }
+    public void setQuantity(Integer quantity) { this.quantity = quantity; }
 }

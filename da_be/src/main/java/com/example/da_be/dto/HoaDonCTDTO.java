@@ -6,16 +6,18 @@ public class HoaDonCTDTO    {
     private Integer soLuong;
     private String hinhAnhUrl;
     private Double GiaBan;
+    private Integer trangThaiHoaDon;
 
     public HoaDonCTDTO() {
     }
 
-    public HoaDonCTDTO(Integer id, SanPhamCTDTO sanPhamCT, Integer soLuong, String hinhAnhUrl, Double giaBan) {
+    public HoaDonCTDTO(Integer id, SanPhamCTDTO sanPhamCT, Integer soLuong, String hinhAnhUrl, Double giaBan, Integer trangThaiHoaDon) {
         this.id = id;
         this.sanPhamCT = sanPhamCT;
         this.soLuong = soLuong;
         this.hinhAnhUrl = hinhAnhUrl;
         GiaBan = giaBan;
+        this.trangThaiHoaDon = trangThaiHoaDon;
     }
 
     public Integer getId() {
@@ -56,5 +58,13 @@ public class HoaDonCTDTO    {
 
     public void setGiaBan(Double giaBan) {
         GiaBan = giaBan;
+    }
+
+    public Integer getTrangThaiHoaDon() {
+        return trangThaiHoaDon;
+    }
+
+    public void setTrangThaiHoaDon(Integer trangThaiHoaDon) {
+        this.trangThaiHoaDon = trangThaiHoaDon;
     }
 }

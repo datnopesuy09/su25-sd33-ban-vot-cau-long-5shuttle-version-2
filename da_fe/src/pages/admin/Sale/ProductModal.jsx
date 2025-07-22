@@ -3,7 +3,7 @@ import { X, Receipt, Search, Filter, Plus, Minus } from 'lucide-react';
 import axios from 'axios';
 import swal from 'sweetalert';
 
-const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill, onAddBillDetail }) => {
+const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill, handleConfirmAddProduct }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [brandFilter, setBrandFilter] = useState('');
     const [colorFilter, setColorFilter] = useState('');
@@ -48,27 +48,6 @@ const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill,
         setSelectedProduct(product);
         setQuantity(1);
         setShowDetailModal(true);
-    };
-
-    // Handle confirm add product to bill
-    const handleConfirmAddProduct = async () => {
-        try {
-            const billDetail = {
-                idSanPhamCT: selectedProduct.id,
-                idHoaDon: selectedBill.id,
-                soLuong: quantity,
-                giaBan: selectedProduct.donGia,
-                trangThai: 1,
-            };
-
-            await onAddBillDetail(billDetail);
-            setShowDetailModal(false);
-            swal('Thành công', 'Đã thêm sản phẩm vào hóa đơn', 'success');
-            console.log('biu di theo: ', billDetail);
-        } catch (error) {
-            console.error('Error adding product to bill:', error);
-            swal('Lỗi', 'Không thể thêm sản phẩm vào hóa đơn', 'error');
-        }
     };
 
     if (!showProductModal) return null;
@@ -173,55 +152,88 @@ const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill,
                     {/* Products Grid */}
                     {filteredProducts.length > 0 ? (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                            {filteredProducts.map((product) => (
-                                <div
-                                    key={product.id}
-                                    className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border border-gray-100 hover:border-blue-200"
-                                >
-                                    <div className="relative overflow-hidden">
-                                        <div className="absolute top-3 right-3 z-10">
-                                            <button
-                                                className="bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-lg hover:bg-blue-500 hover:text-white transition-all group-hover:scale-110"
-                                                onClick={() => handleOpenDetailModal(product)}
-                                            >
-                                                <Plus className="w-5 h-5" />
-                                            </button>
+                            {filteredProducts.map((product) => {
+                                const hasDiscount = product.giaKhuyenMai !== null && product.giaTriKhuyenMai !== null;
+                                const discountPercentage = hasDiscount
+                                    ? Math.round(((product.donGia - product.giaKhuyenMai) / product.donGia) * 100)
+                                    : 0;
+
+                                return (
+                                    <div
+                                        key={product.id}
+                                        className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border border-gray-100 hover:border-blue-200"
+                                    >
+                                        {/* Discount badge */}
+                                        {hasDiscount && (
+                                            <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-md text-xs font-bold z-10">
+                                                -{discountPercentage}%
+                                            </div>
+                                        )}
+
+                                        <div className="relative overflow-hidden">
+                                            <div className="absolute top-3 right-3 z-10">
+                                                <button
+                                                    className="bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-lg hover:bg-blue-500 hover:text-white transition-all group-hover:scale-110"
+                                                    onClick={() => handleOpenDetailModal(product)}
+                                                >
+                                                    <Plus className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                            <img
+                                                src={product.anhDaiDien || 'https://via.placeholder.com/400'}
+                                                alt={product.tenSanPham}
+                                                className="w-full h-48 object-cover group-hover:scale-105 transition-transform"
+                                            />
                                         </div>
-                                        <img
-                                            src={product.anhDaiDien || 'https://via.placeholder.com/400'}
-                                            alt={product.tenSanPham}
-                                            className="w-full h-48 object-cover group-hover:scale-105 transition-transform"
-                                        />
+                                        <div className="p-5">
+                                            <h3 className="font-bold text-gray-800 text-lg mb-1 group-hover:text-blue-600">
+                                                {product.tenSanPham}
+                                            </h3>
+                                            <div className="mb-2 text-sm text-gray-600">
+                                                Màu: <span className="font-medium">{product.mauSac}</span>
+                                            </div>
+                                            <div className="flex justify-between mb-3">
+                                                <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-medium">
+                                                    {product.trongLuong}
+                                                </span>
+                                                <span
+                                                    className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                                        product.soLuong > 5
+                                                            ? 'bg-green-100 text-green-700'
+                                                            : product.soLuong > 0
+                                                              ? 'bg-yellow-100 text-yellow-700'
+                                                              : 'bg-red-100 text-red-700'
+                                                    }`}
+                                                >
+                                                    SL: {product.soLuong}
+                                                </span>
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xl font-bold text-red-600">
+                                                        {hasDiscount && typeof product.giaKhuyenMai === 'number'
+                                                            ? product.giaKhuyenMai.toLocaleString() + '₫'
+                                                            : typeof product.donGia === 'number'
+                                                              ? product.donGia.toLocaleString() + '₫'
+                                                              : 'Sản phẩm tạm thời chưa có giá'}
+                                                    </span>
+                                                    {hasDiscount && typeof product.giaKhuyenMai === 'number' && (
+                                                        <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full">
+                                                            Tiết kiệm{' '}
+                                                            {(product.donGia - product.giaKhuyenMai).toLocaleString()}₫
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {hasDiscount && typeof product.donGia === 'number' && (
+                                                    <span className="text-sm text-gray-500 line-through">
+                                                        {product.donGia.toLocaleString()}₫
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="p-5">
-                                        <h3 className="font-bold text-gray-800 text-lg mb-1 group-hover:text-blue-600">
-                                            {product.tenSanPham}
-                                        </h3>
-                                        <div className="mb-2 text-sm text-gray-600">
-                                            Màu: <span className="font-medium">{product.mauSac}</span>
-                                        </div>
-                                        <div className="flex justify-between mb-3">
-                                            <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-medium">
-                                                {product.trongLuong}
-                                            </span>
-                                            <span
-                                                className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                                    product.soLuong > 5
-                                                        ? 'bg-green-100 text-green-700'
-                                                        : product.soLuong > 0
-                                                          ? 'bg-yellow-100 text-yellow-700'
-                                                          : 'bg-red-100 text-red-700'
-                                                }`}
-                                            >
-                                                SL: {product.soLuong}
-                                            </span>
-                                        </div>
-                                        <span className="text-xl font-bold text-red-600">
-                                            {product.donGia.toLocaleString()}₫
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     ) : (
                         <div className="text-center py-12">
@@ -249,7 +261,36 @@ const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill,
                             <p className="font-semibold">Thương hiệu: {selectedProduct.thuongHieu}</p>
                             <p className="font-semibold">Màu sắc: {selectedProduct.mauSac}</p>
                             <p className="font-semibold">Trọng lượng: {selectedProduct.trongLuong}</p>
-                            <p className="font-semibold">Đơn giá: {selectedProduct.donGia.toLocaleString()}₫</p>
+                            <div className="flex items-center gap-2">
+                                <p className="font-semibold">
+                                    Đơn giá:
+                                    {selectedProduct.giaKhuyenMai !== null ? (
+                                        <>
+                                            <span className="text-red-600 ml-1">
+                                                {selectedProduct.giaKhuyenMai.toLocaleString()}₫
+                                            </span>
+                                            <span className="text-sm text-gray-500 line-through ml-2">
+                                                {selectedProduct.donGia.toLocaleString()}₫
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <span className="text-red-600 ml-1">
+                                            {selectedProduct.donGia.toLocaleString()}₫
+                                        </span>
+                                    )}
+                                </p>
+                                {selectedProduct.giaKhuyenMai !== null && (
+                                    <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full">
+                                        Giảm{' '}
+                                        {Math.round(
+                                            ((selectedProduct.donGia - selectedProduct.giaKhuyenMai) /
+                                                selectedProduct.donGia) *
+                                                100,
+                                        )}
+                                        %
+                                    </span>
+                                )}
+                            </div>
                             <p className="font-semibold">SL tồn: {selectedProduct.soLuong}</p>
                         </div>
 
@@ -272,8 +313,18 @@ const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill,
                         <p className="text-lg font-bold mb-4">
                             Thành tiền:{' '}
                             <span className="text-red-600">
-                                {(selectedProduct.donGia * quantity).toLocaleString()}₫
+                                {(
+                                    (selectedProduct.giaKhuyenMai !== null
+                                        ? selectedProduct.giaKhuyenMai
+                                        : selectedProduct.donGia) * quantity
+                                ).toLocaleString()}
+                                ₫
                             </span>
+                            {selectedProduct.giaKhuyenMai !== null && (
+                                <span className="text-sm text-gray-500 line-through ml-2">
+                                    {(selectedProduct.donGia * quantity).toLocaleString()}₫
+                                </span>
+                            )}
                         </p>
 
                         <div className="flex space-x-4">
@@ -284,7 +335,7 @@ const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill,
                                 Hủy
                             </button>
                             <button
-                                onClick={handleConfirmAddProduct}
+                                onClick={() => handleConfirmAddProduct(selectedProduct, quantity)}
                                 className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700"
                             >
                                 Xác nhận

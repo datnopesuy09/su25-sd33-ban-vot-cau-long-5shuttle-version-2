@@ -5,10 +5,8 @@ import jakarta.persistence.*;
 
 
 import java.math.BigDecimal;
-
-
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Date;
 
 import java.util.List;
@@ -70,7 +68,7 @@ public class SanPhamCT {
 
     @OneToMany(mappedBy = "sanPhamCT")
     @JsonIgnore
-    private List<SanPhamKhuyenMai> sanPhamKhuyenMais;
+    private List<SanPhamKhuyenMai> sanPhamKhuyenMais = new ArrayList<>(); // Khởi tạo danh sách
 
 
     public SanPhamCT() {
@@ -209,32 +207,27 @@ public class SanPhamCT {
     public List<SanPhamKhuyenMai> getSanPhamKhuyenMais() {
         return sanPhamKhuyenMais;
     }
-
     public void setSanPhamKhuyenMais(List<SanPhamKhuyenMai> sanPhamKhuyenMais) {
         this.sanPhamKhuyenMais = sanPhamKhuyenMais;
     }
-
     public Integer getGiaKhuyenMai() {
-        // Lấy giá khuyến mãi hiện tại
-        LocalDateTime now = LocalDateTime.now(); // Lấy thời gian hiện tại
+        LocalDateTime now = LocalDateTime.now();
         return sanPhamKhuyenMais.stream()
                 .filter(spKm -> spKm.getKhuyenMai().getTgBatDau().isBefore(now) &&
                         spKm.getKhuyenMai().getTgKetThuc().isAfter(now))
                 .map(SanPhamKhuyenMai::getGiaKhuyenMai)
                 .findFirst()
-                .orElse(null); // Hoặc giá mặc định nếu không có khuyến mãi
+                .orElse(null);
     }
-
-
     public Integer getGiaTriKhuyenMai() {
-        // Lấy giá trị khuyến mãi hiện tại
         LocalDateTime now = LocalDateTime.now();
         return sanPhamKhuyenMais.stream()
                 .filter(spKm -> spKm.getKhuyenMai().getTgBatDau().isBefore(now) &&
                         spKm.getKhuyenMai().getTgKetThuc().isAfter(now))
                 .map(spKm -> spKm.getKhuyenMai().getGiaTri())
                 .findFirst()
-                .orElse(null); // Hoặc giá mặc định nếu không có khuyến mãi
+                .orElse(null);
     }
-
 }
+
+

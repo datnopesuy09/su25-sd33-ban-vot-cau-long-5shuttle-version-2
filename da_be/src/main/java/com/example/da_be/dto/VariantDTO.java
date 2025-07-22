@@ -62,7 +62,6 @@ public class VariantDTO {
         this.hinhAnhUrls = hinhAnhUrls;
     }
 
-
     public Double getGiaKhuyenMai() {
         return giaKhuyenMai;
     }
@@ -78,5 +77,4 @@ public class VariantDTO {
     public void setGiaTriKhuyenMai(Integer giaTriKhuyenMai) {
         this.giaTriKhuyenMai = giaTriKhuyenMai;
     }
-
 }
