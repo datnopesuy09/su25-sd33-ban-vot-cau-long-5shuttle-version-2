@@ -1,15 +1,5 @@
 package com.example.da_be.service;
 
-import com.example.da_be.dto.SanPhamCTDetailDTO;
-import com.example.da_be.dto.SanPhamCTFullDTO;
-import com.example.da_be.dto.SanPhamCTListDTO;
-import com.example.da_be.dto.VariantDTO;
-import com.example.da_be.entity.HinhAnh;
-import com.example.da_be.entity.SanPham;
-import com.example.da_be.entity.SanPhamCT;
-import com.example.da_be.exception.ResourceNotFoundException;
-import com.example.da_be.repository.HinhAnhRepository;
-import com.example.da_be.repository.SanPhamCTRepository;
 import com.example.da_be.dto.*;
 import com.example.da_be.entity.HinhAnh;
 import com.example.da_be.entity.SanPham;
@@ -33,10 +23,8 @@ public class SanPhamCTService {
 
     @Autowired
     private HinhAnhRepository hinhAnhRepository;
-
     @Autowired
     private SanPhamKhuyenMaiRepository sanPhamKhuyenMaiRepository;
-
 
     // Lấy tất cả sản phẩm chi tiết
     public List<SanPhamCT> getAllSanPhamCT() {
@@ -100,7 +88,6 @@ public class SanPhamCTService {
         sanPhamCT.setSoLuong(soLuong);
         sanPhamCTRepository.save(sanPhamCT);
     }
-
 
 
 
@@ -216,6 +203,18 @@ public class SanPhamCTService {
             if (spct.getHinhAnh() != null && !spct.getHinhAnh().isEmpty()) {
                 anhDaiDien = spct.getHinhAnh().get(0).getLink();
             }
+
+            // Lấy giá khuyến mãi và giá trị khuyến mãi
+            Integer giaKhuyenMai = null;
+            Integer giaTriKhuyenMai = null;
+
+            List<SanPhamKhuyenMai> promotions = sanPhamKhuyenMaiRepository.findActivePromotionsBySanPhamCTId(spct.getId());
+            if (!promotions.isEmpty()) {
+                SanPhamKhuyenMai promotion = promotions.get(0);
+                giaKhuyenMai = promotion.getGiaKhuyenMai() != null ? promotion.getGiaKhuyenMai() : null;
+                giaTriKhuyenMai = promotion.getKhuyenMai() != null ? promotion.getKhuyenMai().getGiaTri() : null;
+            }
+
             return new SanPhamCTFullDTO(
                     spct.getId(),
                     spct.getMa(),
@@ -230,10 +229,13 @@ public class SanPhamCTService {
                     spct.getTrongLuong() != null ? spct.getTrongLuong().getTen() : null,
                     spct.getDiemCanBang() != null ? spct.getDiemCanBang().getTen() : null,
                     spct.getDoCung() != null ? spct.getDoCung().getTen() : null,
-                    anhDaiDien
+                    anhDaiDien,
+                    giaKhuyenMai, // Thêm giá khuyến mãi
+                    giaTriKhuyenMai // Thêm giá trị khuyến mãi
             );
         }).collect(Collectors.toList());
     }
+
 
 
 

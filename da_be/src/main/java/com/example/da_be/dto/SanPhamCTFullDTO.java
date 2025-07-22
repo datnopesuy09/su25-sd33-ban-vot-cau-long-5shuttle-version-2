@@ -17,13 +17,13 @@ public class SanPhamCTFullDTO {
     private String doCung;
 
     private String anhDaiDien;
+    private Integer giaKhuyenMai; // Thêm trường giaKhuyenMai
+    private Integer giaTriKhuyenMai; // Thêm trường giaTriKhuyenMai
 
     public SanPhamCTFullDTO() {
     }
 
-    public SanPhamCTFullDTO(Integer id, String ma, String moTa, Integer soLuong, Double donGia, Integer trangThai,
-                            String tenSanPham, String thuongHieu, String mauSac, String chatLieu, String trongLuong,
-                            String diemCanBang, String doCung, String anhDaiDien) {
+    public SanPhamCTFullDTO(Integer id, String ma, String moTa, Integer soLuong, Double donGia, Integer trangThai, String tenSanPham, String thuongHieu, String mauSac, String chatLieu, String trongLuong, String diemCanBang, String doCung, String anhDaiDien, Integer giaKhuyenMai, Integer giaTriKhuyenMai) {
         this.id = id;
         this.ma = ma;
         this.moTa = moTa;
@@ -38,9 +38,9 @@ public class SanPhamCTFullDTO {
         this.diemCanBang = diemCanBang;
         this.doCung = doCung;
         this.anhDaiDien = anhDaiDien;
+        this.giaKhuyenMai = giaKhuyenMai;
+        this.giaTriKhuyenMai = giaTriKhuyenMai;
     }
-
-    // Getters and Setters
 
     public Integer getId() {
         return id;
@@ -153,5 +153,20 @@ public class SanPhamCTFullDTO {
     public void setAnhDaiDien(String anhDaiDien) {
         this.anhDaiDien = anhDaiDien;
     }
-}
 
+    public Integer getGiaKhuyenMai() {
+        return giaKhuyenMai;
+    }
+
+    public void setGiaKhuyenMai(Integer giaKhuyenMai) {
+        this.giaKhuyenMai = giaKhuyenMai;
+    }
+
+    public Integer getGiaTriKhuyenMai() {
+        return giaTriKhuyenMai;
+    }
+
+    public void setGiaTriKhuyenMai(Integer giaTriKhuyenMai) {
+        this.giaTriKhuyenMai = giaTriKhuyenMai;
+    }
+}

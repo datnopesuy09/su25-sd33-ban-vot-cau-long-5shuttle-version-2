@@ -10,18 +10,16 @@ function Order() {
     const [ordersPerPage] = useState(7);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
-    const [selectedType, setSelectedType] = useState('online'); // Mặc định là "Trực tuyến"
+    const [selectedType, setSelectedType] = useState('online');
     const [filteredOrders, setFilteredOrders] = useState([]);
-    const [selectedStatus, setSelectedStatus] = useState('1'); // Mặc định là "Chờ xác nhận"
+    const [selectedStatus, setSelectedStatus] = useState('1');
     const [searchTerm, setSearchTerm] = useState('');
     const navigate = useNavigate();
 
-    // Hàm để tải đơn hàng từ API
     const loadOrders = async () => {
         try {
             const response = await fetch('http://localhost:8080/api/hoa-don');
             const data = await response.json();
-            // Sắp xếp hóa đơn để hóa đơn mới nhất xuống cuối
             const sortedOrders = data.sort((a, b) => new Date(a.ngayTao) - new Date(b.ngayTao));
             setOrders(sortedOrders);
             setFilteredOrders(sortedOrders);
@@ -60,10 +58,9 @@ function Order() {
             filtered = filtered.filter((order) => new Date(order.ngayTao) <= new Date(endDate));
         }
 
-        // Chỉ lọc hóa đơn có loại "Trực tuyến"
         if (selectedType === 'online') {
             filtered = filtered.filter((order) => order.loaiHoaDon === 'Trực tuyến');
-        } 
+        }
 
         if (selectedStatus !== 'all') {
             filtered = filtered.filter((order) => order.trangThai === parseInt(selectedStatus, 10));
@@ -107,6 +104,8 @@ function Order() {
                 return { label: 'Đã hủy', color: 'bg-red-200 text-red-800' };
             case 8:
                 return { label: 'Trả hàng', color: 'bg-red-400 text-white' };
+            case 9:
+                return { label: 'Chờ nhập hàng', color: 'bg-orange-200 text-orange-800' };
             default:
                 return { label: 'Không xác định', color: 'bg-gray-200 text-gray-800' };
         }
@@ -114,13 +113,14 @@ function Order() {
 
     const statusOptions = [
         { label: 'TẤT CẢ', value: 'all' },
-        { label: 'ĐÃ HUỶ', value: '7' },
+        { label: 'CHỜ NHẬP HÀNG', value: '9' },
         { label: 'CHỜ XÁC NHẬN', value: '1' },
         { label: 'CHỜ GIAO HÀNG', value: '2' },
         { label: 'ĐANG VẬN CHUYỂN', value: '3' },
         { label: 'ĐÃ GIAO HÀNG', value: '4' },
         { label: 'ĐÃ THANH TOÁN', value: '5' },
         { label: 'HOÀN THÀNH', value: '6' },
+        { label: 'ĐÃ HỦY', value: '7' },
         { label: 'TRẢ HÀNG', value: '8' },
     ];
 
@@ -132,15 +132,11 @@ function Order() {
     return (
         <div className="p-2 bg-gray-50 min-h-screen">
             <div className="bg-white rounded-lg shadow-sm border p-3">
-                {/* Header */}
                 <div className="mb-3">
                     <h1 className="text-lg font-bold text-gray-800 mb-1">Quản lý đơn hàng</h1>
                     <p className="text-xs text-gray-500">Theo dõi và quản lý tất cả đơn hàng của bạn</p>
                 </div>
-                
-                {/* Search and Filters */}
                 <div className="bg-gray-50 rounded-lg p-2 mb-3 space-y-2">
-                    {/* Search bar */}
                     <div className="flex items-center">
                         <div className="relative flex-grow">
                             <input
@@ -150,13 +146,21 @@ function Order() {
                                 value={searchTerm}
                                 onChange={handleSearchChange}
                             />
-                            <svg className="absolute left-2 top-2 h-3 w-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            <svg
+                                className="absolute left-2 top-2 h-3 w-3 text-gray-400"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                />
                             </svg>
                         </div>
                     </div>
-
-                    {/* Date range and filters */}
                     <div className="flex flex-wrap items-center gap-2 text-xs">
                         <div className="flex items-center gap-1">
                             <label className="text-xs font-medium text-gray-600">Từ:</label>
@@ -176,8 +180,6 @@ function Order() {
                                 className="border border-gray-300 rounded-md p-1 text-xs focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                             />
                         </div>
-                        
-                        {/* Type filter */}
                         <div className="flex items-center gap-2 bg-white rounded-lg p-1.5 border">
                             <span className="text-xs font-medium text-gray-600">Loại:</span>
                             <label className="flex items-center gap-1 text-xs cursor-pointer">
@@ -214,17 +216,19 @@ function Order() {
                                 <span>Tại quầy</span>
                             </label>
                         </div>
-                        
                         <button className="ml-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-1">
                             <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                />
                             </svg>
                             Export Excel
                         </button>
                     </div>
                 </div>
-
-                {/* Status tabs */}
                 <div className="border-b border-gray-200 mb-2">
                     <nav className="flex space-x-4 overflow-x-auto">
                         {statusOptions.map((status) => (
@@ -242,21 +246,37 @@ function Order() {
                         ))}
                     </nav>
                 </div>
-
-                {/* Table */}
                 <div className="overflow-x-auto rounded-lg border border-gray-200">
                     <table className="min-w-full bg-white table-fixed">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-8">#</th>
-                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-20 whitespace-nowrap">Mã</th>
-                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-16 whitespace-nowrap">Tổng SP</th>
-                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-24 whitespace-nowrap">Tổng tiền</th>
-                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-32 whitespace-nowrap">Tên khách hàng</th>
-                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-20 whitespace-nowrap">Ngày tạo</th>
-                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-24 whitespace-nowrap">Loại HĐ</th>
-                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-24 whitespace-nowrap">Trạng thái</th>
-                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-16 whitespace-nowrap">Action</th>
+                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-8">
+                                    #
+                                </th>
+                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-20 whitespace-nowrap">
+                                    Mã
+                                </th>
+                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-16 whitespace-nowrap">
+                                    Tổng SP
+                                </th>
+                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-24 whitespace-nowrap">
+                                    Tổng tiền
+                                </th>
+                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-32 whitespace-nowrap">
+                                    Tên khách hàng
+                                </th>
+                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-20 whitespace-nowrap">
+                                    Ngày tạo
+                                </th>
+                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-24 whitespace-nowrap">
+                                    Loại HĐ
+                                </th>
+                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-24 whitespace-nowrap">
+                                    Trạng thái
+                                </th>
+                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-16 whitespace-nowrap">
+                                    Action
+                                </th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
@@ -264,13 +284,26 @@ function Order() {
                                 const { label, color } = getStatusLabel(order.trangThai);
                                 return (
                                     <tr key={order.id} className="hover:bg-gray-50 transition-colors duration-150">
-                                        <td className="py-2 px-2 text-xs text-gray-600 whitespace-nowrap">{index + 1}</td>
-                                        <td className="py-2 px-2 text-xs font-medium text-gray-900 whitespace-nowrap truncate">{order.ma}</td>
-                                        <td className="py-2 px-2 text-xs text-gray-600 whitespace-nowrap">{order.soLuong}</td>
-                                        <td className="py-2 px-2 text-xs font-medium text-gray-900 whitespace-nowrap">
-                                            {order.tongTien ? order.tongTien.toLocaleString() + ' VNĐ' : 'Chưa xác định'}
+                                        <td className="py-2 px-2 text-xs text-gray-600 whitespace-nowrap">
+                                            {index + 1}
                                         </td>
-                                        <td className="py-2 px-2 text-xs text-gray-600 whitespace-nowrap truncate" title={order.tenNguoiNhan || 'Khách lẻ'}>{order.tenNguoiNhan || 'Khách lẻ'}</td>
+                                        <td className="py-2 px-2 text-xs font-medium text-gray-900 whitespace-nowrap truncate">
+                                            {order.ma}
+                                        </td>
+                                        <td className="py-2 px-2 text-xs text-gray-600 whitespace-nowrap">
+                                            {order.soLuong}
+                                        </td>
+                                        <td className="py-2 px-2 text-xs font-medium text-gray-900 whitespace-nowrap">
+                                            {order.tongTien
+                                                ? order.tongTien.toLocaleString() + ' VNĐ'
+                                                : 'Chưa xác định'}
+                                        </td>
+                                        <td
+                                            className="py-2 px-2 text-xs text-gray-600 whitespace-nowrap truncate"
+                                            title={order.tenNguoiNhan || 'Khách lẻ'}
+                                        >
+                                            {order.tenNguoiNhan || 'Khách lẻ'}
+                                        </td>
                                         <td className="py-2 px-2 text-xs text-gray-600 whitespace-nowrap">
                                             {new Date(order.ngayTao).toLocaleDateString('vi-VN')}
                                         </td>
@@ -280,7 +313,9 @@ function Order() {
                                             </span>
                                         </td>
                                         <td className="py-2 px-2 whitespace-nowrap">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${color} whitespace-nowrap`}>
+                                            <span
+                                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${color} whitespace-nowrap`}
+                                            >
                                                 {label}
                                             </span>
                                         </td>
@@ -298,8 +333,6 @@ function Order() {
                         </tbody>
                     </table>
                 </div>
-
-                {/* Pagination */}
                 <div className="flex justify-center mb-2 mt-4">
                     <button
                         className={`${

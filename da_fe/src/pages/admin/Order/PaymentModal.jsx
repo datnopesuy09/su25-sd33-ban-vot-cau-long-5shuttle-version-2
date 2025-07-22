@@ -1,4 +1,3 @@
-// PaymentModal.js
 import React from 'react';
 import { X, Receipt, Calculator, Banknote, CreditCard } from 'lucide-react';
 
@@ -13,11 +12,9 @@ const PaymentModal = ({
     note,
     setNote,
     handleSave,
-    isInsufficientFunds,
     isAnimating,
     formatCurrency,
-    calculateChange
-
+    calculateChange,
 }) => {
     if (!isOpen) return null;
 
@@ -109,31 +106,21 @@ const PaymentModal = ({
                     {/* Tiền khách đưa - chỉ hiện khi thanh toán tiền mặt */}
                     {paymentMethod === 'Tiền mặt' && (
                         <div className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">Tiền khách đưa</label>
+                            <label className="block text-sm font-medium text-gray-700">Tiền khách đưa (tùy chọn)</label>
                             <div className="relative">
                                 <input
                                     type="number"
                                     value={customerMoney || ''}
                                     onChange={(e) => setCustomerMoney(Number(e.target.value))}
-                                    placeholder="Nhập số tiền..."
-                                    className={`w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 ${
-                                        isInsufficientFunds
-                                            ? 'border-red-300 bg-red-50'
-                                            : 'border-gray-200 focus:border-blue-500'
-                                    }`}
+                                    placeholder="Nhập số tiền nếu cần tính tiền thừa..."
+                                    className="w-full px-4 py-3 border-2 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 border-gray-200 focus:border-blue-500"
                                 />
                                 <div className="absolute right-3 top-3 text-gray-400 text-sm">VNĐ</div>
                             </div>
-                            {isInsufficientFunds && (
-                                <p className="text-red-500 text-sm flex items-center space-x-1">
-                                    <span>⚠️</span>
-                                    <span>Số tiền không đủ để thanh toán</span>
-                                </p>
-                            )}
                         </div>
                     )}
 
-                    {/* Tiền thừa - chỉ hiện khi thanh toán tiền mặt */}
+                    {/* Tiền thừa - chỉ hiện khi thanh toán tiền mặt và có tiền khách đưa */}
                     {paymentMethod === 'Tiền mặt' && customerMoney > 0 && (
                         <div
                             className={`rounded-xl p-4 ${
@@ -174,9 +161,9 @@ const PaymentModal = ({
                     </button>
                     <button
                         onClick={handleSave}
-                        disabled={isInsufficientFunds}
+                        disabled={isAnimating}
                         className={`px-6 py-2.5 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 ${
-                            isInsufficientFunds
+                            isAnimating
                                 ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                 : 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 focus:ring-blue-500 shadow-lg hover:shadow-xl'
                         }`}
