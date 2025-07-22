@@ -31,7 +31,7 @@ function Profile() {
 
   return (
     <Box sx={{ my: 1}}>
-      <Box sx={{ mb: 2, px: 1, display: 'flex', alignItems: 'center' }}>
+      <Box sx={{ mb: 1, px: 1, display: 'flex', alignItems: 'center' }}>
         <Link to="/" style={{ textDecoration: 'none', color: '#000', fontWeight: 600 }}>
           Trang chủ
         </Link>
