@@ -35,13 +35,12 @@ public interface DotGiamGiaRepository extends JpaRepository<KhuyenMai, Integer> 
     )
     List<SanPhamCTResponse> getAllSanPhamChiTiet();
 
-    @Query (
-            """
-            SELECT new com.example.da_be.dto.response.SanPhamResponse(s.id, s.ma, s.ten, s.trangThai)
-            FROM SanPham s
-"""
-    )
-    List<SanPhamResponse> getAllSanPham();
+    @Query("""
+    SELECT new com.example.da_be.dto.response.SanPhamResponse(s.id, s.ma, s.ten, s.trangThai)
+    FROM SanPham s
+    WHERE s.ten LIKE %:ten%
+""")
+    List<SanPhamResponse> getAllSanPhamByTen(@Param("ten") String ten);
 
     @Query(
             """
@@ -70,17 +69,13 @@ public interface DotGiamGiaRepository extends JpaRepository<KhuyenMai, Integer> 
             where spkm.khuyenMai.id = :idKhuyenMai
 """
     )
-    List<Integer> getIdSanPhamVaSanPhamChiTietByIdKhuyenMai(Integer idKhuyenMai);
+    List<Integer> getIdSanPhamByIdKhuyenMai(Integer idKhuyenMai);
 
-    @Query(
-            """
-            SELECT spct.id
-            FROM SanPhamKhuyenMai spkm
-            inner join SanPhamCT spct on spkm.sanPhamCT.id = spct.id
-            inner join SanPham sp on spct.sanPham.id = sp.id
-            where spkm.khuyenMai.id = :idKhuyenMai
-"""
-    )
+    @Query("""
+    SELECT spkm.sanPhamCT.id
+    FROM SanPhamKhuyenMai spkm
+    WHERE spkm.khuyenMai.id = :idKhuyenMai
+""")
     List<Integer> getIdSanPhamChiTietByIdKhuyenMai(Integer idKhuyenMai);
 
     @Query(

@@ -15,7 +15,7 @@ import java.util.List;
 
 public interface DotGiamGiaService {
     List<KhuyenMaiResponse> getAllKhuyenMai();
-    List<SanPhamResponse> getAllSanPham();
+    List<SanPhamResponse> getAllSanPhamByTen(String ten);
     List<SanPhamCTResponse> getAllSanPhamChiTiet();
     List<SanPhamCTResponse> getSanPhamChiTietBySanPham(List<Integer> id);
     Page<SanPhamCTResponse> getSanPhamChiTietBySanPham(SanPhamCTSearch search, List<Integer> id, Pageable pageable);
@@ -23,11 +23,12 @@ public interface DotGiamGiaService {
     KhuyenMai updateKhuyenMai(KhuyenMaiRequest khuyenMaiRequest, Integer id);
     KhuyenMai deleteKhuyenMai(Integer id);
     KhuyenMai getKhuyenMaiById(Integer id);
-    List<Integer> getIdSanPhamVaSanPhamChiTietByIdKhuyenMai(Integer idKhuyenMai);
+    List<Integer> getIdSanPhamByIdKhuyenMai(Integer idKhuyenMai);
     List<Integer> getIdSanPhamChiTietByIdKhuyenMai(Integer idKhuyenMai);
     Page<KhuyenMaiResponse> getSearchKhuyenMai(KhuyenMaiSearch khuyenMaiSearch, Pageable pageable);
     Page<SanPhamResponse> getSearchSanPham(SanPhamSearch sanPhamSearch, Pageable pageable);
     Page<SanPhamCTResponse> phanTrangSanPhamCT(Pageable pageable);
     List<SanPhamCTResponse> fillterSanPhamCT(SanPhamCTSearch sanPhamCTSearch);
     List<String> getAllTenKhuyenMai();
+    List<SanPhamCTResponse> getAllBySanPhamId(Long idSanPham);
 }

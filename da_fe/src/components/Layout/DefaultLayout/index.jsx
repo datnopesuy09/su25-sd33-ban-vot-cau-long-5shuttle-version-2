@@ -28,12 +28,22 @@ function DefaultLayout({ children }) {
     //     loadCarts(1); // Thay đổi ID tài khoản nếu cần
     // }, []);
 
+    // return (
+    //     <div className="DefaultLayout">
+    //         <Navbar />
+    //         <div className="container mt-[70px]">
+    //             <div className="content">{children}</div>
+    //         </div>
+    //         <Footer />
+    //     </div>
+    // );
+
     return (
-        <div className="DefaultLayout">
+        <div className="DefaultLayout flex flex-col min-h-screen">
             <Navbar />
-            <div className="container mt-[70px]">
-                <div className="content">{children}</div>
-            </div>
+            <main className="flex-1 container mx-auto px-4 pt-[70px]">
+                {children}
+            </main>
             <Footer />
         </div>
     );

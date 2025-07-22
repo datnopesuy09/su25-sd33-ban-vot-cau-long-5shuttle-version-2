@@ -88,4 +88,9 @@ button:focus-visible {
 
 
   */
-
+.sticky-header thead th {
+    position: sticky;
+    top: 0;
+    background-color: #f3f4f6; /* bg-gray-100 */
+    z-index: 10;
+}

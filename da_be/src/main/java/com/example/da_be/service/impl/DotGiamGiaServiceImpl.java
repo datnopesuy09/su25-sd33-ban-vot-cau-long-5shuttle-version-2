@@ -25,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class DotGiamGiaServiceImpl implements DotGiamGiaService {
@@ -43,8 +44,8 @@ public class DotGiamGiaServiceImpl implements DotGiamGiaService {
     }
 
     @Override
-    public List<SanPhamResponse> getAllSanPham() {
-        return dotGiamGiaRepository.getAllSanPham();
+    public List<SanPhamResponse> getAllSanPhamByTen(String ten) {
+        return dotGiamGiaRepository.getAllSanPhamByTen(ten);
     }
 
     @Override
@@ -263,13 +264,32 @@ public class DotGiamGiaServiceImpl implements DotGiamGiaService {
     }
 
     @Override
-    public List<Integer> getIdSanPhamVaSanPhamChiTietByIdKhuyenMai(Integer idKhuyenMai) {
-        return dotGiamGiaRepository.getIdSanPhamVaSanPhamChiTietByIdKhuyenMai(idKhuyenMai);
+    public List<Integer> getIdSanPhamByIdKhuyenMai(Integer idKhuyenMai) {
+        return dotGiamGiaRepository.getIdSanPhamByIdKhuyenMai(idKhuyenMai);
     }
 
     @Override
     public List<Integer> getIdSanPhamChiTietByIdKhuyenMai(Integer idKhuyenMai) {
         return dotGiamGiaRepository.getIdSanPhamChiTietByIdKhuyenMai(idKhuyenMai);
+    }
+
+    public static SanPhamCTResponse convertToResponse(SanPhamCT entity) {
+        SanPhamCTResponse dto = new SanPhamCTResponse();
+        dto.setId(entity.getId());
+        dto.setTenSanPham(entity.getSanPham().getTen());
+        dto.setTenThuongHieu(entity.getThuongHieu().getTen());
+        dto.setTenMauSac(entity.getMauSac().getTen());
+        dto.setTenChatLieu(entity.getChatLieu().getTen());
+        dto.setTenTrongLuong(entity.getTrongLuong().getTen());
+        dto.setTenDiemCanBang(entity.getDiemCanBang().getTen());
+        dto.setTenDoCung(entity.getDoCung().getTen());
+        return dto;
+    }
+
+    @Override
+    public List<SanPhamCTResponse> getAllBySanPhamId(Long idSanPham) {
+        List<SanPhamCT> list = sanPhamChiTietRepository.findBySanPhamId(idSanPham);
+        return list.stream().map(spct -> convertToResponse(spct)).collect(Collectors.toList());
     }
 
     @Override

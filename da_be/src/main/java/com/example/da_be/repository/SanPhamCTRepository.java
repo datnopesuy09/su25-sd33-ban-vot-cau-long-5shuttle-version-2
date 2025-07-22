@@ -41,5 +41,6 @@ public interface SanPhamCTRepository extends JpaRepository<SanPhamCT, Integer> {
             "WHERE km.trangThai = 1", nativeQuery = true)
     List<SanPhamCTListDTOo> findAllWithPromotions();
 
-
+    @Query("SELECT spct FROM SanPhamCT spct WHERE spct.sanPham.id = :idSanPham")
+    List<SanPhamCT> findBySanPhamId(@Param("idSanPham") Long idSanPham);
 }
