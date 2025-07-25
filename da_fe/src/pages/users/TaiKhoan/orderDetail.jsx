@@ -176,6 +176,15 @@ function OrderDetail() {
                             Hủy đơn hàng
                         </Button>
                     )}
+                    {hoaDon?.trangThai === 6 && (
+                        <Button
+                            // onClick={() => handleHuyDonHang(hoaDon.id)}
+                            variant="outlined"
+                            color="error"
+                        >
+                            Trả hàng/Hoàn tiền
+                        </Button>
+                    )}
                     <Button component={Link} to="/profile/order" variant="outlined" color="primary">
                         Trở về
                     </Button>

@@ -27,14 +27,6 @@ public class UserController {
 
     UserService userService;
 
-    @PostMapping()
-    ApiResponse<UserResponse> createUser(@RequestBody @Valid UserCreationRequest request){
-        return ApiResponse.<UserResponse>builder()
-                .result(userService.createUser(request))
-                .build();
-
-    }
-
     @GetMapping("/myOrders")
     ApiResponse<List<HoaDonResponse>> getAllMyOders(){
         return ApiResponse.<List<HoaDonResponse>>builder()
