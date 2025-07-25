@@ -13,7 +13,8 @@ public enum ErrorCode {
     USERID_NOT_EXISTS(1002, "User does not exist", HttpStatus.NOT_FOUND),
     ROLEID_NOT_EXISTS(1003, "Role does not exist", HttpStatus.NOT_FOUND),
     ROLENAME_NOT_EXISTS(1007, "Role does not exist", HttpStatus.NOT_FOUND),
-    IDODER_NOT_EXISTS(1008, "Role does not exist", HttpStatus.NOT_FOUND),
+    ID_ODER_NOT_EXISTS(1008, "Role does not exist", HttpStatus.NOT_FOUND),
+    ADDRESS_NOT_FOUND(1009, "Address does not exist", HttpStatus.NOT_FOUND),
 
     //    USERID_INVALID(1002, "Username must be at least 8 characters", HttpStatus.BAD_REQUEST),
 //    PASSWORD_INVALID(1003, "Password must be at least 5 characters", HttpStatus.BAD_REQUEST),
