@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Box, TextField, Typography, Paper, Button, Grid, Chip,
-  InputAdornment, Tabs, Tab
+  Box, TextField, Typography, Paper, Button, Grid, Tabs, Tab, InputAdornment
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import { toast } from 'react-toastify';
@@ -10,33 +9,29 @@ import axios from 'axios';
 import dayjs from 'dayjs';
 import { useUserAuth } from '../../../contexts/userAuthContext';
 
+// ✅ Tabs hiển thị
 const tabs = ['Tất cả', 'Chờ xác nhận', 'Chờ giao hàng', 'Đang vận chuyển', 'Hoàn thành', 'Đã hủy', 'Trả hàng'];
 
-const getStatus = (status) => {
-  const statuses = [
-    '', 'Chờ xác nhận', 'Chờ giao hàng', 'Đang vận chuyển',
-    'Đã giao hàng', 'Chờ thanh toán', 'Đã thanh toán',
-    'Hoàn thành', 'Đã hủy', 'Trả hàng'
-  ];
-  return statuses[status] || 'Không xác định';
+// ✅ statusMap đồng bộ với OrderStatus.jsx
+const statusMap = {
+  1: { label: 'Chờ xác nhận', color: 'bg-yellow-100 text-yellow-800' },
+  2: { label: 'Chờ giao hàng', color: 'bg-blue-100 text-blue-800' },
+  3: { label: 'Đang vận chuyển', color: 'bg-purple-100 text-purple-800' },
+  4: { label: 'Đã giao hàng', color: 'bg-gray-200 text-green-800' },
+  5: { label: 'Đã thanh toán', color: 'bg-teal-100 text-teal-800' },
+  6: { label: 'Hoàn thành', color: 'bg-pink-100 text-gray-800' },
+  7: { label: 'Đã hủy', color: 'bg-red-200 text-red-800' },
+  8: { label: 'Trả hàng', color: 'bg-red-400 text-white' },
+  9: { label: 'Chờ nhập hàng', color: 'bg-orange-200 text-orange-800' },
 };
 
-// const getStatusColor = (status) => {
-//   switch (status) {
-//     case 5: return 'warning'; // Chờ thanh toán
-//     case 1: return 'info';    // Chờ xác nhận
-//     case 7: return 'success'; // Hoàn thành
-//     case 8: return 'default'; // Đã hủy
-//     default: return 'primary';
-//   }
-// };
+const getStatus = (status) => statusMap[status]?.label || 'Không xác định';
+const getStatusStyle = (status) => statusMap[status]?.color || 'bg-gray-100 text-gray-600';
 
-const formatCurrency = (value) => {
-  return value.toLocaleString('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-  });
-};
+const formatCurrency = (value) => value.toLocaleString('vi-VN', {
+  style: 'currency',
+  currency: 'VND',
+});
 
 function UserOrder() {
   const [selectedTab, setSelectedTab] = useState('Tất cả');
@@ -50,9 +45,9 @@ function UserOrder() {
       (selectedTab === 'Chờ xác nhận' && bill.trangThai === 1) ||
       (selectedTab === 'Chờ giao hàng' && bill.trangThai === 2) ||
       (selectedTab === 'Đang vận chuyển' && bill.trangThai === 3) ||
-      (selectedTab === 'Hoàn thành' && bill.trangThai === 7) ||
-      (selectedTab === 'Đã hủy' && bill.trangThai === 8) ||
-      (selectedTab === 'Trả hàng' && bill.trangThai === 9);
+      (selectedTab === 'Hoàn thành' && bill.trangThai === 6) ||
+      (selectedTab === 'Đã hủy' && bill.trangThai === 7) ||
+      (selectedTab === 'Trả hàng' && bill.trangThai === 8);
 
     const matchSearch = bill.ma.toLowerCase().includes(searchTerm.toLowerCase());
     return matchTab && matchSearch;
@@ -65,18 +60,14 @@ function UserOrder() {
         if (!token) return;
 
         const headers = { Authorization: `Bearer ${token}` };
-
-        // Lấy danh sách hóa đơn
         const res = await axios.get('http://localhost:8080/users/myOrders', { headers });
         const bills = res.data.result;
 
-        // Gọi API lấy chi tiết từng hóa đơn
         const detailedBills = await Promise.all(
           bills.map(async (bill) => {
             try {
               const detailRes = await axios.get(`http://localhost:8080/users/myOderDetail/${bill.id}`, { headers });
               const chiTiet = detailRes.data.result;
-
               const firstItem = chiTiet?.[0];
 
               return {
@@ -86,8 +77,7 @@ function UserOrder() {
                 giaKhuyenMai: firstItem?.sanPhamCT?.giaKhuyenMai || null,
                 hinhAnhDaiDien: firstItem?.sanPhamCT?.hinhAnh || '',
               };
-            } catch (detailError) {
-              console.warn('Không thể lấy chi tiết cho hóa đơn:', bill.id);
+            } catch {
               return bill;
             }
           })
@@ -100,9 +90,7 @@ function UserOrder() {
       }
     };
 
-    if (isLoggedIn) {
-      fetchOrders();
-    }
+    if (isLoggedIn) fetchOrders();
   }, [isLoggedIn]);
 
   return (
@@ -127,7 +115,7 @@ function UserOrder() {
 
       {/* Search */}
       <TextField
-        placeholder="Tìm kiếm theo mã hóa đơn"
+        placeholder="Tìm theo mã đơn hàng"
         fullWidth
         size="small"
         variant="outlined"
@@ -142,7 +130,7 @@ function UserOrder() {
           const value = e.target.value;
           const specialCharsRegex = /[!@#\$%\^&*\(\),.?":{}|<>[\]]/;
           if (specialCharsRegex.test(value)) {
-            toast.warning('Tìm kiếm không được có kí tự đặc biệt');
+            toast.warning('Không được chứa ký tự đặc biệt');
             return;
           }
           setSearchTerm(value);
@@ -155,22 +143,11 @@ function UserOrder() {
         {filteredBills.length > 0 ? (
           filteredBills.map((item) => (
             <Paper key={item.id} variant="outlined" sx={{ p: 2, mb: 2 }}>
-              {/* Mã hóa đơn + trạng thái */}
               <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Typography fontWeight={600} fontSize={14}>
                   {item.ma}
                 </Typography>
-                <Box
-                  sx={{
-                    display: 'inline-block',
-                    backgroundColor: '#b5cdf7ff',
-                    paddingX: 1,
-                    paddingY: 0.5,
-                    fontSize: '13px',
-                    color: '#0c67c2ff',
-                    fontWeight: 500,
-                  }}
-                >
+                <Box className={`px-2 py-1 text-sm rounded ${getStatusStyle(item.trangThai)}`}>
                   {getStatus(item.trangThai)}
                 </Box>
               </Box>
@@ -182,34 +159,28 @@ function UserOrder() {
                     alt="ảnh sản phẩm"
                     style={{ width: '100%', borderRadius: 4 }}
                   />
-
                 </Grid>
                 <Grid item xs={9}>
                   <Typography noWrap fontWeight={500}>
-                    {item.tenSanPhamDaiDien || 'Sản phẩm'}
+                    {item.tenSanPhamDaiDien}
                   </Typography>
-                  <Typography fontSize={13} color="text.secondary">
-                    {item.giaKhuyenMai ? (
-                      <>
-                        <Typography
-                          variant="body2"
-                          sx={{ textDecoration: 'line-through', color: 'text.disabled' }}
-                        >
-                          {formatCurrency(item.giaBan)}
-                        </Typography>
-                        <Typography color="error">{formatCurrency(item.giaKhuyenMai)}</Typography>
-                      </>
-                    ) : (
-                      <Typography>{formatCurrency(item.giaBan)}</Typography>
-                    )}
-                  </Typography>
+                  {item.giaKhuyenMai ? (
+                    <>
+                      <Typography sx={{ textDecoration: 'line-through', fontSize: 13, color: '#888' }}>
+                        {formatCurrency(item.giaBan)}
+                      </Typography>
+                      <Typography color="error">{formatCurrency(item.giaKhuyenMai)}</Typography>
+                    </>
+                  ) : (
+                    <Typography>{formatCurrency(item.giaBan)}</Typography>
+                  )}
                 </Grid>
               </Grid>
 
               <Grid container justifyContent="space-between" alignItems="center" mt={2}>
                 <Grid item xs={12} md={6}>
                   <Typography fontSize={13}>
-                    Ngày đặt hàng: {dayjs(item.ngayTao).format('DD/MM/YYYY HH:mm')}
+                    Ngày đặt: {dayjs(item.ngayTao).format('DD/MM/YYYY HH:mm')}
                   </Typography>
                   <Button
                     size="small"
@@ -218,17 +189,16 @@ function UserOrder() {
                     to={`/profile/order-detail/${item.id}`}
                     sx={{ mt: 1, textTransform: 'none' }}
                   >
-                    Chi tiết đơn hàng
+                    Xem chi tiết
                   </Button>
                 </Grid>
                 <Grid item xs={12} md={6} textAlign={{ xs: 'left', md: 'right' }}>
-                  <Typography fontSize={13}>Tiền ship: {formatCurrency(item.phiShip || 0)}</Typography>
+                  <Typography fontSize={13}>Phí ship: {formatCurrency(item.phiShip || 0)}</Typography>
                   <Typography fontWeight={600}>
-                    Tổng số tiền: <span style={{ color: 'red' }}>{formatCurrency(item.tongTien)}</span>
+                    Tổng tiền: <span style={{ color: 'red' }}>{formatCurrency(item.tongTien)}</span>
                   </Typography>
                 </Grid>
               </Grid>
-
             </Paper>
           ))
         ) : (

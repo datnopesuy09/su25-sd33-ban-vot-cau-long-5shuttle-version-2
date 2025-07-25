@@ -117,7 +117,7 @@ public class UserService {
 
         Integer idUser = userRepository.findIdByEmail(email);
 
-        List<HoaDon> hoaDon = hoaDonRepository.findHoaDonByTaiKhoan_IdAndLoaiHoaDon(idUser, LoaiHoaDon.ONLINE.getName());
+        List<HoaDon> hoaDon = hoaDonRepository.findHoaDonByTaiKhoan_IdAndLoaiHoaDon(idUser, LoaiHoaDon.TRUC_TUYEN.getName());
 
         return hoaDon.stream().map(hoaDonMapper::toHoaDonResponse).toList();
     }
