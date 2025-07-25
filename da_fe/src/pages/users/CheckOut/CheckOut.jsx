@@ -5,12 +5,14 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import ShippingInfo from './ShippingInfo';
 import OrderSummary from './OrderSummary';
 import DiscountModal from './DiscountModal';
+import { useUserAuth } from '../../../contexts/userAuthContext';
 
 const CheckOut = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { user } = useUserAuth()
     // Giả sử idTaiKhoan được truyền qua location.state hoặc dùng giá trị mặc định
-    const idTaiKhoan = location.state?.idTaiKhoan || 1; // Mặc định idTaiKhoan = 1 để test
+    const idTaiKhoan = user?.id;
     const [carts, setCarts] = useState([]);
     const [formData, setFormData] = useState({
         addressName: '',

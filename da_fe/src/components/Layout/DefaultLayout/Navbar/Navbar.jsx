@@ -19,6 +19,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import KeyIcon from '@mui/icons-material/Key';
 import LoginIcon from '@mui/icons-material/Login';
 import Swal from 'sweetalert2';
+import { toast } from 'react-toastify';
 
 function parseJwt(token) {
     try {
@@ -73,6 +74,7 @@ const Navbar = () => {
 
     const handleConfirm = () => {
         logoutUser();
+        toast.success("Đăng xuất thành công!")
         navigate('/');
     };
 
@@ -120,7 +122,19 @@ const Navbar = () => {
 
                     <div className="flex items-center gap-6">
                         {/* Cart */}
-                        <Link to="/gio-hang" className="group">
+                        <div
+                            onClick={() => {
+                                if (!isLoggedIn) {
+                                    toast.warning('Vui lòng đăng nhập để sử dụng giỏ hàng');
+                                    // setTimeout(() => {
+                                    //     navigate('/login');
+                                    // }, 1000); // đợi toast hiển thị khoảng 1 giây
+                                } else {
+                                    navigate('/gio-hang');
+                                }
+                            }}
+                            className="group cursor-pointer"
+                        >
                             <div className="relative p-3 rounded-xl transition-all duration-300 hover:bg-gradient-to-r hover:from-[#2f19ae]/10 hover:to-purple-500/10 hover:shadow-md">
                                 <ShoppingCart className="w-6 h-6 text-gray-700 group-hover:text-[#2f19ae] transition-colors duration-300" />
                                 {cartItemCount > 0 && (
@@ -129,7 +143,7 @@ const Navbar = () => {
                                     </div>
                                 )}
                             </div>
-                        </Link>
+                        </div>
 
                         <div className="flex items-center gap-2">
                             <Tooltip title="Tùy chọn tài khoản">

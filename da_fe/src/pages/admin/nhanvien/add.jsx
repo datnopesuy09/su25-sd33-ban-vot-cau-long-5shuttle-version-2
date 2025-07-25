@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import Swal from "sweetalert2";
 import { toast } from "react-toastify";
+import 'react-toastify/dist/ReactToastify.css';
 
 function AddStaff() {
     const navigate = useNavigate();
