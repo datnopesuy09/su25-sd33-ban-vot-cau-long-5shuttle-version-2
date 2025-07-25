@@ -1,6 +1,6 @@
 // OrderInfo.js
 import React from 'react';
-import {useAdminAuth} from '../../../contexts/adminAuthContext'
+import { useAdminAuth } from '../../../contexts/adminAuthContext'
 
 const OrderInfo = ({
     orderData,
@@ -11,7 +11,7 @@ const OrderInfo = ({
     getStatusStyle,
     getStatus,
 }) => {
-    const {admin} = useAdminAuth();
+    const { admin } = useAdminAuth();
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 max-w-5xl mx-auto mt-8">
             {/* Header */}

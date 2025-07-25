@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
 import { Plus, Minus, Trash2, Heart, Truck, Package } from 'lucide-react';
 
-const CartItem = ({ cart, onQuantityChange = () => {}, onDeleteCart = () => {} }) => {
+const CartItem = ({ cart, onQuantityChange = () => { }, onDeleteCart = () => { } }) => {
     const [quantity, setQuantity] = useState(cart.soLuong);
     const maxQuantity = cart?.sanPhamCT?.soLuong || 0;
     const [isEditing, setIsEditing] = useState(false);
     const [isFavorite, setIsFavorite] = useState(false);
+
+    // useEffect(() => {
+    //     if (quantity > maxQuantity) {
+    //         setQuantity(maxQuantity);
+    //         onQuantityChange(cart.id, maxQuantity);
+    //     }
+    // }, [maxQuantity]);
 
     // Calculate total price
     const totalPrice = cart.sanPhamCT.giaKhuyenMai ? cart.sanPhamCT.giaKhuyenMai * quantity : cart.sanPhamCT.donGia * quantity;

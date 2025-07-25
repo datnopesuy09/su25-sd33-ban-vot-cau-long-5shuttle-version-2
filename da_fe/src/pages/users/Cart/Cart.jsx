@@ -1,103 +1,101 @@
-// Cart.js
 import React, { useState, useEffect, useContext } from 'react';
 import CartItem from './CartItem';
-import CartSummary from './CartSummary'; // Import CartSummary
+import CartSummary from './CartSummary';
 import { Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import swal from 'sweetalert';
 import { CartContext } from './CartContext';
-import { X, Tag } from 'lucide-react';
-
-import { ShoppingCart, ShoppingBag, AlertCircle, CheckCircle2, Loader2, Truck, Shield, Gift } from 'lucide-react';
+import { useUserAuth } from '../../../contexts/userAuthContext';
+import { Loader2, ShoppingCart, ShoppingBag, Truck, Shield, Gift } from 'lucide-react';
 
 const Cart = () => {
     const navigate = useNavigate();
+    const { user } = useUserAuth();
+    const { setCartItemCount } = useContext(CartContext);
+    const userId = user?.id;
+
     const [carts, setCarts] = useState([]);
     const [totalPrice, setTotalPrice] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [isCheckingOut, setIsCheckingOut] = useState(false);
-    const [notification, setNotification] = useState(null);
-    const idTaiKhoan = 1;
-    const { setCartItemCount } = useContext(CartContext);
 
-    // Calculate shipping (free if over 1M VND)
     const shipping = totalPrice > 1000000 ? 0 : 30000;
-    const finalTotal = totalPrice + shipping; // Không cần thay đổi
+    const finalTotal = totalPrice + shipping;
 
     useEffect(() => {
-        fetchCart();
-    }, []);
+        if (userId) {
+            fetchCart(userId);  
+        }
+    }, [userId]);
 
-    const showNotification = (message, type = 'success') => {
-        setNotification({ message, type });
-        setTimeout(() => setNotification(null), 3000);
-    };
-
-    const fetchCart = async () => {
+    const fetchCart = async (userId) => {
         setIsLoading(true);
         try {
-            const res = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}`);
-            setCarts(res.data);
-            const totalRes = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}/total`);
-            setTotalPrice(totalRes.data);
+            const res = await axios.get(`http://localhost:8080/api/gio-hang/${userId}`);
+            setCarts(res.data || []);
+            console.log("Gio hang tra ve:", res.data);
+
+            const totalRes = await axios.get(`http://localhost:8080/api/gio-hang/${userId}/total`);
+            setTotalPrice(totalRes.data || 0);
+
+            const countRes = await axios.get(`http://localhost:8080/api/gio-hang/${userId}/count`);
+            setCartItemCount(countRes.data || 0);
         } catch (error) {
             console.error('Lỗi lấy giỏ hàng:', error);
-            showNotification('Không thể tải giỏ hàng', 'error');
+            swal('Lỗi', 'Không thể tải giỏ hàng.', 'error');
+            setCartItemCount(0);
         } finally {
             setIsLoading(false);
         }
     };
 
-    
-
     const handleQuantityChange = async (cartId, newQuantity) => {
         try {
             await axios.put(`http://localhost:8080/api/gio-hang/${cartId}`, { soLuong: newQuantity });
-            setCarts(carts.map((c) => (c.id === cartId ? { ...c, soLuong: newQuantity } : c)));
-            const totalRes = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}/total`);
-            setTotalPrice(totalRes.data);
-            const countResponse = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}/count`);
-            setCartItemCount(countResponse.data);
-            showNotification('Đã cập nhật số lượng sản phẩm');
+            setCarts((prev) => prev.map((c) => (c.id === cartId ? { ...c, soLuong: newQuantity } : c)));
+
+            const totalRes = await axios.get(`http://localhost:8080/api/gio-hang/${userId}/total`);
+            setTotalPrice(totalRes.data || 0);
+
+            const countRes = await axios.get(`http://localhost:8080/api/gio-hang/${userId}/count`);
+            setCartItemCount(countRes.data || 0);
         } catch (error) {
             swal('Lỗi', 'Không thể cập nhật số lượng sản phẩm.', 'error');
-            console.error(error);
         }
     };
 
     const handleDeleteCart = async (cartId) => {
         try {
             await axios.delete(`http://localhost:8080/api/gio-hang/${cartId}`);
-            setCarts(carts.filter((c) => c.id !== cartId));
-            const totalRes = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}/total`);
-            setTotalPrice(totalRes.data);
-            const countResponse = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}/count`);
-            setCartItemCount(countResponse.data);
+            setCarts((prev) => prev.filter((c) => c.id !== cartId));
+
+            const totalRes = await axios.get(`http://localhost:8080/api/gio-hang/${userId}/total`);
+            setTotalPrice(totalRes.data || 0);
+
+            const countRes = await axios.get(`http://localhost:8080/api/gio-hang/${userId}/count`);
+            setCartItemCount(countRes.data || 0);
+
             swal('Thành công', 'Đã xóa sản phẩm khỏi giỏ hàng.', 'success');
         } catch (error) {
             swal('Lỗi', 'Không thể xóa sản phẩm.', 'error');
-            console.error(error);
         }
     };
-
-    
 
     const handleCheckout = async () => {
         setIsCheckingOut(true);
         try {
-            // Add any pre-checkout validation here
-            await new Promise((resolve) => setTimeout(resolve, 1000)); // Mock delay
+            await new Promise((resolve) => setTimeout(resolve, 1000));
             navigate('/gio-hang/checkout');
         } catch (error) {
-            showNotification('Có lỗi xảy ra khi chuyển đến thanh toán', 'error');
-            console.error(error);
+            swal('Lỗi', 'Có lỗi xảy ra khi chuyển đến thanh toán', 'error');
         } finally {
             setIsCheckingOut(false);
         }
     };
 
-    
+    if (!userId) return null;
+
     if (isLoading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -111,23 +109,6 @@ const Cart = () => {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* Notification */}
-            {notification && (
-                <div
-                    className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center gap-2 transition-all duration-300 ${
-                        notification.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
-                    }`}
-                >
-                    {notification.type === 'error' ? (
-                        <AlertCircle className="w-5 h-5" />
-                    ) : (
-                        <CheckCircle2 className="w-5 h-5" />
-                    )}
-                    {notification.message}
-                </div>
-            )}
-
-            {/* Header */}
             <div className="bg-white shadow-sm border-b sticky top-0 z-40">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
@@ -153,14 +134,13 @@ const Cart = () => {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 {carts.length === 0 ? (
-                    // Empty Cart State
                     <div className="text-center py-20">
                         <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
                             <ShoppingBag className="w-12 h-12 text-gray-400" />
                         </div>
                         <h2 className="text-3xl font-bold text-gray-800 mb-4">Giỏ hàng trống</h2>
                         <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                            Looks like you haven't added anything to your cart yet. Start shopping to fill it up!
+                            Bạn chưa thêm sản phẩm nào. Hãy bắt đầu mua sắm để lấp đầy giỏ hàng nhé!
                         </p>
                         <Button
                             variant="contained"
@@ -180,7 +160,6 @@ const Cart = () => {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        {/* Cart Items */}
                         <div className="lg:col-span-2">
                             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                                 <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-blue-50">
@@ -189,47 +168,30 @@ const Cart = () => {
                                         Sản phẩm trong giỏ ({carts.length})
                                     </h2>
                                 </div>
-
-                                <div className="p-6">
-                                    <div className="space-y-6">
-                                        {carts.map((cart) => (
-                                            <div
-                                                key={cart.id}
-                                                className="p-4 border border-gray-100 rounded-xl hover:shadow-md transition-shadow duration-200"
-                                            >
-                                                <CartItem
-                                                    cart={cart}
-                                                    showButton={true}
-                                                    onQuantityChange={handleQuantityChange}
-                                                    onDeleteCart={handleDeleteCart}
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
+                                <div className="p-6 space-y-6">
+                                    {carts.map((cart) => (
+                                        <div
+                                            key={cart.id}
+                                            className="p-4 border border-gray-100 rounded-xl hover:shadow-md transition-shadow duration-200"
+                                        >
+                                            <CartItem
+                                                cart={cart}
+                                                showButton={true}
+                                                onQuantityChange={handleQuantityChange}
+                                                onDeleteCart={handleDeleteCart}
+                                            />
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
 
-                            {/* Benefits Section */}
                             <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="bg-white p-4 rounded-xl border border-gray-200 text-center">
-                                    <Truck className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                                    <h3 className="font-semibold text-gray-800 mb-1">Miễn phí vận chuyển</h3>
-                                    <p className="text-sm text-gray-600">Đơn hàng từ 1.000.000đ</p>
-                                </div>
-                                <div className="bg-white p-4 rounded-xl border border-gray-200 text-center">
-                                    <Shield className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                                    <h3 className="font-semibold text-gray-800 mb-1">Bảo hành chính hãng</h3>
-                                    <p className="text-sm text-gray-600">Đổi trả trong 30 ngày</p>
-                                </div>
-                                <div className="bg-white p-4 rounded-xl border border-gray-200 text-center">
-                                    <Gift className="w-8 h-8 text-purple-500 mx-auto mb-2" />
-                                    <h3 className="font-semibold text-gray-800 mb-1">Quà tặng hấp dẫn</h3>
-                                    <p className="text-sm text-gray-600">Cho đơn hàng lớn</p>
-                                </div>
+                                <InfoCard icon={<Truck />} title="Miễn phí vận chuyển" desc="Đơn hàng từ 1.000.000đ" />
+                                <InfoCard icon={<Shield />} title="Bảo hành chính hãng" desc="Đổi trả trong 30 ngày" />
+                                <InfoCard icon={<Gift />} title="Quà tặng hấp dẫn" desc="Cho đơn hàng lớn" />
                             </div>
                         </div>
 
-                        {/* Order Summary */}
                         <CartSummary
                             carts={carts}
                             totalPrice={totalPrice}
@@ -241,10 +203,16 @@ const Cart = () => {
                     </div>
                 )}
             </div>
-
-            
         </div>
     );
 };
+
+const InfoCard = ({ icon, title, desc }) => (
+    <div className="bg-white p-4 rounded-xl border border-gray-200 text-center">
+        <div className="w-8 h-8 mx-auto mb-2 text-indigo-600">{icon}</div>
+        <h3 className="font-semibold text-gray-800 mb-1">{title}</h3>
+        <p className="text-sm text-gray-600">{desc}</p>
+    </div>
+);
 
 export default Cart;

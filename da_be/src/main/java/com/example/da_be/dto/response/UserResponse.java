@@ -17,15 +17,10 @@ import java.time.LocalDate;
 public class UserResponse {
 
     Integer id;
-
     String ma;
-
     String hoTen;
-
     String email;
-
     String matKhau;
-
     String sdt;
     LocalDate ngaySinh;
     Integer gioiTinh;
