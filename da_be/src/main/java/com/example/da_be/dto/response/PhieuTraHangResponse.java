@@ -1,6 +1,5 @@
 package com.example.da_be.dto.response;
 
-import com.example.da_be.enums.HinhThucTra;
 import com.example.da_be.enums.TrangThaiTra;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
@@ -28,7 +27,7 @@ public class PhieuTraHangResponse {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss") // Định dạng ngày giờ khi trả về JSON
     LocalDateTime ngayCapNhat; // Thời gian cập nhật gần nhất
 
-    HinhThucTra hinhThucTra; // Hình thức trả hàng (online/tai_quay)
+    String hinhThucTra;
 
     String ghiChu; // Ghi chú chung cho phiếu trả hàng
 

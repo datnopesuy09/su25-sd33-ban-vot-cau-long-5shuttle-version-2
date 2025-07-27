@@ -1,6 +1,5 @@
 package com.example.da_be.dto.request.PhieuTraHang;
 
-import com.example.da_be.enums.HinhThucTra;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -20,8 +19,6 @@ public class CreationPhieuTraHangOnlineRequest {
 
     @NotNull(message = "ID hóa đơn không được để trống")
     Integer hoaDonId;
-
-    HinhThucTra hinhThucTra = HinhThucTra.ONLINE;
 
     @Size(max = 255, message = "Ghi chú không được vượt quá 255 ký tự")
     String ghiChu; // Ghi chú chung cho phiếu trả hàng
