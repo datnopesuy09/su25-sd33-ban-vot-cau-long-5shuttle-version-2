@@ -51,7 +51,7 @@ import ChangePassword from '../pages/users/TaiKhoan/changePass.jsx';
 import AddressUser from '../pages/users/TaiKhoan/userAdress.jsx';
 import MyVoucher from '../pages/users/TaiKhoan/myVoucher.jsx';
 import AdminInfo from '../pages/admin/ad-info.jsx';
-import MyOrderDetail from '../pages/admin/nhanvien/draft.jsx';
+import ModalReturn from '../pages/users/TaiKhoan/demo.jsx';
 
 
 // Public routes
@@ -108,7 +108,7 @@ const publicRoutes = [
     { path: '/admin/thong-ke', component: ThongKe, layout: AdminLayout },
 
     { path: '/test', component: ResponsiveAppBar, layout: null },
-     { path: '/check', component: MyOrderDetail, layout: null }
+     { path: '/check', component: ModalReturn, layout: null },
 
 
 ];

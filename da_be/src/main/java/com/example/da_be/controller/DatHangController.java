@@ -94,7 +94,14 @@ public class DatHangController {
             hoaDon.setTenNguoiNhan(orderRequest.getThongTinGiaoHang().getHoTen());
             hoaDon.setSdtNguoiNhan(orderRequest.getThongTinGiaoHang().getSdt());
             hoaDon.setEmailNguoiNhan(orderRequest.getThongTinGiaoHang().getEmail());
-            hoaDon.setDiaChiNguoiNhan(orderRequest.getThongTinGiaoHang().getDiaChiCuThe());
+            DatHangRequestDTO.ThongTinGiaoHangDTO thongTin = orderRequest.getThongTinGiaoHang();
+            String fullAddress = thongTin.getDiaChiCuThe()
+                    + ", " + thongTin.getXa()
+                    + ", " + thongTin.getHuyen()
+                    + ", " + thongTin.getTinh();
+
+            hoaDon.setDiaChiNguoiNhan(fullAddress);
+
             hoaDon.setLoaiHoaDon("Trực tuyến");
 
             // Kiểm tra và áp dụng phiếu giảm giá nếu có

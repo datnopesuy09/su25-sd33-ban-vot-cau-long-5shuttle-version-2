@@ -17,11 +17,11 @@ public class DiaChiResponse {
 
     String sdt;
 
-    String idTinh;
+    String tinh;
 
-    String idHuyen;
+    String huyen;
 
-    String idXa;
+    String xa;
 
     String diaChiCuThe;
 

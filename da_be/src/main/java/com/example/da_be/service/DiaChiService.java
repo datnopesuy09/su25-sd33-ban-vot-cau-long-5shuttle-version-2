@@ -36,14 +36,40 @@ public class DiaChiService {
     }
 
 
+//    public DiaChiResponse createDiaChi(DiaChiCreationRequest request) {
+//        User user = getCurrentAuthenticatedUser();
+//
+//        DiaChi diaChi = diaChiMapper.toDiaChi(request);
+//
+//        diaChi.setTaiKhoan(user);
+//
+//        diaChi.setLoai(0);
+//
+//        diaChi = diaChiRepository.save(diaChi);
+//
+//        return diaChiMapper.toDiaChiResponse(diaChi);
+//    }
     public DiaChiResponse createDiaChi(DiaChiCreationRequest request) {
         User user = getCurrentAuthenticatedUser();
 
         DiaChi diaChi = diaChiMapper.toDiaChi(request);
-
         diaChi.setTaiKhoan(user);
 
-        diaChi.setLoai(0);
+        // Mặc định là địa chỉ thường
+        int loai = 0;
+
+        if (Boolean.TRUE.equals(request.getIsMacDinh())) {
+            // Nếu user muốn set làm địa chỉ mặc định
+            // Reset tất cả các địa chỉ hiện tại về không mặc định
+            diaChiRepository.findByTaiKhoanAndLoai(user, 1).ifPresent(dc -> {
+                dc.setLoai(0);
+                diaChiRepository.save(dc);
+            });
+
+            loai = 1; // Địa chỉ mới là mặc định
+        }
+
+        diaChi.setLoai(loai); // Set loại phù hợp (0 hoặc 1)
 
         diaChi = diaChiRepository.save(diaChi);
 
@@ -94,9 +120,6 @@ public class DiaChiService {
         return diaChiMapper.toDiaChiResponse(savedDiaChi);
     }
 
-
-
-
     public void deleteDiaChi(Integer idDiaChi) {
         User user = getCurrentAuthenticatedUser();
 
@@ -104,5 +127,15 @@ public class DiaChiService {
 
         diaChiRepository.delete(diaChi);
     }
+
+    public DiaChiResponse getDiaChiMacDinh() {
+        User user = getCurrentAuthenticatedUser();
+
+        DiaChi diaChiMacDinh = diaChiRepository.findByTaiKhoanAndLoai(user, 1)
+                .orElseThrow(() -> new RuntimeException(ErrorCode.ADDRESS_NOT_FOUND.getMessage()));
+
+        return diaChiMapper.toDiaChiResponse(diaChiMacDinh);
+    }
+
 
 }

@@ -95,4 +95,13 @@ public class UserController {
                 .build();
     }
 
+    @PutMapping("/myOrders/{idHoaDon}/status")
+    public ApiResponse<HoaDonResponse> updateMyOrderStatus(@PathVariable("idHoaDon") Integer idHoaDon,
+                                                           @RequestBody int newStatus) {
+        return ApiResponse.<HoaDonResponse>builder()
+                .result(userService.updateMyOrderStatus(idHoaDon, newStatus))
+                .code(1000)
+                .build();
+    }
+
 }
