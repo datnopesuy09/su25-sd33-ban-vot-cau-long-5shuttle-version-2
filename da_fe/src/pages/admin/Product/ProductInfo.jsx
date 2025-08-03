@@ -30,9 +30,9 @@ const ProductInfo = ({
         try {
             const response = await axios.get('http://localhost:8080/api/thuong-hieu');
             setBrands(response.data);
-            if (response.data.length > 0 && !brand) {
-                setBrand(response.data[0].ten);
-            }
+            // if (response.data.length > 0 && !brand) {
+            //     setBrand(response.data[0].ten);
+            // }
         } catch (error) {
             console.error('Failed to fetch brands', error);
         }
@@ -42,9 +42,9 @@ const ProductInfo = ({
         try {
             const response = await axios.get('http://localhost:8080/api/chat-lieu');
             setMaterials(response.data);
-            if (response.data.length > 0 && !material) {
-                setMaterial(response.data[0].ten);
-            }
+            // if (response.data.length > 0 && !material) {
+            //     setMaterial(response.data[0].ten);
+            // }
         } catch (error) {
             console.error('Failed to fetch Material', error);
         }
@@ -54,9 +54,9 @@ const ProductInfo = ({
         try {
             const response = await axios.get('http://localhost:8080/api/diem-can-bang');
             setBalances(response.data);
-            if (response.data.length > 0 && !balancePoint) {
-                setBalancePoint(response.data[0].ten);
-            }
+            // if (response.data.length > 0 && !balancePoint) {
+            //     setBalancePoint(response.data[0].ten);
+            // }
         } catch (error) {
             console.error('Failed to fetch balances', error);
         }
@@ -66,9 +66,9 @@ const ProductInfo = ({
         try {
             const response = await axios.get('http://localhost:8080/api/do-cung');
             setStiffs(response.data);
-            if (response.data.length > 0 && !hardness) {
-                setHardness(response.data[0].ten);
-            }
+            // if (response.data.length > 0 && !hardness) {
+            //     setHardness(response.data[0].ten);
+            // }
         } catch (error) {
             console.error('Failed to fetch stiffs', error);
         }
@@ -131,7 +131,7 @@ const ProductInfo = ({
                                 id="brand"
                                 value={brand}
                                 onChange={(e) => setBrand(e.target.value)}
-                                className={`mt-1 block w-[90%] h-10 border rounded-md p-2 text-sm ${
+                                className={`mt-1 block w-full h-10 border rounded-md p-2 text-sm ${
                                     errors.brand ? 'border-red-500' : 'border-gray-300'
                                 }`}
                                 required
@@ -170,7 +170,7 @@ const ProductInfo = ({
                                 id="material"
                                 value={material}
                                 onChange={(e) => setMaterial(e.target.value)}
-                                className={`mt-1 block w-[90%] h-10 border rounded-md p-2 text-sm ${
+                                className={`mt-1 block w-full h-10 border rounded-md p-2 text-sm ${
                                     errors.material ? 'border-red-500' : 'border-gray-300'
                                 }`}
                                 required
@@ -209,7 +209,7 @@ const ProductInfo = ({
                                 id="balancePoint"
                                 value={balancePoint}
                                 onChange={(e) => setBalancePoint(e.target.value)}
-                                className={`mt-1 block w-[90%] h-10 border rounded-md p-2 text-sm ${
+                                className={`mt-1 block w-full h-10 border rounded-md p-2 text-sm ${
                                     errors.balancePoint ? 'border-red-500' : 'border-gray-300'
                                 }`}
                                 required
@@ -248,7 +248,7 @@ const ProductInfo = ({
                                 id="hardness"
                                 value={hardness}
                                 onChange={(e) => setHardness(e.target.value)}
-                                className={`mt-1 block w-[90%] h-10 border rounded-md p-2 text-sm ${
+                                className={`mt-1 block w-full h-10 border rounded-md p-2 text-sm ${
                                     errors.hardness ? 'border-red-500' : 'border-gray-300'
                                 }`}
                                 required

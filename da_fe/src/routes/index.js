@@ -21,7 +21,6 @@ import Sign from '../pages/users/DangNhap/sign.jsx';
 import ForgotPassword from '../pages/users/DangNhap/forgot-password.jsx';
 import UserInfo from '../pages/users/TaiKhoan/userInfo.jsx';
 
-
 import customer from '../pages/admin/customer/index.jsx';
 import AddCustomer from '../pages/admin/customer/add.jsx';
 import EditCustomer from '../pages/admin/customer/edit.jsx';
@@ -29,6 +28,7 @@ import EditCustomer from '../pages/admin/customer/edit.jsx';
 import Product from '../pages/users/Product/Product';
 import ProductAdmin from '../pages/admin/Product';
 import AddProduct from '../pages/admin/Product/Add';
+
 import Cart from '../pages/users/Cart/Cart';
 import ProductDetail from '../pages/users/ProductDetail/ProductDetail';
 import CheckOut from '../pages/users/CheckOut/CheckOut';
@@ -52,7 +52,8 @@ import AddressUser from '../pages/users/TaiKhoan/userAdress.jsx';
 import MyVoucher from '../pages/users/TaiKhoan/myVoucher.jsx';
 import AdminInfo from '../pages/admin/ad-info.jsx';
 import MyOrderDetail from '../pages/admin/nhanvien/draft.jsx';
-
+import { computeAxisValue } from '@mui/x-charts/internals';
+import UpdateProduct from '../pages/admin/Product/update.jsx';
 
 // Public routes
 const publicRoutes = [
@@ -75,6 +76,7 @@ const publicRoutes = [
     { path: '/san-pham', component: Product },
     { path: '/admin/quan-ly-san-pham/san-pham-ct', component: ProductAdmin, layout: AdminLayout },
     { path: '/admin/quan-ly-san-pham/san-pham-ct/add', component: AddProduct, layout: AdminLayout },
+    { path: '/admin/quan-ly-san-pham/san-pham-ct/:id/update', component: UpdateProduct, layout: AdminLayout },
     { path: '/gio-hang', component: Cart },
     { path: '/xac-nhan-don-hang', component: SuccessOrder },
     { path: '/san-pham/san-pham-ct/:id', component: ProductDetail },
@@ -88,29 +90,30 @@ const publicRoutes = [
     { path: '/admin/giam-gia/dot-giam-gia/add', component: AddDotGiamGia, layout: AdminLayout },
     { path: '/admin/giam-gia/dot-giam-gia/:id/detail', component: UpdateDotGiamGia, layout: AdminLayout },
 
-
     { path: '/admin/tai-khoan/nhan-vien', component: ListStaff, layout: AdminLayout },
     { path: '/admin/tai-khoan/nhan-vien/add', component: AddStaff, layout: AdminLayout },
     { path: '/admin/tai-khoan/nhan-vien/edit/:id', component: EditStaff, layout: AdminLayout },
     { path: '/admin/login', component: AdLogin, layout: null },
     { path: '/admin/tai-khoan-ca-nhan', component: AdminInfo, layout: AdminLayout },
-    { path: '/profile', component: Profile, children: [
-        { path: 'user', component: UserInfo, layout: null },
-        { path: 'order', component: UserOrder, layout: null},
-        { path: 'order-detail/:id', component: OrderDetail, layout: null },
-        { path: 'change-password', component: ChangePassword, layout: null }, 
-        { path: 'address', component: AddressUser, layout: null },
-        { path: 'my-voucher', component: MyVoucher, layout: null },
-    ] },
+    {
+        path: '/profile',
+        component: Profile,
+        children: [
+            { path: 'user', component: UserInfo, layout: null },
+            { path: 'order', component: UserOrder, layout: null },
+            { path: 'order-detail/:id', component: OrderDetail, layout: null },
+            { path: 'change-password', component: ChangePassword, layout: null },
+            { path: 'address', component: AddressUser, layout: null },
+            { path: 'my-voucher', component: MyVoucher, layout: null },
+        ],
+    },
     { path: '/login', component: Sign },
 
     { path: '/forgot-password', component: ForgotPassword },
     { path: '/admin/thong-ke', component: ThongKe, layout: AdminLayout },
 
     { path: '/test', component: ResponsiveAppBar, layout: null },
-     { path: '/check', component: MyOrderDetail, layout: null }
-
-
+    { path: '/check', component: MyOrderDetail, layout: null },
 ];
 
 const privateRoutes = [];

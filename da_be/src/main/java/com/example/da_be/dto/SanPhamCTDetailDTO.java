@@ -1,12 +1,12 @@
 package com.example.da_be.dto;
 
-
 import java.util.List;
 
 public class SanPhamCTDetailDTO {
     private Integer id;
     private String tenSanPham;
     private String moTa;
+    private Integer trangThai;
     private List<String> hinhAnhUrls;
     private Double donGia;
     private Integer soLuong;
@@ -19,7 +19,6 @@ public class SanPhamCTDetailDTO {
     private List<VariantDTO> variants;
 
     // Getters and Setters
-
     public Integer getId() {
         return id;
     }
@@ -44,6 +43,14 @@ public class SanPhamCTDetailDTO {
         this.moTa = moTa;
     }
 
+    public Integer getTrangThai() {
+        return trangThai;
+    }
+
+    public void setTrangThai(Integer trangThai) {
+        this.trangThai = trangThai;
+    }
+
     public List<String> getHinhAnhUrls() {
         return hinhAnhUrls;
     }
@@ -59,8 +66,6 @@ public class SanPhamCTDetailDTO {
     public void setDonGia(Double donGia) {
         this.donGia = donGia;
     }
-
-
 
     public Integer getSoLuong() {
         return soLuong;
@@ -126,4 +131,3 @@ public class SanPhamCTDetailDTO {
         this.variants = variants;
     }
 }
-

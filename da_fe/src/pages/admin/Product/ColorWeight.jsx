@@ -3,7 +3,15 @@ import { Plus, X, ChevronDown, ChevronUp } from 'lucide-react';
 import axios from 'axios';
 import AddAttributeModal from './AddAttributeModal';
 
-const ColorWeight = ({ setSelectedColors, setSelectedWeights, errors, resetTrigger }) => {
+// const ColorWeight = ({ setSelectedColors, setSelectedWeights, errors, resetTrigger }) => {
+const ColorWeight = ({
+    selectedColors,
+    setSelectedColors,
+    selectedWeights,
+    setSelectedWeights,
+    errors,
+    resetTrigger,
+}) => {
     const [colors, setColors] = useState([]);
     const [weights, setWeights] = useState([]);
     const [selectedColorsState, setSelectedColorsState] = useState([]);
@@ -36,14 +44,28 @@ const ColorWeight = ({ setSelectedColors, setSelectedWeights, errors, resetTrigg
         fetchWeights();
     }, []);
 
-    // Đồng bộ với parent component
+    // Đồng bộ selectedColors từ props
     useEffect(() => {
-        setSelectedColors(selectedColorsState);
-    }, [selectedColorsState, setSelectedColors]);
+        if (selectedColors && selectedColors.length > 0) {
+            setSelectedColorsState(selectedColors);
+        }
+    }, [selectedColors]);
 
+    // Đồng bộ selectedWeights từ props
     useEffect(() => {
-        setSelectedWeights(selectedWeightsState);
-    }, [selectedWeightsState, setSelectedWeights]);
+        if (selectedWeights && selectedWeights.length > 0) {
+            setSelectedWeightsState(selectedWeights);
+        }
+    }, [selectedWeights]);
+
+    // // Đồng bộ với parent component
+    // useEffect(() => {
+    //     setSelectedColors(selectedColorsState);
+    // }, [selectedColorsState, setSelectedColors]);
+
+    // useEffect(() => {
+    //     setSelectedWeights(selectedWeightsState);
+    // }, [selectedWeightsState, setSelectedWeights]);
 
     // Reset state nội bộ khi resetTrigger thay đổi
     useEffect(() => {
@@ -106,7 +128,7 @@ const ColorWeight = ({ setSelectedColors, setSelectedWeights, errors, resetTrigg
 
     return (
         <div className="bg-white p-4 rounded-md shadow-lg mt-4">
-            <h2 className="text-xl text-center text-gray-500 font-bold mb-4">Màu sắc & Kích cỡ</h2>
+            <h2 className="text-xl text-center text-gray-500 font-bold mb-4">Màu sắc & Trọng lượng</h2>
 
             <div className="mb-6">
                 <div className="flex items-center justify-between mb-2">
@@ -126,7 +148,7 @@ const ColorWeight = ({ setSelectedColors, setSelectedWeights, errors, resetTrigg
                             onClick={toggleWeightOptions}
                             className="flex items-center gap-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
                         >
-                            {showWeightOptions ? 'Ẩn tùy chọn' : 'Chọn kích cỡ'}
+                            {showWeightOptions ? 'Ẩn tùy chọn' : 'Chọn trọng lượng'}
                             {showWeightOptions ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                         </button>
                     </div>
