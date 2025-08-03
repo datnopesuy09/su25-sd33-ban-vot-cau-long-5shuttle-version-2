@@ -11,6 +11,8 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @Slf4j
 @RestController
 @RequestMapping("/phieu-tra-hang")
@@ -28,4 +30,22 @@ public class PhieuTraHangController {
                 .code(1000)
                 .build();
     }
+
+    @GetMapping
+    public ApiResponse<List<PhieuTraHangResponse>> getMyPhieuTraHang(){
+        return ApiResponse.<List<PhieuTraHangResponse>>builder()
+                .result(phieuTraHangService.getMyOnlineReturns())
+                .code(1000)
+                .build();
+    }
+
+    @GetMapping("/all")
+    public ApiResponse<List<PhieuTraHangResponse>> getAllPhieuTraHang(){
+        return ApiResponse.<List<PhieuTraHangResponse>>builder()
+                .result(phieuTraHangService.getAllOnlineOrders())
+                .code(1000)
+                .build();
+    }
+
+
 }

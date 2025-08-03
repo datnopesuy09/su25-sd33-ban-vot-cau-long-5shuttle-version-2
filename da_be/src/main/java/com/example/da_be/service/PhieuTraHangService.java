@@ -15,12 +15,14 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -34,6 +36,12 @@ public class PhieuTraHangService {
     UserRepository userRepository;
     HoaDonRepository hoaDonRepository;
     HoaDonCTRepository hoaDonCTRepository;
+
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_STAFF')")
+    public List<PhieuTraHangResponse> getAllOnlineOrders() {
+        List<PhieuTraHang> phieuTraHangList = phieuTraHangRepository.findAll();
+        return phieuTraHangList.stream().map(phieuTraHangMapper::toPhieuTraHangResponse).collect(Collectors.toList());
+    }
 
     @Transactional
     public PhieuTraHangResponse createPhieuTraHangOnline(CreationPhieuTraHangOnlineRequest request){
@@ -91,6 +99,17 @@ public class PhieuTraHangService {
         return phieuTraHangMapper.toPhieuTraHangResponse(phieuTraHang);
 
     }
+
+    public List<PhieuTraHangResponse> getMyOnlineReturns() {
+        var context = SecurityContextHolder.getContext();
+        var email = context.getAuthentication().getName();
+
+        Integer idUser = userRepository.findIdByEmail(email);
+
+        List<PhieuTraHang> phieuTraHang = phieuTraHangRepository.findByUserId(idUser);
+        return phieuTraHang.stream().map(phieuTraHangMapper::toPhieuTraHangResponse).toList();
+    }
+
 
 
 }

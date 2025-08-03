@@ -1,5 +1,7 @@
 package com.example.da_be.dto.response;
 
+import com.example.da_be.entity.HoaDon;
+import com.example.da_be.entity.User;
 import com.example.da_be.enums.TrangThaiTra;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
@@ -19,13 +21,21 @@ public class PhieuTraHangResponse {
 
     Integer userId; // ID của người dùng đã tạo phiếu
 
-    Integer hoaDonId; // ID của hóa đơn liên quan
+    String hoTenKhachHang;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss") // Định dạng ngày giờ khi trả về JSON
+    String emailKhachHang;
+
+    Integer sdtKhachHang;
+
+    String diaChiKhachHang;
+
+    String hoaDonMa; // ID của hóa đơn liên quan
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     LocalDateTime ngayTao; // Thời gian tạo phiếu
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss") // Định dạng ngày giờ khi trả về JSON
-    LocalDateTime ngayCapNhat; // Thời gian cập nhật gần nhất
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    LocalDateTime ngayCapNhat;
 
     String hinhThucTra;
 
@@ -33,6 +43,9 @@ public class PhieuTraHangResponse {
 
     TrangThaiTra trangThai; // Trạng thái hiện tại của phiếu (chờ xác nhận, đã hoàn thành...)
 
-    List<PhieuTraHangChiTietResponse> chiTietPhieuTraHang; // Danh sách các chi tiết trả hàng
+    String staffEmail;
+
+    List<PhieuTraHangChiTietResponse> chiTietTraHang;
+
 
 }

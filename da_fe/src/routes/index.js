@@ -52,6 +52,7 @@ import AddressUser from '../pages/users/TaiKhoan/userAdress.jsx';
 import MyVoucher from '../pages/users/TaiKhoan/myVoucher.jsx';
 import AdminInfo from '../pages/admin/ad-info.jsx';
 import MyOrderDetail from '../pages/admin/nhanvien/draft.jsx';
+import ReturnOrders from '../pages/admin/Order/ReturnOrders.jsx';
 
 
 // Public routes
@@ -106,6 +107,7 @@ const publicRoutes = [
 
     { path: '/forgot-password', component: ForgotPassword },
     { path: '/admin/thong-ke', component: ThongKe, layout: AdminLayout },
+    { path: '/admin/tra-hang', component: ReturnOrders, layout: AdminLayout },
 
     { path: '/test', component: ResponsiveAppBar, layout: null },
      { path: '/check', component: MyOrderDetail, layout: null }

@@ -37,7 +37,7 @@ public class PhieuTraHangChiTiet {
 
     // Ánh xạ đến cột TrangThai ENUM
     @Enumerated(EnumType.STRING) // Lưu giá trị enum dưới dạng chuỗi trong cơ sở dữ liệu
-    @Column(name = "TrangThai", columnDefinition = "ENUM('pending', 'approved', 'rejected') DEFAULT 'pending'")
+    @Column(name = "TrangThai", columnDefinition = "ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING'")
     TrangThaiTra trangThai;
 
 }

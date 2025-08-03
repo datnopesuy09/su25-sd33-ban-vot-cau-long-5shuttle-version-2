@@ -1,5 +1,6 @@
 package com.example.da_be.dto.response;
 
+import com.example.da_be.entity.HoaDonCT;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -12,7 +13,9 @@ import lombok.experimental.FieldDefaults;
 public class PhieuTraHangChiTietResponse {
     Integer id; // ID của chi tiết phiếu trả hàng
 
-    Integer hoaDonChiTietId; // ID của chi tiết hóa đơn gốc
+    Integer phieuTraHangId;
+
+    SanPhamTraResponse thongTinSanPhamTra;
 
     Integer soLuongTra; // Số lượng sản phẩm đã trả
 
