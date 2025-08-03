@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -94,6 +93,22 @@ public class UserController {
     ApiResponse<Boolean> checkEmailExists(@RequestParam String email) {
         return ApiResponse.<Boolean>builder()
                 .result(userService.checkEmailExists(email))
+                .build();
+    }
+
+    @PostMapping()
+    ApiResponse<UserResponse> createUser(@RequestBody @Valid UserCreationRequest request){
+        return ApiResponse.<UserResponse>builder()
+                .result(userService.createUser(request))
+                .build();
+    }
+
+    @PutMapping("/myOrders/{idHoaDon}/status")
+    public ApiResponse<HoaDonResponse> updateMyOrderStatus(@PathVariable("idHoaDon") Integer idHoaDon,
+                                                           @RequestBody int newStatus) {
+        return ApiResponse.<HoaDonResponse>builder()
+                .result(userService.updateMyOrderStatus(idHoaDon, newStatus))
+                .code(1000)
                 .build();
     }
 

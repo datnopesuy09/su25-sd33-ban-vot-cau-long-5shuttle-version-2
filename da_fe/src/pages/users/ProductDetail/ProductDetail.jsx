@@ -5,6 +5,8 @@ import axios from 'axios';
 import { CartContext } from '../Cart/CartContext';
 import ProductCard from '../Product/ProductCard';
 import classNames from 'classnames';
+import { useUserAuth } from '../../../contexts/userAuthContext';
+import { toast } from 'react-toastify';
 
 export default function ProductDetail() {
     const { id } = useParams(); // Lấy ID từ URL
@@ -20,6 +22,7 @@ export default function ProductDetail() {
     const [newComment, setNewComment] = useState('');
     const [newRating, setNewRating] = useState(1);
     const { setCartItemCount } = useContext(CartContext);
+    const { user } = useUserAuth()
 
     // Lấy dữ liệu sản phẩm từ API
     useEffect(() => {
@@ -97,9 +100,13 @@ export default function ProductDetail() {
             return;
         }
 
-        const idTaiKhoan = 1; // ID tài khoản thực tế
+        const idTaiKhoan = user?.id
+        if (!idTaiKhoan) {
+            toast.warning('Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng');
+            return;
+        }
         const payload = {
-            idTaiKhoan: idTaiKhoan,
+            idTaiKhoan,
             idSanPhamCT: selectedVariant.id,
             soLuong: quantity,
         };

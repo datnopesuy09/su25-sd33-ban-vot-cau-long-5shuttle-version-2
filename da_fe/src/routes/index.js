@@ -54,7 +54,7 @@ import AdminInfo from '../pages/admin/ad-info.jsx';
 import MyOrderDetail from '../pages/admin/nhanvien/draft.jsx';
 import { computeAxisValue } from '@mui/x-charts/internals';
 import UpdateProduct from '../pages/admin/Product/update.jsx';
-
+import ModalReturn from '../pages/users/TaiKhoan/demo.jsx';
 // Public routes
 const publicRoutes = [
     { path: '/', component: Home },
@@ -113,7 +113,8 @@ const publicRoutes = [
     { path: '/admin/thong-ke', component: ThongKe, layout: AdminLayout },
 
     { path: '/test', component: ResponsiveAppBar, layout: null },
-    { path: '/check', component: MyOrderDetail, layout: null },
+     { path: '/check', component: ModalReturn, layout: null },
+
 ];
 
 const privateRoutes = [];

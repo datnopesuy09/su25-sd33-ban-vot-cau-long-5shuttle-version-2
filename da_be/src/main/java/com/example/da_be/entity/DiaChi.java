@@ -25,16 +25,16 @@ public class DiaChi {
     @Column(name = "Sdt")
     private String sdt;
 
-    @Column(name = "id_tinh")
-    private String idTinh;
+    @Column(name = "Tinh")
+    private String tinh;
 
-    @Column(name = "id_huyen")
-    private String idHuyen;
+    @Column(name = "Huyen")
+    private String huyen;
 
-    @Column(name = "id_xa")
-    private String idXa;
+    @Column(name = "Xa")
+    private String xa;
 
-    @Column(name = "dia_chi_cu_the")
+    @Column(name = "DiaChiCuThe")
     private String diaChiCuThe;
 
     @Column(name = "LoaiDiaChi")

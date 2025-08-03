@@ -19,6 +19,8 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import KeyIcon from '@mui/icons-material/Key';
 import LoginIcon from '@mui/icons-material/Login';
 import Swal from 'sweetalert2';
+import { toast } from 'react-toastify';
+import { useLocation } from 'react-router-dom';
 
 function parseJwt(token) {
     try {
@@ -34,7 +36,7 @@ function parseJwt(token) {
 }
 
 const Navbar = () => {
-    const [menu, setMenu] = useState('trangchu');
+    const location = useLocation();
     const [isScrolled, setIsScrolled] = useState(false);
     const [anchorElUser, setAnchorElUser] = useState(null);
     const { user, isLoggedIn, logoutUser } = useUserAuth();
@@ -73,6 +75,7 @@ const Navbar = () => {
 
     const handleConfirm = () => {
         logoutUser();
+        toast.success("Đăng xuất thành công!")
         navigate('/');
     };
 
@@ -102,25 +105,44 @@ const Navbar = () => {
                     </div>
 
                     <ul className="flex items-center gap-2">
-                        {navItems.map((item) => (
-                            <li key={item.key} className="relative">
-                                <Link
-                                    to={item.path}
-                                    onClick={() => setMenu(item.key)}
-                                    className={`relative px-6 py-3 text-[15px] font-medium transition-all duration-300 rounded-xl group ${menu === item.key ? 'text-white bg-gradient-to-r from-[#2f19ae] to-purple-500 shadow-lg' : 'text-[#292929] hover:text-[#2f19ae] hover:bg-gray-50'
-                                        }`}
-                                >
-                                    {item.label}
-                                    <div className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 h-0.5 bg-gradient-to-r from-[#2f19ae] to-purple-400 transition-all duration-300 ${menu === item.key ? 'w-8' : 'w-0 group-hover:w-6'
-                                        }`}></div>
-                                </Link>
-                            </li>
-                        ))}
+                        {navItems.map((item) => {
+                            const isActive = location.pathname === item.path;
+
+                            return (
+                                <li key={item.key} className="relative">
+                                    <Link
+                                        to={item.path}
+                                        className={`relative px-6 py-3 text-[15px] font-medium transition-all duration-300 rounded-xl group ${isActive
+                                                ? 'text-white bg-gradient-to-r from-[#2f19ae] to-purple-500 shadow-lg'
+                                                : 'text-[#292929] hover:text-[#2f19ae] hover:bg-gray-50'
+                                            }`}
+                                    >
+                                        {item.label}
+                                        <div
+                                            className={`absolute bottom-0 left-1/2 transform -translate-x-1/2 h-0.5 bg-gradient-to-r from-[#2f19ae] to-purple-400 transition-all duration-300 ${isActive ? 'w-8' : 'w-0 group-hover:w-6'
+                                                }`}
+                                        ></div>
+                                    </Link>
+                                </li>
+                            );
+                        })}
                     </ul>
 
                     <div className="flex items-center gap-6">
                         {/* Cart */}
-                        <Link to="/gio-hang" className="group">
+                        <div
+                            onClick={() => {
+                                if (!isLoggedIn) {
+                                    toast.warning('Vui lòng đăng nhập để sử dụng giỏ hàng');
+                                    // setTimeout(() => {
+                                    //     navigate('/login');
+                                    // }, 1000); // đợi toast hiển thị khoảng 1 giây
+                                } else {
+                                    navigate('/gio-hang');
+                                }
+                            }}
+                            className="group cursor-pointer"
+                        >
                             <div className="relative p-3 rounded-xl transition-all duration-300 hover:bg-gradient-to-r hover:from-[#2f19ae]/10 hover:to-purple-500/10 hover:shadow-md">
                                 <ShoppingCart className="w-6 h-6 text-gray-700 group-hover:text-[#2f19ae] transition-colors duration-300" />
                                 {cartItemCount > 0 && (
@@ -129,7 +151,7 @@ const Navbar = () => {
                                     </div>
                                 )}
                             </div>
-                        </Link>
+                        </div>
 
                         <div className="flex items-center gap-2">
                             <Tooltip title="Tùy chọn tài khoản">
