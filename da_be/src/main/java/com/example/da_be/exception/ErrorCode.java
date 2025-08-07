@@ -24,6 +24,8 @@ public enum ErrorCode {
     EMAIL_NOT_EXISTS(1004, "Email does not exist", HttpStatus.NOT_FOUND),
     UNAUTHENTICATED(1005, "Unauthenticated",HttpStatus.UNAUTHORIZED),
     UNAUTHORIZED(1006, "You do not have permisstion",HttpStatus.FORBIDDEN),
+    HOADON_NOT_EXISTS(1010, "Receipt does not exist", HttpStatus.NOT_FOUND),
+    INVALID_ORDER_STATUS(1011, "Invalid order status", HttpStatus.BAD_REQUEST),
     ;
 
 //    ErrorCode(int code, String message, HttpStatus httpStatus) {

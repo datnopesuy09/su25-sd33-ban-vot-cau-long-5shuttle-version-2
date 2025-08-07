@@ -27,6 +27,14 @@ public class UserController {
 
     UserService userService;
 
+    @PostMapping()
+    ApiResponse<UserResponse> createUser(@RequestBody @Valid UserCreationRequest request){
+        return ApiResponse.<UserResponse>builder()
+                .result(userService.createUser(request))
+                .build();
+
+    }
+
     @GetMapping("/myOrders")
     ApiResponse<List<HoaDonResponse>> getAllMyOders(){
         return ApiResponse.<List<HoaDonResponse>>builder()
@@ -88,5 +96,14 @@ public class UserController {
                 .build();
     }
 
+
+    @PutMapping("/myOrders/{idHoaDon}/status")
+    public ApiResponse<HoaDonResponse> updateMyOrderStatus(@PathVariable("idHoaDon") Integer idHoaDon,
+                                                           @RequestBody int newStatus) {
+        return ApiResponse.<HoaDonResponse>builder()
+                .result(userService.updateMyOrderStatus(idHoaDon, newStatus))
+                .code(1000)
+                .build();
+    }
 
 }

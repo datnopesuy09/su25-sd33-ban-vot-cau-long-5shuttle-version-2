@@ -165,7 +165,7 @@ public class GioHangService {
     public int getTotalItemCount(Integer idTaiKhoan) {
         List<GioHang> gioHangList = gioHangRepository.findByTaiKhoan(taiKhoanRepository.findById(idTaiKhoan)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản với ID: " + idTaiKhoan)));
-        return gioHangList.stream().mapToInt(GioHang::getSoLuong).sum();
+        return gioHangList.size();
     }
 
 
@@ -178,6 +178,11 @@ public class GioHangService {
         if (!gioHangList.isEmpty()) {
             gioHangRepository.deleteAll(gioHangList);
         }
+    }
+
+    public void xoaSanPhamDatHang(List<Integer> ids) {
+        List<GioHang> danhSach = gioHangRepository.findAllById(ids);
+        gioHangRepository.deleteAll(danhSach);
     }
 
 }

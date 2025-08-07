@@ -1,106 +1,170 @@
-// ShippingInfo.js
 import React from 'react';
+import {
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Button,
+    Grid,
+    TextField,
+    MenuItem,
+    Typography
+} from '@mui/material';
+import { Checkbox, FormControlLabel } from '@mui/material';
 
-const ShippingInfo = ({ formData, handleInputChange, errors, provinces, districts, wards }) => {
+const ShippingInfo = ({
+    open,
+    onClose,
+    onSave,
+    formData,
+    handleInputChange,
+    errors,
+    provinces,
+    districts,
+    wards,
+    isDefaultAddress,
+    setIsDefaultAddress,
+}) => {
     return (
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-white/20">
-            <div className="flex items-center mb-6">
-                <div className="w-8 h-8 bg-[#2f19ae] rounded-full flex items-center justify-center mr-3">
-                    <span className="text-white font-bold">1</span>
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800">Thông tin giao hàng</h2>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {/* Các trường nhập liệu */}
-                <div className="col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Họ và tên *</label>
-                    <input
-                        type="text"
-                        name="addressName"
-                        value={formData.addressName}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#2f19ae] focus:ring-4 focus:ring-[#2f19ae]/20 transition-all duration-300 outline-none"
-                        placeholder="Nhập họ và tên"
-                    />
-                    {errors.addressName && <p className="text-red-500 text-sm mt-1 flex items-center">⚠️ Họ và tên là bắt buộc</p>}
-                </div>
-
-                <div className="col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Địa chỉ chi tiết *</label>
-                    <input
-                        type="text"
-                        name="addressDetail"
-                        value={formData.addressDetail}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#2f19ae] focus:ring-4 focus:ring-[#2f19ae]/20 transition-all duration-300 outline-none"
-                        placeholder="Số nhà, tên đường..."
-                    />
-                    {errors.addressDetail && <p className="text-red-500 text-sm mt-1 flex items-center">⚠️ Địa chỉ là bắt buộc</p>}
-                </div>
-
-                <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Tỉnh/Thành phố *</label>
-                    <select
-                        name="province"
-                        value={formData.province}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#2f19ae] focus:ring-4 focus:ring-[#2f19ae]/20 transition-all duration-300 outline-none"
-                    >
-                        <option value="">Chọn tỉnh/thành phố</option>
-                        {provinces.map((province) => (
-                            <option key={province.code} value={province.code}>{province.name}</option>
-                        ))}
-                    </select>
-                    {errors.province && <p className="text-red-500 text-sm mt-1 flex items-center">⚠️ Tỉnh/thành phố là bắt buộc</p>}
-                </div>
-
-                <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Quận/Huyện *</label>
-                    <select
-                        name="district"
-                        value={formData.district}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#2f19ae] focus:ring-4 focus:ring-[#2f19ae]/20 transition-all duration-300 outline-none"
-                    >
-                        <option value="">Chọn quận/huyện</option>
-                        {districts.map((district) => (
-                            <option key={district.code} value={district.code}>{district.name}</option>
-                        ))}
-                    </select>
-                    {errors.district && <p className="text-red-500 text-sm mt-1 flex items-center">⚠️ Quận/huyện là bắt buộc</p>}
-                </div>
-
-                <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Xã/Phường *</label>
-                    <select
-                        name="ward"
-                        value={formData.ward}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#2f19ae] focus:ring-4 focus:ring-[#2f19ae]/20 transition-all duration-300 outline-none"
-                    >
-                        <option value="">Chọn xã/phường</option>
-                        {wards.map((ward) => (
-                            <option key={ward.code} value={ward.code}>{ward.name}</option>
-                        ))}
-                    </select>
-                    {errors.ward && <p className="text-red-500 text-sm mt-1 flex items-center">⚠️ Xã/phường là bắt buộc</p>}
-                </div>
-
-                <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Số điện thoại *</label>
-                    <input
-                        type="text"
-                        name="mobile"
-                        value={formData.mobile}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#2f19ae] focus:ring-4 focus:ring-[#2f19ae]/20 transition-all duration-300 outline-none"
-                        placeholder="Nhập số điện thoại"
-                    />
-                    {errors.mobile && <p className="text-red-500 text-sm mt-1 flex items-center">⚠️ Số điện thoại là bắt buộc</p>}
-                </div>
-            </div>
-        </div>
+        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+            <DialogTitle>Thêm địa chỉ mới</DialogTitle>
+            <DialogContent dividers>
+                <Grid spacing={2}>
+                    <Grid className='grid grid-cols-2 gap-4 mb-5'>
+                        <Grid item xs={12} md={6}>
+                            {/* <Typography sx={{ mb: 1 }}>Họ tên</Typography> */}
+                            <TextField
+                                label='Họ tên'
+                                name="ten"
+                                fullWidth
+                                size='small'
+                                value={formData.ten}
+                                onChange={handleInputChange}
+                                error={!!errors.addressName}
+                                helperText={errors.addressName}
+                            />
+                        </Grid>
+                        <Grid item xs={12} md={6}>
+                            <TextField
+                                label="Số điện thoại"
+                                name="sdt"
+                                fullWidth
+                                size='small'
+                                value={formData.sdt}
+                                onChange={handleInputChange}
+                                error={!!errors.mobile}
+                                helperText={errors.mobile}
+                            />
+                        </Grid>
+                    </Grid>
+                    <Grid item xs={12} sm={6} sx={{ mb: 2.5 }}>
+                        <TextField
+                            select
+                            label="Tỉnh/Thành phố"
+                            name="province"
+                            size='small'
+                            value={formData.province}
+                            onChange={handleInputChange}
+                            fullWidth
+                            error={!!errors.province}
+                            helperText={errors.province}
+                        >
+                            <MenuItem value="">Chọn tỉnh/thành phố</MenuItem>
+                            {provinces.map((province) => (
+                                <MenuItem key={province.code} value={province.code}>
+                                    {province.name}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                    </Grid>
+                    <Grid item xs={12} sm={6} sx={{ mb: 2.5 }}>
+                        <TextField
+                            select
+                            label="Quận/Huyện"
+                            name="district"
+                            value={formData.district}
+                            onChange={handleInputChange}
+                            fullWidth
+                            size='small'
+                            error={!!errors.district}
+                            helperText={errors.district}
+                        >
+                            <MenuItem value="">Chọn quận/huyện</MenuItem>
+                            {districts.map((district) => (
+                                <MenuItem key={district.code} value={district.code}>
+                                    {district.name}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                    </Grid>
+                    <Grid item xs={12} sm={6} sx={{ mb: 2.5 }}>
+                        <TextField
+                            select
+                            label="Xã/Phường"
+                            name="ward"
+                            value={formData.ward}
+                            onChange={handleInputChange}
+                            fullWidth
+                            size='small'
+                            error={!!errors.ward}
+                            helperText={errors.ward}
+                        >
+                            <MenuItem value="">Chọn xã/phường</MenuItem>
+                            {wards.map((ward) => (
+                                <MenuItem key={ward.code} value={ward.code}>
+                                    {ward.name}
+                                </MenuItem>
+                            ))}
+                        </TextField>
+                    </Grid>
+                    <Grid item xs={12} sm={6} sx={{ mb: 1 }}>
+                        <TextField
+                            label="Địa chỉ chi tiết"
+                            name="diaChiCuThe"
+                            fullWidth
+                            size='small'
+                            value={formData.diaChiCuThe}
+                            onChange={handleInputChange}
+                            error={!!errors.addressDetail}
+                            helperText={errors.addressDetail}
+                        />
+                    </Grid>
+                    <Grid item xs={12} sm={12}>
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={isDefaultAddress}
+                                    onChange={(e) => setIsDefaultAddress(e.target.checked)}
+                                    color="primary"
+                                />
+                            }
+                            label="Đặt làm địa chỉ mặc định"
+                        />
+                    </Grid>
+                </Grid>
+            </DialogContent>
+            <DialogActions spacing={2}>
+                <Button onClick={onClose}>Hủy</Button>
+                <Button
+                    variant="contained"
+                    onClick={() => {
+                        swal({
+                            title: 'Xác nhận',
+                            text: 'Bạn có chắc muốn lưu địa chỉ này?',
+                            icon: 'warning',
+                            buttons: ['Hủy', 'Lưu'],
+                            // dangerMode: true,
+                        }).then((willSave) => {
+                            if (willSave) {
+                                onSave();
+                            }
+                        });
+                    }}
+                >
+                    Thêm mới
+                </Button>
+            </DialogActions>
+        </Dialog>
     );
 };
 

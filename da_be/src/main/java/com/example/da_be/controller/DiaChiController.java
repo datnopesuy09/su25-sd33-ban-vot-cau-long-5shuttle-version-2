@@ -60,4 +60,13 @@ public class DiaChiController {
         diaChiService.deleteDiaChi(diaChiId);
         return "Address has been deleted";
     }
+
+    @GetMapping("/mac-dinh")
+    ApiResponse<DiaChiResponse> getDiaChiMacDinh() {
+        return ApiResponse.<DiaChiResponse>builder()
+                .result(diaChiService.getDiaChiMacDinh())
+                .code(1000)
+                .build();
+    }
+
 }

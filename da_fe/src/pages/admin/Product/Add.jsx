@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { CircularProgress } from '@mui/material';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -8,6 +9,7 @@ import axios from 'axios';
 import Variants from './Variants';
 
 function AddProduct() {
+    const navigate = useNavigate();
     const [status, setStatus] = useState('Active');
     const [description, setDescription] = useState('');
     const [variants, setVariants] = useState([]);
@@ -143,6 +145,11 @@ function AddProduct() {
                 setHardness('');
                 setStatus('Active');
                 setResetTrigger((prev) => prev + 1); // Kích hoạt reset trong ColorWeight.js
+
+                // Điều hướng về trang table sau 1.5s
+                setTimeout(() => {
+                    navigate('/admin/quan-ly-san-pham/san-pham');
+                }, 200);
             }
         } catch (error) {
             console.error('Error adding product:', error);
@@ -206,7 +213,7 @@ function AddProduct() {
 
             {/* Modal xác nhận */}
             {showConfirm && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="fixed inset-0 bg-black/10 backdrop-blur-sm flex items-center justify-center z-50">
                     <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
                         <h3 className="text-lg font-bold mb-4">Xác nhận thêm sản phẩm</h3>
                         <p className="text-sm text-gray-600 mb-4">

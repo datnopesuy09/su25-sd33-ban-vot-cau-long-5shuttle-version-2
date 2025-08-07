@@ -8,31 +8,60 @@ import numeral from 'numeral';
 import swal from 'sweetalert';
 import { toast } from 'react-toastify';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
+import dayjs from 'dayjs';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+dayjs.extend(isSameOrBefore);
+import ModalReturn from './modalReturn';
+import Tooltip from '@mui/material/Tooltip';
 
 function OrderDetail() {
     const { id } = useParams();
     const [billDetail, setBillDetail] = useState([]);
     const [voucher, setVoucher] = useState(null);
+    const [openReturnModal, setOpenReturnModal] = useState(false);
 
     const formatCurrency = (money) => numeral(money).format('0,0') + ' ₫';
 
-    useEffect(() => {
-        if (id) {
-            const fetchData = async () => {
-                try {
-                    const token = localStorage.getItem('userToken');
-                    const res = await axios.get(`http://localhost:8080/users/myOderDetail/${id}`, {
-                        headers: { Authorization: `Bearer ${token}` },
-                    });
-                    setBillDetail(res.data.result);
-                    setVoucher(res.data.result[0]?.hoaDon?.voucher || null);
-                } catch (err) {
-                    toast.error('Không thể tải dữ liệu đơn hàng');
-                    console.error(err);
-                }
-            };
-            fetchData();
+    const fetchData = async () => {
+        try {
+            const token = localStorage.getItem('userToken');
+            const res = await axios.get(`http://localhost:8080/users/myOderDetail/${id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            setBillDetail(res.data.result);
+            setVoucher(res.data.result[0]?.hoaDon?.voucher || null);
+        } catch (err) {
+            toast.error('Không thể tải dữ liệu đơn hàng');
+            console.error(err);
         }
+    };
+
+    useEffect(() => {
+        if (id) fetchData();
+    }, [id]);
+
+    useEffect(() => {
+        const socket = new SockJS('http://localhost:8080/ws');
+        const stompClient = new Client({
+            webSocketFactory: () => socket,
+            reconnectDelay: 5000,
+            onConnect: () => {
+                stompClient.subscribe('/topic/orders', (message) => {
+                    const update = JSON.parse(message.body);
+                    if (update.orderId === Number(id)) {
+                        fetchData();
+                    }
+                });
+            },
+        });
+
+        stompClient.activate();
+
+        return () => {
+            stompClient.deactivate();
+        };
     }, [id]);
 
     const handleHuyDonHang = (hoaDonId) => {
@@ -41,18 +70,37 @@ function OrderDetail() {
             text: 'Bạn chắc chắn muốn hủy đơn hàng này?',
             icon: 'warning',
             buttons: { cancel: 'Hủy', confirm: 'Xác nhận' },
-        }).then((willConfirm) => {
+        }).then(async (willConfirm) => {
             if (willConfirm) {
-                axios.put(`http://localhost:8080/api/hoa-don/update-status/${hoaDonId}`, {}, {
-                    headers: { 'Content-Type': 'application/json' },
-                })
-                    .then(() => {
-                        toast.success('Đã hủy đơn hàng thành công');
-                        window.location.reload();
-                    })
-                    .catch(() => swal('Thất bại!', 'Hủy đơn hàng thất bại', 'error'));
+                try {
+                    const token = localStorage.getItem('userToken');
+                    await axios.put(
+                        `http://localhost:8080/users/myOrders/${hoaDonId}/status`,
+                        7, // Trạng thái "Đã hủy"
+                        {
+                            headers: {
+                                'Content-Type': 'application/json',
+                                Authorization: `Bearer ${token}`,
+                            },
+                        }
+                    );
+                    toast.success('Đã hủy đơn hàng thành công');
+                    fetchData();
+                } catch (error) {
+                    console.error(error);
+                    swal('Thất bại!', 'Hủy đơn hàng thất bại', 'error');
+                }
             }
         });
+    };
+
+    const isReturnAllowed = () => {
+        if (!hoaDon) return false;
+        const returnableStatuses = [4, 6]; // Đã giao hoặc hoàn thành
+        const daysAllowed = 7;
+
+        return returnableStatuses.includes(hoaDon.trangThai) &&
+            dayjs().diff(dayjs(hoaDon.ngayTao), 'day') <= daysAllowed;
     };
 
     const totalAmount = billDetail.reduce((total, item) => {
@@ -73,8 +121,6 @@ function OrderDetail() {
         <Box>
             <Typography variant="h6" fontWeight={600} mb={2}>Thông tin đơn hàng</Typography>
 
-            {/* Địa chỉ nhận hàng */}
-
             {hoaDon && (
                 <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
                     <Typography sx={{ mb: 1 }}>Địa chỉ nhận hàng</Typography>
@@ -92,7 +138,6 @@ function OrderDetail() {
                 </Paper>
             )}
 
-            {/* Danh sách sản phẩm */}
             {billDetail.map((bill, index) => (
                 <Paper key={index} variant="outlined" sx={{ p: 2, mb: 2 }}>
                     <Grid container spacing={2}>
@@ -134,7 +179,6 @@ function OrderDetail() {
                 </Paper>
             ))}
 
-            {/* Tổng kết */}
             <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
                 <Stack spacing={1}>
                     <Box display="flex" justifyContent="space-between">
@@ -152,7 +196,6 @@ function OrderDetail() {
                 </Stack>
             </Paper>
 
-            {/* Thanh toán + Nút */}
             <Box
                 position="sticky"
                 bottom={0}
@@ -176,12 +219,8 @@ function OrderDetail() {
                             Hủy đơn hàng
                         </Button>
                     )}
-                    {hoaDon?.trangThai === 6 && (
-                        <Button
-                            // onClick={() => handleHuyDonHang(hoaDon.id)}
-                            variant="outlined"
-                            color="error"
-                        >
+                    {isReturnAllowed() && (
+                        <Button variant="outlined" color="error" onClick={() => setOpenReturnModal(true)}>
                             Trả hàng/Hoàn tiền
                         </Button>
                     )}
@@ -192,6 +231,9 @@ function OrderDetail() {
                 <Typography fontWeight={600}>
                     Tổng thanh toán: <span style={{ color: 'red' }}>{formatCurrency(tongThanhToan)}</span>
                 </Typography>
+
+                <ModalReturn open={openReturnModal} setOpen={setOpenReturnModal} setTab={() => { }} />
+
             </Box>
         </Box>
     );

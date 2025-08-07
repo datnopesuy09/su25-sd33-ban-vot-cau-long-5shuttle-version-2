@@ -7,18 +7,29 @@ import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import dayjs from 'dayjs';
-import { useUserAuth } from '../../../contexts/userAuthContext';
 
-// ✅ Tabs hiển thị
+import { useUserAuth } from '../../../contexts/userAuthContext';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
+
 const tabs = ['Tất cả', 'Chờ xác nhận', 'Chờ giao hàng', 'Đang vận chuyển', 'Hoàn thành', 'Đã hủy', 'Trả hàng'];
 
-// ✅ statusMap đồng bộ với OrderStatus.jsx
+const tabStatusMap = {
+  'Tất cả': null,
+  'Chờ xác nhận': [1],
+  'Chờ giao hàng': [2],
+  'Đang vận chuyển': [3, 4],
+  'Hoàn thành': [6],
+  'Đã hủy': [7],
+  'Trả hàng': [8],
+};
+
 const statusMap = {
   1: { label: 'Chờ xác nhận', color: 'bg-yellow-100 text-yellow-800' },
   2: { label: 'Chờ giao hàng', color: 'bg-blue-100 text-blue-800' },
   3: { label: 'Đang vận chuyển', color: 'bg-purple-100 text-purple-800' },
   4: { label: 'Đã giao hàng', color: 'bg-gray-200 text-green-800' },
-  5: { label: 'Đã thanh toán', color: 'bg-teal-100 text-teal-800' },
+  // 5: { label: 'Đã thanh toán', color: 'bg-teal-100 text-teal-800' },
   6: { label: 'Hoàn thành', color: 'bg-pink-100 text-gray-800' },
   7: { label: 'Đã hủy', color: 'bg-red-200 text-red-800' },
   8: { label: 'Trả hàng', color: 'bg-red-400 text-white' },
@@ -28,10 +39,8 @@ const statusMap = {
 const getStatus = (status) => statusMap[status]?.label || 'Không xác định';
 const getStatusStyle = (status) => statusMap[status]?.color || 'bg-gray-100 text-gray-600';
 
-const formatCurrency = (value) => value.toLocaleString('vi-VN', {
-  style: 'currency',
-  currency: 'VND',
-});
+const formatCurrency = (value) =>
+  value.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
 function UserOrder() {
   const [selectedTab, setSelectedTab] = useState('Tất cả');
@@ -39,16 +48,38 @@ function UserOrder() {
   const [searchTerm, setSearchTerm] = useState('');
   const { isLoggedIn } = useUserAuth();
 
-  const filteredBills = listHoaDon.filter((bill) => {
-    const matchTab =
-      selectedTab === 'Tất cả' ||
-      (selectedTab === 'Chờ xác nhận' && bill.trangThai === 1) ||
-      (selectedTab === 'Chờ giao hàng' && bill.trangThai === 2) ||
-      (selectedTab === 'Đang vận chuyển' && bill.trangThai === 3) ||
-      (selectedTab === 'Hoàn thành' && bill.trangThai === 6) ||
-      (selectedTab === 'Đã hủy' && bill.trangThai === 7) ||
-      (selectedTab === 'Trả hàng' && bill.trangThai === 8);
+  useEffect(() => {
+    const socket = new SockJS('http://localhost:8080/ws');
+    const stompClient = new Client({
+      webSocketFactory: () => socket,
+      reconnectDelay: 5000,
+      onConnect: () => {
+        stompClient.subscribe('/topic/orders', (message) => {
+          const update = JSON.parse(message.body);
+          setListHoaDon((prev) =>
+            prev.map((order) =>
+              order.id === update.orderId
+                ? { ...order, trangThai: update.status }
+                : order
+            )
+          );
+        });
+      },
+    });
 
+    stompClient.activate();
+
+    return () => {
+      stompClient.deactivate();
+    };
+  }, []);
+
+  const filteredBills = listHoaDon.filter((bill) => {
+    const validStatuses = tabStatusMap[selectedTab];
+    const matchTab =
+      !validStatuses
+        ? bill.trangThai !== 5
+        : validStatuses.includes(bill.trangThai);
     const matchSearch = bill.ma.toLowerCase().includes(searchTerm.toLowerCase());
     return matchTab && matchSearch;
   });
@@ -66,7 +97,10 @@ function UserOrder() {
         const detailedBills = await Promise.all(
           bills.map(async (bill) => {
             try {
-              const detailRes = await axios.get(`http://localhost:8080/users/myOderDetail/${bill.id}`, { headers });
+              const detailRes = await axios.get(
+                `http://localhost:8080/users/myOderDetail/${bill.id}`,
+                { headers }
+              );
               const chiTiet = detailRes.data.result;
               const firstItem = chiTiet?.[0];
 
@@ -76,6 +110,7 @@ function UserOrder() {
                 giaBan: firstItem?.giaBan || 1,
                 giaKhuyenMai: firstItem?.sanPhamCT?.giaKhuyenMai || null,
                 hinhAnhDaiDien: firstItem?.sanPhamCT?.hinhAnh || '',
+                ngayTao: firstItem?.hoaDon?.ngayTao || bill.ngayTao,
               };
             } catch {
               return bill;
@@ -84,6 +119,7 @@ function UserOrder() {
         );
 
         setListHoaDon(detailedBills);
+        console.log('detail: ', detailedBills)
       } catch (error) {
         console.error('Lỗi khi lấy đơn hàng:', error);
         toast.error('Không thể lấy đơn hàng');

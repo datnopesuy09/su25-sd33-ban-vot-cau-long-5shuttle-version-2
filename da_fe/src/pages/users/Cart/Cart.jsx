@@ -20,12 +20,35 @@ const Cart = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isCheckingOut, setIsCheckingOut] = useState(false);
 
+    const [selectedItems, setSelectedItems] = useState([]);
+    const isAllSelected = carts.length > 0 && selectedItems.length === carts.length;
+
     const shipping = totalPrice > 1000000 ? 0 : 30000;
     const finalTotal = totalPrice + shipping;
 
+    const handleSelectItem = (cartId) => {
+        setSelectedItems((prev) =>
+            prev.includes(cartId) ? prev.filter((id) => id !== cartId) : [...prev, cartId]
+        );
+    };
+
+    const handleSelectAll = () => {
+        setSelectedItems(isAllSelected ? [] : carts.map((item) => item.id));
+    };
+
+    useEffect(() => {
+        const total = carts
+            .filter((item) => selectedItems.includes(item.id))
+            .reduce((sum, item) => {
+                const price = item.sanPhamCT.giaKhuyenMai || item.sanPhamCT.donGia;
+                return sum + price * item.soLuong;
+            }, 0);
+        setTotalPrice(total);
+    }, [selectedItems, carts]);
+
     useEffect(() => {
         if (userId) {
-            fetchCart(userId);  
+            fetchCart(userId);
         }
     }, [userId]);
 
@@ -34,10 +57,9 @@ const Cart = () => {
         try {
             const res = await axios.get(`http://localhost:8080/api/gio-hang/${userId}`);
             setCarts(res.data || []);
-            console.log("Gio hang tra ve:", res.data);
 
-            const totalRes = await axios.get(`http://localhost:8080/api/gio-hang/${userId}/total`);
-            setTotalPrice(totalRes.data || 0);
+            // const totalRes = await axios.get(`http://localhost:8080/api/gio-hang/${userId}/total`);
+            // setTotalPrice(totalRes.data || 0);
 
             const countRes = await axios.get(`http://localhost:8080/api/gio-hang/${userId}/count`);
             setCartItemCount(countRes.data || 0);
@@ -55,9 +77,6 @@ const Cart = () => {
             await axios.put(`http://localhost:8080/api/gio-hang/${cartId}`, { soLuong: newQuantity });
             setCarts((prev) => prev.map((c) => (c.id === cartId ? { ...c, soLuong: newQuantity } : c)));
 
-            const totalRes = await axios.get(`http://localhost:8080/api/gio-hang/${userId}/total`);
-            setTotalPrice(totalRes.data || 0);
-
             const countRes = await axios.get(`http://localhost:8080/api/gio-hang/${userId}/count`);
             setCartItemCount(countRes.data || 0);
         } catch (error) {
@@ -70,13 +89,10 @@ const Cart = () => {
             await axios.delete(`http://localhost:8080/api/gio-hang/${cartId}`);
             setCarts((prev) => prev.filter((c) => c.id !== cartId));
 
-            const totalRes = await axios.get(`http://localhost:8080/api/gio-hang/${userId}/total`);
-            setTotalPrice(totalRes.data || 0);
-
             const countRes = await axios.get(`http://localhost:8080/api/gio-hang/${userId}/count`);
             setCartItemCount(countRes.data || 0);
 
-            swal('Thành công', 'Đã xóa sản phẩm khỏi giỏ hàng.', 'success');
+            // swal('Thành công', 'Đã xóa sản phẩm khỏi giỏ hàng.', 'success');
         } catch (error) {
             swal('Lỗi', 'Không thể xóa sản phẩm.', 'error');
         }
@@ -86,7 +102,7 @@ const Cart = () => {
         setIsCheckingOut(true);
         try {
             await new Promise((resolve) => setTimeout(resolve, 1000));
-            navigate('/gio-hang/checkout');
+            navigate('/gio-hang/checkout', { state: { selectedItems }});
         } catch (error) {
             swal('Lỗi', 'Có lỗi xảy ra khi chuyển đến thanh toán', 'error');
         } finally {
@@ -122,7 +138,7 @@ const Cart = () => {
                             )}
                         </div>
                         <button
-                            onClick={() => navigate('/')}
+                            onClick={() => navigate('/san-pham')}
                             className="text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-2"
                         >
                             <ShoppingBag className="w-5 h-5" />
@@ -144,7 +160,7 @@ const Cart = () => {
                         </p>
                         <Button
                             variant="contained"
-                            onClick={() => navigate('/')}
+                            onClick={() => navigate('/san-pham')}
                             sx={{
                                 padding: '12px 32px',
                                 backgroundColor: '#4f46e5',
@@ -168,17 +184,25 @@ const Cart = () => {
                                         Sản phẩm trong giỏ ({carts.length})
                                     </h2>
                                 </div>
-                                <div className="p-6 space-y-6">
+                                <div className="py-2 px-6 flex items-center">
+                                    <input
+                                        type="checkbox"
+                                        checked={isAllSelected}
+                                        onChange={handleSelectAll}
+                                        className="accent-indigo-600 w-5 h-5 mr-3"
+                                    />
+                                    <span className="text-gray-700 font-medium">Chọn tất cả</span>
+                                </div>
+                                <div className="p-2 space-y-6">
                                     {carts.map((cart) => (
-                                        <div
-                                            key={cart.id}
-                                            className="p-4 border border-gray-100 rounded-xl hover:shadow-md transition-shadow duration-200"
-                                        >
+                                        <div key={cart.id} className="p-4 border border-gray-100 rounded-xl hover:shadow-sm transition-shadow duration-200">
                                             <CartItem
                                                 cart={cart}
                                                 showButton={true}
                                                 onQuantityChange={handleQuantityChange}
                                                 onDeleteCart={handleDeleteCart}
+                                                selected={selectedItems.includes(cart.id)}
+                                                onSelect={() => handleSelectItem(cart.id)}
                                             />
                                         </div>
                                     ))}
@@ -193,12 +217,13 @@ const Cart = () => {
                         </div>
 
                         <CartSummary
-                            carts={carts}
+                            carts={carts.filter(item => selectedItems.includes(item.id))}
                             totalPrice={totalPrice}
                             shipping={shipping}
                             finalTotal={finalTotal}
                             handleCheckout={handleCheckout}
                             isCheckingOut={isCheckingOut}
+                            selectedItems={selectedItems}
                         />
                     </div>
                 )}

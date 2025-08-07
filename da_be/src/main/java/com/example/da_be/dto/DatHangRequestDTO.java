@@ -34,7 +34,11 @@ public class DatHangRequestDTO {
         private String sdt;
         private String email;
         private String diaChiCuThe;
+        private String xa;
+        private String huyen;
+        private String tinh;
 
+        // Getters & Setters
         public String getHoTen() {
             return hoTen;
         }
@@ -65,6 +69,30 @@ public class DatHangRequestDTO {
 
         public void setDiaChiCuThe(String diaChiCuThe) {
             this.diaChiCuThe = diaChiCuThe;
+        }
+
+        public String getXa() {
+            return xa;
+        }
+
+        public void setXa(String xa) {
+            this.xa = xa;
+        }
+
+        public String getHuyen() {
+            return huyen;
+        }
+
+        public void setHuyen(String huyen) {
+            this.huyen = huyen;
+        }
+
+        public String getTinh() {
+            return tinh;
+        }
+
+        public void setTinh(String tinh) {
+            this.tinh = tinh;
         }
     }
 

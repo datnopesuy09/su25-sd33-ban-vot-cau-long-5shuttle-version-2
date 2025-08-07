@@ -99,4 +99,15 @@ public class GioHangController {
         return new ResponseEntity<>(totalCount, HttpStatus.OK);
     }
 
+    @DeleteMapping("/xoa-danh-sach")
+    public ResponseEntity<?> xoaDanhSachSanPham(@RequestBody List<Integer> ids) {
+        try {
+            gioHangService.xoaSanPhamDatHang(ids);
+            return new ResponseEntity<>(HttpStatus.OK);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Lỗi khi xóa danh sách sản phẩm");
+        }
+    }
+
+
 }

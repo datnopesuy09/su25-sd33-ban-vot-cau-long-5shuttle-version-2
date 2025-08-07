@@ -4,9 +4,11 @@ package com.example.da_be.controller;
 import com.example.da_be.entity.SanPham;
 import com.example.da_be.service.SanPhamService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @CrossOrigin(origins = "http://localhost:5173") // Cho phép frontend truy cập
 @RestController
@@ -15,6 +17,11 @@ public class SanPhamController {
 
     @Autowired
     private SanPhamService sanPhamService;
+
+    @GetMapping("/hien-thi")
+    public ResponseEntity<List<Map<String, Object>>> getAllSanPham() {
+        return ResponseEntity.ok(sanPhamService.getAllSanPham());
+    }
 
     @GetMapping
     public List<SanPham> getAll() {

@@ -182,7 +182,7 @@ public class HoaDonCTController {
                 preOrder.setSanPhamCT(sanPhamCT);
                 preOrder.setSoLuong(request.getSoLuong());
                 preOrder.setTaiKhoan(hoaDon.getTaiKhoan()); // Giả định HoaDon có taiKhoan
-                    preOrder.setNgayTao(LocalDateTime.now());
+                preOrder.setNgayTao(LocalDateTime.now());
 
                 preOrder.setTrangThai(0); // 0 = Chờ nhập hàng
                 preOrderRepository.save(preOrder);

@@ -136,4 +136,28 @@ public class UserService {
         return hdct.stream().map(hoaDonCTMapper::toHoaDonChiTietResponse).toList();
     }
 
+    public HoaDonResponse updateMyOrderStatus(Integer idHoaDon, int newStatus) {
+        var context = SecurityContextHolder.getContext();
+        String email = context.getAuthentication().getName();
+
+        User user = userRepository.findUserByEmail(email)
+                .orElseThrow(() -> new AppException(ErrorCode.EMAIL_NOT_EXISTS));
+
+        HoaDon hoaDon = hoaDonRepository.findById(idHoaDon)
+                .orElseThrow(() -> new AppException(ErrorCode.HOADON_NOT_EXISTS));
+
+        if (!hoaDon.getTaiKhoan().getId().equals(user.getId())) {
+            throw new AppException(ErrorCode.UNAUTHORIZED);
+        }
+
+        if (newStatus == 7 && hoaDon.getTrangThai() != 1) {
+            throw new AppException(ErrorCode.INVALID_ORDER_STATUS);
+        }
+
+        hoaDon.setTrangThai(newStatus);
+        hoaDonRepository.save(hoaDon);
+
+        return hoaDonMapper.toHoaDonResponse(hoaDon);
+    }
+
 }

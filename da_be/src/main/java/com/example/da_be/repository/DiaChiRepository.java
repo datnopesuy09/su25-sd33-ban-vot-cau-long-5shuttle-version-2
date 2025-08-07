@@ -16,7 +16,6 @@ public interface DiaChiRepository extends JpaRepository<DiaChi, Integer> {
     List<DiaChi> findByTaiKhoan_Email(String email);
     DiaChi findByTaiKhoanAndId(User user, Integer id);
     Optional<DiaChi> findByIdAndTaiKhoan(Integer id, User taiKhoan);
-    List<DiaChi> findByTaiKhoanAndLoai(User taiKhoan, Integer loai);
-
+    Optional<DiaChi> findByTaiKhoanAndLoai(User taiKhoan, Integer loai);
 
 }

@@ -20,7 +20,12 @@ const AppWrapper = () => {
         const isAdminRoute =
           route.path.startsWith('/admin') && route.path !== '/admin/login';
 
-        const isUserRoute = route.path.startsWith('/profile');
+        const protectedUserRoutes = ['/profile', '/gio-hang'];
+
+        const isUserProtectedRoute = protectedUserRoutes.some(path =>
+          route.path.startsWith(path)
+        );
+
 
         const isAdminLoggedIn = localStorage.getItem('adminToken');
         const isUserLoggedIn = localStorage.getItem('userToken');
@@ -32,7 +37,7 @@ const AppWrapper = () => {
               key={index}
               path={route.path}
               element={
-                (isAdminRoute && !isAdminLoggedIn) || (isUserRoute && !isUserLoggedIn) ? (
+                (isAdminRoute && !isAdminLoggedIn) || (isUserProtectedRoute && !isUserLoggedIn) ? (
                   <Navigate
                     to={isAdminRoute ? '/admin/login' : '/login'}
                     state={{ from: location }}
@@ -72,7 +77,7 @@ const AppWrapper = () => {
             key={index}
             path={route.path}
             element={
-              (isAdminRoute && !isAdminLoggedIn) || (isUserRoute && !isUserLoggedIn) ? (
+              (isAdminRoute && !isAdminLoggedIn) || (isUserProtectedRoute && !isUserLoggedIn) ? (
                 <Navigate
                   to={isAdminRoute ? '/admin/login' : '/login'}
                   state={{ from: location }}

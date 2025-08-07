@@ -139,6 +139,7 @@ public class SanPhamCTService {
         // Mô tả, donGia, soLuong có thể lấy từ 1 bản SanPhamCT (ví dụ bản đầu tiên)
         SanPhamCT spctDauTien = sanPhamCTList.get(0);
         detailDTO.setMoTa(spctDauTien.getMoTa());
+        detailDTO.setTrangThai(spctDauTien.getTrangThai());
         detailDTO.setDonGia(spctDauTien.getDonGia());
         detailDTO.setSoLuong(spctDauTien.getSoLuong());
         // ThuongHieu

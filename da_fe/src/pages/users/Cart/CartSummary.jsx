@@ -14,7 +14,7 @@ const CartSummary = ({
     handleApplyPromoCode,
     handleCheckout,
     isCheckingOut,
-    
+    selectedItems,
 }) => {
     return (
         <div className="lg:col-span-1">
@@ -62,7 +62,7 @@ const CartSummary = ({
                             </div>
                         </div>
 
-                        
+
 
                         {/* Promo Code */}
                         <div className="mt-6 p-4 bg-gray-50 rounded-xl">
@@ -91,7 +91,8 @@ const CartSummary = ({
                         <Button
                             variant="contained"
                             onClick={handleCheckout}
-                            disabled={isCheckingOut}
+                            // disabled={isCheckingOut}
+                            disabled={isCheckingOut || selectedItems.length === 0}
                             fullWidth
                             sx={{
                                 padding: '16px',
