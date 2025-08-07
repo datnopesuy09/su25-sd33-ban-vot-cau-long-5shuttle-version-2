@@ -12,6 +12,8 @@ import lombok.experimental.FieldDefaults;
 
 public class SanPhamTraResponse {
 
+
+    Integer hoaDonChiTietId;
     Integer sanPhamChiTietId;
     String maSanPhamChiTiet;
     String tenSanPham;

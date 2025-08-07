@@ -9,5 +9,4 @@ import java.util.List;
 @Repository
 public interface PhieuTraHangChiTietRepository extends JpaRepository<PhieuTraHangChiTiet, Integer> {
 
-    List<PhieuTraHangChiTiet> findByPhieuTraHang_Id(Integer phieuTraHangId);
 }

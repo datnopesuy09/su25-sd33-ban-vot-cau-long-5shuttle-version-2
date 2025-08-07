@@ -19,6 +19,8 @@ import java.util.List;
 public class PhieuTraHangResponse {
     Integer id; // ID duy nhất của phiếu trả hàng
 
+    String maPhieuTraHang;
+
     Integer userId; // ID của người dùng đã tạo phiếu
 
     String hoTenKhachHang;
@@ -29,23 +31,22 @@ public class PhieuTraHangResponse {
 
     String diaChiKhachHang;
 
-    String hoaDonMa; // ID của hóa đơn liên quan
+    String hoaDonMa;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     LocalDateTime ngayTao; // Thời gian tạo phiếu
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    LocalDateTime ngayCapNhat;
+    LocalDateTime ngayXuLy;
 
     String hinhThucTra;
 
-    String ghiChu; // Ghi chú chung cho phiếu trả hàng
+    String ghiChuKhachHang;
 
-    TrangThaiTra trangThai; // Trạng thái hiện tại của phiếu (chờ xác nhận, đã hoàn thành...)
+    TrangThaiTra trangThai;
 
     String staffEmail;
 
     List<PhieuTraHangChiTietResponse> chiTietTraHang;
-
 
 }

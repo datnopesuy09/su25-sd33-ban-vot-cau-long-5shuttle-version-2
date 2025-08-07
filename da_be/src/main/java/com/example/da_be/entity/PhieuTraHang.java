@@ -22,6 +22,9 @@ public class PhieuTraHang {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Integer id;
 
+    @Column(name = "Ma")
+    String maPhieuTraHang;
+
     // Khóa ngoại đến bảng User (IdUser INT NOT NULL)
     @ManyToOne
     @JoinColumn(name = "IdUser", nullable = false)
@@ -49,8 +52,11 @@ public class PhieuTraHang {
     @Column(name = "TrangThai", columnDefinition = "ENUM('PENDING', 'APPROVED', 'REJECTED', 'REFUNDED') DEFAULT 'pending'")
     TrangThaiTra trangThai;
 
-    @Column(name = "GhiChu", length = 255) // Ánh xạ đến cột GhiChu NVARCHAR(255)
-    String ghiChu;
+    @Column(name = "GhiChuKhachHang", length = 255) // Ánh xạ đến cột GhiChu NVARCHAR(255)
+    String ghiChuKhachHang;
+
+    @Column(name = "GhiChuNhanVien", length = 255) // Ánh xạ đến cột GhiChu NVARCHAR(255)
+    String ghiChuNhanVien;
 
     // Khóa ngoại đến bảng User cho người xử lý (IdNhanVienXuLy INT NULL)
     @ManyToOne

@@ -2,6 +2,7 @@ package com.example.da_be.controller;
 
 import com.example.da_be.dto.request.ApiResponse;
 import com.example.da_be.dto.request.PhieuTraHang.CreationPhieuTraHangOnlineRequest;
+import com.example.da_be.dto.request.PhieuTraHang.PhieuTraHangApprovalRequest;
 import com.example.da_be.dto.response.PhieuTraHangResponse;
 import com.example.da_be.service.PhieuTraHangService;
 import jakarta.validation.Valid;
@@ -47,5 +48,11 @@ public class PhieuTraHangController {
                 .build();
     }
 
+    @PutMapping
+    public ApiResponse<PhieuTraHangResponse> approvePhieuTraHang(@RequestBody PhieuTraHangApprovalRequest request){
+        return ApiResponse.<PhieuTraHangResponse>builder()
+                .result(phieuTraHangService.approveReturn(request))
+                .build();
+    }
 
 }

@@ -13,12 +13,19 @@ import lombok.experimental.FieldDefaults;
 public class PhieuTraHangChiTietResponse {
     Integer id; // ID của chi tiết phiếu trả hàng
 
+    String maPhieuTraHangChiTiet;
+
     Integer phieuTraHangId;
 
     SanPhamTraResponse thongTinSanPhamTra;
 
     Integer soLuongTra; // Số lượng sản phẩm đã trả
 
-    String ghiChu;
+    Integer soLuongPheDuyet;
+
+    String ghiChuNhanVien;
+
+
+    String lyDoTraHang;
 
 }

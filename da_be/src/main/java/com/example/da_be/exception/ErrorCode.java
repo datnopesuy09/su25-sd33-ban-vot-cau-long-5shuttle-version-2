@@ -16,8 +16,9 @@ public enum ErrorCode {
     ID_ODER_NOT_EXISTS(1008, "Role does not exist", HttpStatus.NOT_FOUND),
     ADDRESS_NOT_FOUND(1009, "Address does not exist", HttpStatus.NOT_FOUND),
     ORDER_NOT_EXISTS(1010, "Order does not exist", HttpStatus.NOT_FOUND),
-
-
+    INCOMPLETE_ORDER(1011, "Incomplete Order", HttpStatus.BAD_REQUEST),
+    RETURN_NOT_EXISTS(1012, "Return not exists", HttpStatus.NOT_FOUND),
+    RETURN_DETAIL_NOT_EXISTS(1013, "Return detail not exists", HttpStatus.NOT_FOUND),
     //    USERID_INVALID(1002, "Username must be at least 8 characters", HttpStatus.BAD_REQUEST),
 //    PASSWORD_INVALID(1003, "Password must be at least 5 characters", HttpStatus.BAD_REQUEST),
     EMAIL_NOT_EXISTS(1004, "Email does not exist", HttpStatus.NOT_FOUND),
