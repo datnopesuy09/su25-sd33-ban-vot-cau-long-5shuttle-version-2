@@ -1,9 +1,11 @@
 package com.example.da_be.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 
 @Entity
 @Table(name = "ThongBao")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // Bỏ qua proxy Hibernate
 public class ThongBao {
 
     @Id
@@ -12,6 +14,7 @@ public class ThongBao {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "IdKhachHang", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // Bỏ qua proxy cho quan hệ
     private User khachHang;
 
     @Column(name = "TieuDe", length = 255)

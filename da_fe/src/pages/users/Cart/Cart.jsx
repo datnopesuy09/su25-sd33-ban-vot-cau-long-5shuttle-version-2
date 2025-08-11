@@ -10,6 +10,25 @@ import { CartContext } from './CartContext';
 import { X, Tag } from 'lucide-react';
 
 import { ShoppingCart, ShoppingBag, AlertCircle, CheckCircle2, Loader2, Truck, Shield, Gift } from 'lucide-react';
+import { useUserAuth } from '../../../contexts/userAuthContext';
+
+function parseJwt(token) {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+            atob(base64)
+                .split('')
+                .map(function (c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                })
+                .join(''),
+        );
+        return JSON.parse(jsonPayload);
+    } catch (e) {
+        return {};
+    }
+}
 
 const Cart = () => {
     const navigate = useNavigate();
@@ -18,9 +37,13 @@ const Cart = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isCheckingOut, setIsCheckingOut] = useState(false);
     const [notification, setNotification] = useState(null);
-    const idTaiKhoan = 1;
     const { setCartItemCount } = useContext(CartContext);
 
+    const { user } = useUserAuth();
+    const token = user?.token || localStorage.getItem('userToken');
+    const idTaiKhoan = user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
+
+    console.log('id user: ', idTaiKhoan);
     // Calculate shipping (free if over 1M VND)
     const shipping = totalPrice > 1000000 ? 0 : 30000;
     const finalTotal = totalPrice + shipping; // Không cần thay đổi
@@ -48,8 +71,6 @@ const Cart = () => {
             setIsLoading(false);
         }
     };
-
-    
 
     const handleQuantityChange = async (cartId, newQuantity) => {
         try {
@@ -81,8 +102,6 @@ const Cart = () => {
         }
     };
 
-    
-
     const handleCheckout = async () => {
         setIsCheckingOut(true);
         try {
@@ -97,7 +116,6 @@ const Cart = () => {
         }
     };
 
-    
     if (isLoading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -241,8 +259,6 @@ const Cart = () => {
                     </div>
                 )}
             </div>
-
-            
         </div>
     );
 };

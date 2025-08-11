@@ -12,7 +12,7 @@ const OrderSummary = ({
     handleApplyPromoCode,
     promoDiscount,
     discountedPrice,
-    selectedDiscount
+    selectedDiscount,
 }) => {
     const navigate = useNavigate();
 
@@ -59,7 +59,8 @@ const OrderSummary = ({
                                             🎨 Màu: <span className="font-semibold">{item.sanPhamCT.mauSac.ten}</span>
                                         </p>
                                         <p>
-                                            ⚖️ Trọng lượng: <span className="font-semibold">{item.sanPhamCT.trongLuong.ten}</span>
+                                            ⚖️ Trọng lượng:{' '}
+                                            <span className="font-semibold">{item.sanPhamCT.trongLuong.ten}</span>
                                         </p>
                                     </div>
                                 </div>
@@ -87,9 +88,7 @@ const OrderSummary = ({
                 <div className="border-t border-gray-200 pt-6">
                     <div className="flex justify-between items-center mb-6">
                         <span className="text-xl font-bold text-gray-800">Tổng tiền:</span>
-                        <span className="text-2xl font-bold text-[#2f19ae]">
-                            {totalPrice.toLocaleString()} VNĐ
-                        </span>
+                        <span className="text-2xl font-bold text-[#2f19ae]">{totalPrice.toLocaleString()} VNĐ</span>
                     </div>
 
                     {promoDiscount > 0 && (

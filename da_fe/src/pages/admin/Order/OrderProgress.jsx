@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 const OrderProgress = ({
     currentOrderStatus,
-    // setCurrentOrderStatus,
+    setCurrentOrderStatus,
     timeline,
     getStatusInfo,
     progressPercentage,
@@ -10,7 +10,7 @@ const OrderProgress = ({
     handleActionButtonClick,
     getActionButtonStyle,
     getActionButtonText,
-    handleCancelOrder
+    handleCancelOrder,
 }) => {
     // State cho modal confirm
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -57,13 +57,9 @@ const OrderProgress = ({
                         {/* Content */}
                         <div className="p-6 space-y-4">
                             <p className="text-gray-600 mb-2">Bạn có chắc chắn muốn thay đổi trạng thái thành:</p>
-                            <div className="font-semibold text-blue-600">
-                                {getStatusInfo(pendingStatus).label}
-                            </div>
+                            <div className="font-semibold text-blue-600">{getStatusInfo(pendingStatus).label}</div>
                             <div className="mb-4">
-                                <label className="block text-gray-700 text-sm font-medium mb-2">
-                                    Ghi chú
-                                </label>
+                                <label className="block text-gray-700 text-sm font-medium mb-2">Ghi chú</label>
                                 <textarea
                                     className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                                     rows="3"
@@ -204,13 +200,13 @@ const OrderProgress = ({
 
                 <div className="flex items-center space-x-4">
                     {(currentOrderStatus === 1 || currentOrderStatus === 2 || currentOrderStatus === 3) && (
-                    <button
-                        className="px-8 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-300 transform hover:scale-105 shadow-lg font-medium"
-                        onClick={handleCancelOrder} // Gọi hàm hủy đơn
-                    >
-                        Hủy đơn
-                    </button>
-                )}
+                        <button
+                            className="px-8 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-300 transform hover:scale-105 shadow-lg font-medium"
+                            onClick={handleCancelOrder}
+                        >
+                            Hủy đơn
+                        </button>
+                    )}
 
                     <button className="text-purple-600 hover:text-purple-800 transition-colors duration-300 font-medium px-4 py-2 rounded-lg hover:bg-purple-50">
                         Chi tiết →

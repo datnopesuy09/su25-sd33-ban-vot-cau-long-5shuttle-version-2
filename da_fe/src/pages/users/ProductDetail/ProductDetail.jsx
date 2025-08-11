@@ -5,6 +5,25 @@ import axios from 'axios';
 import { CartContext } from '../Cart/CartContext';
 import ProductCard from '../Product/ProductCard';
 import classNames from 'classnames';
+import { useUserAuth } from '../../../contexts/userAuthContext';
+
+function parseJwt(token) {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+            atob(base64)
+                .split('')
+                .map(function (c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                })
+                .join(''),
+        );
+        return JSON.parse(jsonPayload);
+    } catch (e) {
+        return {};
+    }
+}
 
 export default function ProductDetail() {
     const { id } = useParams(); // Lấy ID từ URL
@@ -20,6 +39,7 @@ export default function ProductDetail() {
     const [newComment, setNewComment] = useState('');
     const [newRating, setNewRating] = useState(1);
     const { setCartItemCount } = useContext(CartContext);
+    const { user } = useUserAuth();
 
     // Lấy dữ liệu sản phẩm từ API
     useEffect(() => {
@@ -36,10 +56,10 @@ export default function ProductDetail() {
                 setCurrentImages(productData.hinhAnhUrls);
                 setMainImage(productData.hinhAnhUrls[0]);
                 setCurrentQuantity(productData.soLuong);
-                
+
                 // Tìm variant đầu tiên để set giá ban đầu
                 const firstVariant = productData.variants.find(
-                    v => v.mauSacTen === productData.mauSac[0] && v.trongLuongTen === productData.trongLuong[0]
+                    (v) => v.mauSacTen === productData.mauSac[0] && v.trongLuongTen === productData.trongLuong[0],
                 );
                 if (firstVariant) {
                     setCurrentPrice(firstVariant.giaKhuyenMai || firstVariant.donGia);
@@ -97,7 +117,10 @@ export default function ProductDetail() {
             return;
         }
 
-        const idTaiKhoan = 1; // ID tài khoản thực tế
+        const token = user?.token || localStorage.getItem('userToken');
+        const idTaiKhoan =
+            user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
+
         const payload = {
             idTaiKhoan: idTaiKhoan,
             idSanPhamCT: selectedVariant.id,
@@ -204,7 +227,8 @@ export default function ProductDetail() {
                                                     <div key={variant.id} className="flex items-center space-x-2">
                                                         {/* Giá khuyến mãi */}
                                                         <span className="text-3xl font-bold text-red-600">
-                                                            {(variant.giaKhuyenMai || variant.donGia).toLocaleString()} ₫
+                                                            {(variant.giaKhuyenMai || variant.donGia).toLocaleString()}{' '}
+                                                            ₫
                                                         </span>
 
                                                         {/* Giá gốc và % giảm */}
@@ -254,7 +278,9 @@ export default function ProductDetail() {
                                                     if (foundVariant) {
                                                         setCurrentImages(foundVariant.hinhAnhUrls);
                                                         setMainImage(foundVariant.hinhAnhUrls[0]);
-                                                        setCurrentPrice(foundVariant.giaKhuyenMai || foundVariant.donGia);
+                                                        setCurrentPrice(
+                                                            foundVariant.giaKhuyenMai || foundVariant.donGia,
+                                                        );
                                                         setCurrentQuantity(foundVariant.soLuong);
                                                         setQuantity(1);
                                                     }
@@ -290,13 +316,14 @@ export default function ProductDetail() {
                                                     <span className="text-lg font-bold text-red-600">
                                                         {product.variants
                                                             .find((v) => v.mauSacTen === color)
-                                                            ?.giaKhuyenMai?.toLocaleString() || 
+                                                            ?.giaKhuyenMai?.toLocaleString() ||
                                                             product.variants
-                                                            .find((v) => v.mauSacTen === color)
-                                                            ?.donGia.toLocaleString()}
+                                                                .find((v) => v.mauSacTen === color)
+                                                                ?.donGia.toLocaleString()}
                                                         <span className="text-sm ml-1">₫</span>
                                                     </span>
-                                                    {product.variants.find((v) => v.mauSacTen === color)?.giaKhuyenMai && (
+                                                    {product.variants.find((v) => v.mauSacTen === color)
+                                                        ?.giaKhuyenMai && (
                                                         <span className="text-sm text-gray-500 line-through">
                                                             {product.variants
                                                                 .find((v) => v.mauSacTen === color)

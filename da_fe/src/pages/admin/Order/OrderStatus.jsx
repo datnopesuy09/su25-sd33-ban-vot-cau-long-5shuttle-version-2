@@ -239,6 +239,32 @@ function OrderStatus() {
                 sanPhamCTId: selectedProductId,
                 quantity: importQuantity,
             });
+            // Gửi thông báo đến người dùng khi nhập hàng thành công
+            const userNotification = {
+                khachHang: {
+                    id: orderData.taiKhoan.id,
+                },
+                tieuDe: 'Cập nhật trạng thái nhập hàng',
+                noiDung: `Sản phẩm trong đơn hàng #${hoaDonId} đã được nhập hàng. Vui lòng kiểm tra đơn hàng.`,
+                idRedirect: `/user/hoa-don/${hoaDonId}`,
+                kieuThongBao: 'success',
+                trangThai: 0,
+            };
+            try {
+                await axios.post('http://localhost:8080/api/thong-bao', userNotification, {
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                if (stompClient) {
+                    stompClient.send(
+                        `/app/user/${orderData.taiKhoan?.id}/notifications`,
+                        {},
+                        JSON.stringify(userNotification),
+                    );
+                }
+            } catch (notificationError) {
+                console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
+                swal('Cảnh báo', 'Không thể gửi thông báo đến người dùng.', 'warning');
+            }
             swal('Thành công', 'Nhập hàng thành công!', 'success');
             fetchBillDetails(hoaDonId);
             fetchPreOrders();
@@ -365,6 +391,34 @@ function OrderStatus() {
                 throw new Error('Không thể cập nhật trạng thái hóa đơn');
             }
             setCurrentOrderStatus(newStatus);
+
+            // Gửi thông báo đến người dùng
+            const userNotification = {
+                khachHang: {
+                    id: orderData.taiKhoan.id,
+                },
+                tieuDe: 'Cập nhật trạng thái đơn hàng',
+                noiDung: `Đơn hàng #${hoaDonId} đã được cập nhật sang trạng thái: ${getStatusLabel(newStatus).label}`,
+                // idRedirect: `/user/hoa-don/${hoaDonId}`,
+                kieuThongBao: newStatus === 7 ? 'error' : newStatus === 8 ? 'warning' : 'info',
+                trangThai: 0,
+            };
+            try {
+                await axios.post('http://localhost:8080/api/thong-bao', userNotification, {
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                if (stompClient) {
+                    stompClient.send(
+                        `/app/user/${orderData.taiKhoan.id}/notifications`,
+                        {},
+                        JSON.stringify(userNotification),
+                    );
+                }
+            } catch (notificationError) {
+                console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
+                swal('Cảnh báo', 'Không thể gửi thông báo đến người dùng.', 'warning');
+            }
+
             if (newStatus === 8) {
                 const response = await axios.get(`http://localhost:8080/api/tra-hang/hoa-don/${hoaDonId}`);
                 setReturnHistory(response.data);
@@ -540,6 +594,32 @@ function OrderStatus() {
                 setOrderDetailDatas(fetchResponse.data);
                 const hoaDonResponse = await axios.get(`http://localhost:8080/api/hoa-don/${hoaDonId}`);
                 setCurrentOrderStatus(hoaDonResponse.data.trangThai);
+                // Gửi thông báo đến người dùng khi duyệt trả hàng
+                const userNotification = {
+                    khachHang: {
+                        id: orderData.taiKhoan.id,
+                    },
+                    tieuDe: 'Yêu cầu trả hàng được duyệt',
+                    noiDung: `Yêu cầu trả hàng cho đơn hàng #${hoaDonId} đã được duyệt.`,
+                    idRedirect: `/user/hoa-don/${hoaDonId}`,
+                    kieuThongBao: 'success',
+                    trangThai: 0,
+                };
+                try {
+                    await axios.post('http://localhost:8080/api/thong-bao', userNotification, {
+                        headers: { 'Content-Type': 'application/json' },
+                    });
+                    if (stompClient) {
+                        stompClient.send(
+                            `/app/user/${orderData.taiKhoan?.id}/notifications`,
+                            {},
+                            JSON.stringify(userNotification),
+                        );
+                    }
+                } catch (notificationError) {
+                    console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
+                    swal('Cảnh báo', 'Không thể gửi thông báo đến người dùng.', 'warning');
+                }
                 swal('Thành công!', 'Yêu cầu trả hàng đã được duyệt', 'success');
             } catch (error) {
                 console.error('Lỗi khi duyệt yêu cầu trả hàng:', error);
@@ -562,6 +642,32 @@ function OrderStatus() {
                 await axios.put(`http://localhost:8080/api/hoa-don-ct/return/${traHangId}/reject`);
                 const response = await axios.get(`http://localhost:8080/api/tra-hang/hoa-don/${hoaDonId}`);
                 setReturnHistory(response.data);
+                // Gửi thông báo đến người dùng khi từ chối trả hàng
+                const userNotification = {
+                    khachHang: {
+                        id: orderData.taiKhoan.id,
+                    },
+                    tieuDe: 'Yêu cầu trả hàng bị từ chối',
+                    noiDung: `Yêu cầu trả hàng cho đơn hàng #${hoaDonId} đã bị từ chối.`,
+                    idRedirect: `/user/hoa-don/${hoaDonId}`,
+                    kieuThongBao: 'error',
+                    trangThai: 0,
+                };
+                try {
+                    await axios.post('http://localhost:8080/api/thong-bao', userNotification, {
+                        headers: { 'Content-Type': 'application/json' },
+                    });
+                    if (stompClient) {
+                        stompClient.send(
+                            `/app/user/${orderData.taiKhoan?.id}/notifications`,
+                            {},
+                            JSON.stringify(userNotification),
+                        );
+                    }
+                } catch (notificationError) {
+                    console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
+                    swal('Cảnh báo', 'Không thể gửi thông báo đến người dùng.', 'warning');
+                }
                 swal('Thành công!', 'Yêu cầu trả hàng đã bị từ chối', 'success');
             } catch (error) {
                 console.error('Lỗi khi từ chối yêu cầu trả hàng:', error);

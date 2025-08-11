@@ -1,16 +1,42 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import swal from 'sweetalert';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import ShippingInfo from './ShippingInfo';
 import OrderSummary from './OrderSummary';
 import DiscountModal from './DiscountModal';
+import { useAdminAuth } from '../../../contexts/adminAuthContext';
+import { useUserAuth } from '../../../contexts/userAuthContext';
 
+function parseJwt(token) {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+            atob(base64)
+                .split('')
+                .map(function (c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                })
+                .join(''),
+        );
+        return JSON.parse(jsonPayload);
+    } catch (e) {
+        return {};
+    }
+}
 const CheckOut = () => {
     const navigate = useNavigate();
-    const location = useLocation();
+    // const location = useLocation();
     // Giả sử idTaiKhoan được truyền qua location.state hoặc dùng giá trị mặc định
-    const idTaiKhoan = location.state?.idTaiKhoan || 1; // Mặc định idTaiKhoan = 1 để test
+    const { user } = useUserAuth();
+    const { admin } = useAdminAuth();
+    const token = user?.token || localStorage.getItem('userToken');
+    const token2 = admin?.token || localStorage.getItem('userToken');
+    const idTaiKhoan = user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
+    const idAdmin = admin?.id || parseJwt(token2)?.sub || parseJwt(token2)?.id;
+    console.log('iduser checkout: ', idTaiKhoan);
+    console.log('idadmin checkout: ', idAdmin);
     const [carts, setCarts] = useState([]);
     const [formData, setFormData] = useState({
         addressName: '',
@@ -210,6 +236,27 @@ const CheckOut = () => {
         try {
             const response = await axios.post('http://localhost:8080/api/dat-hang', orderData);
             if (response.status === 200) {
+                // Gửi thông báo đến admin
+                const adminId = 1; // Giả định ID admin là 1, bạn cần thay bằng logic lấy ID admin thực tế
+                const notificationData = {
+                    idKhachHang: adminId,
+                    tieuDe: 'Đơn hàng mới',
+                    noiDung: `Đơn hàng mới từ khách hàng phamhung vừa được đặt.`,
+                    idRedirect: `/admin/hoa-don/${response.data.id}`,
+                    kieuThongBao: 'info',
+                    trangThai: 0,
+                };
+
+                try {
+                    await axios.post('http://localhost:8080/api/thong-bao', notificationData, {
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    });
+                } catch (notificationError) {
+                    console.error('Lỗi khi gửi thông báo đến admin:', notificationError);
+                    // Không dừng quá trình đặt hàng nếu thông báo thất bại
+                }
                 if (response.data.trangThai === 9) {
                     swal({
                         title: 'Sản phẩm tạm hết hàng',
