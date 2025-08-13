@@ -18,7 +18,7 @@ public interface PhieuTraHangMapper {
     @Mapping(source = "hoaDon.ma", target = "hoaDonMa")
     @Mapping(source = "hoaDon.taiKhoan.hoTen", target = "hoTenKhachHang")
     @Mapping(source = "hoaDon.taiKhoan.email", target = "emailKhachHang")
-    @Mapping(source = "hoaDon.taiKhoan.sdt", target = "sdtKhachHang")
+    @Mapping(source = "hoaDon.sdtNguoiNhan", target = "sdtKhachHang")
     @Mapping(source = "hoaDon.diaChiNguoiNhan", target = "diaChiKhachHang")
     @Mapping(source = "chiTietPhieuTraHang", target = "chiTietTraHang")
     @Mapping(source = "nhanVienXuLy.email", target = "staffEmail")

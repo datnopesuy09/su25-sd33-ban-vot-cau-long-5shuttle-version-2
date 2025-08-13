@@ -27,7 +27,7 @@ public class PhieuTraHangResponse {
 
     String emailKhachHang;
 
-    Integer sdtKhachHang;
+    String sdtKhachHang;
 
     String diaChiKhachHang;
 
