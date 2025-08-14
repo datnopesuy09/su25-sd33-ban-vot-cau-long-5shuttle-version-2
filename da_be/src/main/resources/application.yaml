@@ -8,6 +8,23 @@ spring:
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
+#  security:
+#    oauth2:
+#      client:
+#        registration:
+#          google:
+#            client-id:
+#            client-secret:
+#            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+#            scope:
+#              - email
+#              - profile
+#        provider:
+#          google:
+#            authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+#            token-uri: https://oauth2.googleapis.com/token
+#            user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+
   jpa:
     hibernate:
       ddl-auto: none
