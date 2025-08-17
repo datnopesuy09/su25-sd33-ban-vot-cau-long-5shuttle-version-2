@@ -113,9 +113,6 @@ public class SanPhamCTController {
         return ResponseEntity.ok(existingSanPhamCT);
     }
 
-
-
-
     @GetMapping("/sp")
     public List<SanPhamCT> getAllSanPhamCT(@RequestParam(required = false) Integer productId) {
         if (productId != null) {
@@ -154,10 +151,6 @@ public class SanPhamCTController {
         }
     }
 
-
-
-
-
     @GetMapping("/summary")
     public ResponseEntity<List<SanPhamCTListDTO>> getAllSanPhamCTSummary() {
         List<SanPhamCTListDTO> dtoList = sanPhamCTService.getAllSanPhamCTSummary();
@@ -169,8 +162,6 @@ public class SanPhamCTController {
         List<SanPhamCTListDTOo> dtoList = sanPhamCTService.getAllSanPhamCTSummaryy();
         return ResponseEntity.ok(dtoList);
     }
-
-
 
     @GetMapping("/{id}/detaill")
     public ResponseEntity<SanPhamCTDetailDTO> getSanPhamCTDetail(@PathVariable int id) {

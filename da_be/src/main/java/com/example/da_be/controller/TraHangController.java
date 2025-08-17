@@ -29,7 +29,7 @@ public class TraHangController {
 
     @PostMapping
     public ResponseEntity<TraHang> createTraHang(@RequestBody TraHang traHang) {
-        traHang.setNgayTao(LocalDateTime.now());
+//        traHang.setNgayTao(LocalDateTime.now());
         traHang.setTrangThai(0); // Chờ duyệt
         TraHang savedTraHang = traHangRepository.save(traHang);
         return ResponseEntity.ok(savedTraHang);

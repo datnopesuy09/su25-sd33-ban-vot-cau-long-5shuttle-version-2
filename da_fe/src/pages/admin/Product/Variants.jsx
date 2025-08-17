@@ -117,7 +117,8 @@ const Variants = ({ variants, handleRemoveVariant, handleChange, imagesByColor, 
                                     <div className="p-4">
                                         <div className="flex flex-wrap items-center justify-between gap-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-current opacity-20"></div>
+                                                <div className={`w-8 h-8 rounded-full ${getColorStyle(color)}`}></div>
+
                                                 <div>
                                                     <h3 className="font-bold text-lg">Màu {color}</h3>
                                                     <p className="text-sm opacity-75">
@@ -162,28 +163,50 @@ const Variants = ({ variants, handleRemoveVariant, handleChange, imagesByColor, 
 
                                         {imagesByColor[color] && imagesByColor[color].length > 0 && (
                                             <div className="mt-4 flex flex-wrap gap-2">
-                                                {imagesByColor[color].map((src, idx) => (
-                                                    <div key={idx} className="relative group">
-                                                        <img
-                                                            src={`http://localhost:8080${src}`}
-                                                            alt={`${color} ${idx + 1}`}
-                                                            className="w-20 h-20 object-cover rounded-lg border-2 border-white shadow-md cursor-pointer hover:shadow-lg transition-shadow"
-                                                            onClick={() =>
-                                                                setPreviewImage(`http://localhost:8080${src}`)
-                                                            }
-                                                        />
-                                                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 rounded-lg transition-all duration-200 flex items-center justify-center">
-                                                            <Eye className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                                                        </div>
-                                                        <button
-                                                            type="button" // Đảm bảo không submit form
-                                                            onClick={() => removeImage(color, idx)}
-                                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                                {imagesByColor[color].map((src, idx) => {
+                                                    console.log('Ảnh nhỏ:', src);
+                                                    return (
+                                                        <div
+                                                            key={idx}
+                                                            className="relative group cursor-pointer"
+                                                            onClick={() => {
+                                                                console.log('Preview ảnh:', src);
+                                                                setPreviewImage(src);
+                                                            }}
                                                         >
-                                                            <X className="w-3 h-3" />
-                                                        </button>
-                                                    </div>
-                                                ))}
+                                                            <div
+                                                                style={{ width: '80px', height: '80px' }}
+                                                                className="border border-gray-300 border-dashed rounded-md"
+                                                            >
+                                                                <img
+                                                                    src={src}
+                                                                    alt={`${color} ${idx + 1}`}
+                                                                    crossOrigin="anonymous"
+                                                                    onError={(e) => {
+                                                                        e.target.src =
+                                                                            'https://via.placeholder.com/80x80?text=Lỗi';
+                                                                    }}
+                                                                    className="w-full h-full object-contain rounded-md transition-opacity duration-200 group-hover:opacity-60"
+                                                                />
+                                                            </div>
+
+                                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                                                <Eye className="w-5 h-5 text-gray opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                                                            </div>
+
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation(); // Ngăn không cho click nút X bị lan sang ảnh
+                                                                    removeImage(color, idx);
+                                                                }}
+                                                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                                            >
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         )}
                                     </div>
@@ -281,11 +304,13 @@ const Variants = ({ variants, handleRemoveVariant, handleChange, imagesByColor, 
                             src={previewImage}
                             alt="Preview"
                             className="max-w-full max-h-full object-contain rounded-lg"
+                            style={{ backgroundColor: '#fff' }}
                         />
+
                         <button
                             type="button" // Đảm bảo không submit form
                             onClick={() => setPreviewImage(null)}
-                            className="absolute top-4 right-4 bg-white bg-opacity-20 hover:bg-opacity-30 text-white rounded-full p-2 transition-all"
+                            className="absolute top-4 right-4 bg-black bg-opacity-20 hover:bg-opacity-30 text-white rounded-full p-2 transition-all"
                         >
                             <X className="w-6 h-6" />
                         </button>

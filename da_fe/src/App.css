@@ -4,7 +4,7 @@
     max-width: 1280px;
     margin: 0 auto;
     padding: 2rem;
-    text-align: center;
+    /* text-align: center; */
 }
 
 .logo {
@@ -45,6 +45,6 @@
 
 .swal2-confirm:focus,
 .swal2-cancel:focus {
-  box-shadow: none !important;
-  outline: none !important;
+    box-shadow: none !important;
+    outline: none !important;
 }

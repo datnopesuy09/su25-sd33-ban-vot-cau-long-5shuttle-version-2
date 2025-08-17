@@ -6,7 +6,7 @@ import lombok.Getter;
 @AllArgsConstructor
 @Getter
 public enum LoaiHoaDon {
-    ONLINE("Online"),
+    TRUC_TUYEN("Trực tuyến"),
     TAI_QUAY("Tại quầy");
 
     private final String name;

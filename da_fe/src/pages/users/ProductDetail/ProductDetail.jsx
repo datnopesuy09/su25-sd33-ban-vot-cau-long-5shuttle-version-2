@@ -24,6 +24,7 @@ function parseJwt(token) {
         return {};
     }
 }
+import { toast } from 'react-toastify';
 
 export default function ProductDetail() {
     const { id } = useParams(); // Lấy ID từ URL
@@ -121,8 +122,12 @@ export default function ProductDetail() {
         const idTaiKhoan =
             user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
 
+        if (!idTaiKhoan) {
+            toast.warning('Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng');
+            return;
+        }
         const payload = {
-            idTaiKhoan: idTaiKhoan,
+            idTaiKhoan,
             idSanPhamCT: selectedVariant.id,
             soLuong: quantity,
         };
