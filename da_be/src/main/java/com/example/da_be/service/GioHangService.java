@@ -33,49 +33,47 @@ public class GioHangService {
     @Autowired
     private SanPhamCTRepository sanPhamCTRepository;
 
-    public GioHang themSanPhamVaoGioHang(Integer idTaiKhoan, Integer idSanPhamCT, Integer soLuong) {
-        // 1. Validate input
-        User taiKhoan = taiKhoanRepository.findById(idTaiKhoan)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản với ID: " + idTaiKhoan));
+    public GioHang themSanPhamVaoGioHang(Integer idTaiKhoan, Integer idSanPhamCT, Integer soLuong, Boolean preOrder) {
+    User taiKhoan = taiKhoanRepository.findById(idTaiKhoan)
+            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản với ID: " + idTaiKhoan));
 
-        SanPhamCT sanPhamCT = sanPhamCTRepository.findById(idSanPhamCT)
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm chi tiết với ID: " + idSanPhamCT));
+    SanPhamCT sanPhamCT = sanPhamCTRepository.findById(idSanPhamCT)
+            .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sản phẩm chi tiết với ID: " + idSanPhamCT));
 
-        if (soLuong <= 0) {
-            throw new IllegalArgumentException("Số lượng phải lớn hơn 0");
-        }
-
-        // 2. Check if the product is already in the cart
-        Optional<GioHang> existingCartItem = gioHangRepository.findByTaiKhoanAndSanPhamCT(taiKhoan, sanPhamCT);
-
-        if (existingCartItem.isPresent()) {
-            // 3. If the product is already in the cart, update the quantity
-            GioHang cartItem = existingCartItem.get();
-            int newQuantity = cartItem.getSoLuong() + soLuong;
-
-            // Check if the new quantity exceeds the available stock
-            if (newQuantity > sanPhamCT.getSoLuong()) {
-                throw new IllegalArgumentException("Số lượng trong giỏ hàng vượt quá số lượng tồn kho.");
-            }
-
-            cartItem.setSoLuong(newQuantity);
-            cartItem.setNgaySua(new Date());
-            return gioHangRepository.save(cartItem);
-        } else {
-            // 4. If the product is not in the cart, create a new cart item
-            if (soLuong > sanPhamCT.getSoLuong()) {
-                throw new IllegalArgumentException("Số lượng thêm vào giỏ hàng vượt quá số lượng tồn kho.");
-            }
-
-            GioHang newCartItem = new GioHang();
-            newCartItem.setTaiKhoan(taiKhoan);
-            newCartItem.setSanPhamCT(sanPhamCT);
-            newCartItem.setSoLuong(soLuong);
-            newCartItem.setNgayTao(new Date());
-            newCartItem.setNgaySua(new Date());
-            return gioHangRepository.save(newCartItem);
-        }
+    if (soLuong <= 0) {
+        throw new IllegalArgumentException("Số lượng phải lớn hơn 0");
     }
+
+    Optional<GioHang> existingCartItem = gioHangRepository.findByTaiKhoanAndSanPhamCT(taiKhoan, sanPhamCT);
+
+    if (existingCartItem.isPresent()) {
+        GioHang cartItem = existingCartItem.get();
+        int newQuantity = cartItem.getSoLuong() + soLuong;
+
+        // Nếu là preOrder thì không kiểm tra tồn kho
+        if (!Boolean.TRUE.equals(preOrder) && newQuantity > sanPhamCT.getSoLuong()) {
+            throw new IllegalArgumentException("Số lượng trong giỏ hàng vượt quá số lượng tồn kho.");
+        }
+
+        cartItem.setSoLuong(newQuantity);
+        cartItem.setPreOrder(preOrder);
+        cartItem.setNgaySua(new Date());
+        return gioHangRepository.save(cartItem);
+    } else {
+        if (!Boolean.TRUE.equals(preOrder) && soLuong > sanPhamCT.getSoLuong()) {
+            throw new IllegalArgumentException("Số lượng thêm vào giỏ hàng vượt quá số lượng tồn kho.");
+        }
+
+        GioHang newCartItem = new GioHang();
+        newCartItem.setTaiKhoan(taiKhoan);
+        newCartItem.setSanPhamCT(sanPhamCT);
+        newCartItem.setSoLuong(soLuong);
+        newCartItem.setPreOrder(preOrder);
+        newCartItem.setNgayTao(new Date());
+        newCartItem.setNgaySua(new Date());
+        return gioHangRepository.save(newCartItem);
+    }
+}
 
     public List<GioHangDTO> getGioHangByTaiKhoan(Integer idTaiKhoan) {
         User taiKhoan = taiKhoanRepository.findById(idTaiKhoan)
@@ -95,6 +93,7 @@ public class GioHangService {
         sanPhamCTDTO.setTen(sanPhamCT.getSanPham().getTen());
         sanPhamCTDTO.setDonGia(sanPhamCT.getDonGia());
         sanPhamCTDTO.setSoLuong(sanPhamCT.getSoLuong());
+        dto.setPreOrder(gioHang.getPreOrder()); // Thêm dòng này
 
         // Lấy giá khuyến mãi
         sanPhamCTDTO.setGiaKhuyenMai(sanPhamCT.getGiaKhuyenMai());

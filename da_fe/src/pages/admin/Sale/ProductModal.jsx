@@ -3,7 +3,7 @@ import { X, Receipt, Search, Filter, Plus, Minus } from 'lucide-react';
 import axios from 'axios';
 import swal from 'sweetalert';
 
-const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill, handleConfirmAddProduct }) => {
+const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill, handleConfirmAddProduct, fetchProducts }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [brandFilter, setBrandFilter] = useState('');
     const [colorFilter, setColorFilter] = useState('');
@@ -13,6 +13,8 @@ const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill,
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [quantity, setQuantity] = useState(1);
+
+    
 
     // Fetch products data
     useEffect(() => {
@@ -27,6 +29,14 @@ const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill,
 
         fetchProducts();
     }, []);
+
+    useEffect(() => {
+        const loadProducts = async () => {
+            const data = await fetchProducts();
+            setProducts(data);
+        };
+        loadProducts();
+    }, [fetchProducts]);
 
     // Filter products
     const filteredProducts = products.filter((product) => {
@@ -48,6 +58,40 @@ const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill,
         setSelectedProduct(product);
         setQuantity(1);
         setShowDetailModal(true);
+    };
+
+    // Handle quantity input change
+    const handleQuantityChange = (e) => {
+        const value = e.target.value;
+        
+        // Cho phép nhập rỗng để user có thể xóa và nhập lại
+        if (value === '') {
+            setQuantity('');
+            return;
+        }
+
+        // Chỉ cho phép nhập số
+        const numericValue = parseInt(value);
+        if (!isNaN(numericValue) && numericValue >= 1) {
+            // Cho phép nhập số lượng lớn hơn tồn kho
+            setQuantity(numericValue);
+        }
+    };
+
+    // Handle quantity input blur (khi user click ra ngoài)
+    const handleQuantityBlur = () => {
+        // Nếu input rỗng hoặc không hợp lệ, đặt về 1
+        if (quantity === '' || quantity < 1) {
+            setQuantity(1);
+        }
+    };
+
+    // Handle quantity input key press
+    const handleQuantityKeyPress = (e) => {
+        // Chỉ cho phép nhập số
+        if (!/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
+            e.preventDefault();
+        }
     };
 
     if (!showProductModal) return null;
@@ -294,17 +338,43 @@ const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill,
                             <p className="font-semibold">SL tồn: {selectedProduct.soLuong}</p>
                         </div>
 
-                        <div className="flex items-center mb-6">
+                        {/* Quantity Controls - Updated */}
+                        <div className="flex items-center justify-center mb-6">
                             <button
-                                onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                                className="bg-gray-200 p-2 rounded-lg"
+                                onClick={() => setQuantity((prev) => Math.max(1, (prev === '' ? 1 : prev) - 1))}
+                                className="bg-gray-200 hover:bg-gray-300 p-2 rounded-lg transition-colors"
+                                disabled={quantity <= 1}
                             >
                                 <Minus className="w-5 h-5" />
                             </button>
-                            <span className="mx-4 font-bold text-xl">{quantity}</span>
+                            
+                            <div className="mx-4 flex flex-col items-center">
+                                <input
+                                    type="text"
+                                    value={quantity}
+                                    onChange={handleQuantityChange}
+                                    onBlur={handleQuantityBlur}
+                                    onKeyPress={handleQuantityKeyPress}
+                                    className={`w-16 h-10 text-center font-bold text-xl border-2 rounded-lg focus:ring-2 focus:ring-blue-500/20 transition-all ${
+                                        quantity > selectedProduct.soLuong 
+                                            ? 'border-orange-400 focus:border-orange-500 bg-orange-50' 
+                                            : 'border-gray-200 focus:border-blue-500'
+                                    }`}
+                                    placeholder="1"
+                                />
+                                <div className="text-xs mt-1 text-center">
+                                    <span className="text-gray-500">Tồn: {selectedProduct.soLuong}</span>
+                                    {quantity > selectedProduct.soLuong && (
+                                        <div className="text-orange-600 font-medium">
+                                            Vượt tồn kho {quantity - selectedProduct.soLuong}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            
                             <button
-                                onClick={() => setQuantity((prev) => Math.min(selectedProduct.soLuong, prev + 1))}
-                                className="bg-gray-200 p-2 rounded-lg"
+                                onClick={() => setQuantity((prev) => (prev === '' ? 1 : prev) + 1)}
+                                className="bg-gray-200 hover:bg-gray-300 p-2 rounded-lg transition-colors"
                             >
                                 <Plus className="w-5 h-5" />
                             </button>
@@ -316,13 +386,13 @@ const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill,
                                 {(
                                     (selectedProduct.giaKhuyenMai !== null
                                         ? selectedProduct.giaKhuyenMai
-                                        : selectedProduct.donGia) * quantity
+                                        : selectedProduct.donGia) * (quantity === '' ? 1 : quantity)
                                 ).toLocaleString()}
                                 ₫
                             </span>
                             {selectedProduct.giaKhuyenMai !== null && (
                                 <span className="text-sm text-gray-500 line-through ml-2">
-                                    {(selectedProduct.donGia * quantity).toLocaleString()}₫
+                                    {(selectedProduct.donGia * (quantity === '' ? 1 : quantity)).toLocaleString()}₫
                                 </span>
                             )}
                         </p>
@@ -330,13 +400,14 @@ const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill,
                         <div className="flex space-x-4">
                             <button
                                 onClick={() => setShowDetailModal(false)}
-                                className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg font-medium"
+                                className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg font-medium hover:bg-gray-300 transition-colors"
                             >
                                 Hủy
                             </button>
                             <button
-                                onClick={() => handleConfirmAddProduct(selectedProduct, quantity)}
-                                className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700"
+                                onClick={() => handleConfirmAddProduct(selectedProduct, quantity === '' ? 1 : quantity)}
+                                className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                                disabled={quantity === '' || quantity < 1 || quantity > selectedProduct.soLuong}
                             >
                                 Xác nhận
                             </button>

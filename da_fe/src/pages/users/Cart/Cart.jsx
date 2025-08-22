@@ -69,7 +69,7 @@ const Cart = () => {
     const handleSelectAll = () => {
         setSelectedItems(isAllSelected ? [] : carts.map((item) => item.id));
     };
-
+ console.log('Selected items cart:', selectedItems);
     useEffect(() => {
         const total = carts
             .filter((item) => selectedItems.includes(item.id))

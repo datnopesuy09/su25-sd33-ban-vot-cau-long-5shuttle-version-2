@@ -43,6 +43,8 @@ public class DatHangController {
     private VoucherRepository voucherRepository;
     @Autowired
     private PhieuGiamGiaRepository phieuGiamGiaRepository;
+    @Autowired
+    private PreOrderRepository preOrderRepository;
 
     @Transactional
     @PostMapping
@@ -127,7 +129,19 @@ public class DatHangController {
             }
 
             hoaDon.setNgayTao(new Date());
-            hoaDon.setTrangThai(1); // trạng thái mới tạo
+
+
+
+            boolean hasPreOrder = false;
+        for (DatHangRequestDTO.CartItemDTO item : cartItems) {
+            if (Boolean.TRUE.equals(item.getPreOrder())) { // FE cần truyền preOrder lên DTO
+                hasPreOrder = true;
+                break;
+            }
+        }
+
+        // ...existing code tạo hóa đơn...
+        hoaDon.setTrangThai(hasPreOrder ? 10 : 1);
             hoaDonRepository.save(hoaDon);
 
             // 4. Tạo hóa đơn chi tiết và trừ số lượng tồn kho
@@ -149,6 +163,23 @@ public class DatHangController {
                 hoaDonCTRepository.save(hoaDonCT);
             }
 
+
+            if (hasPreOrder) {
+                for (DatHangRequestDTO.CartItemDTO item : cartItems) {
+                    if (Boolean.TRUE.equals(item.getPreOrder())) {
+                        PreOrder preOrder = new PreOrder();
+                        preOrder.setHoaDon(hoaDon);
+                        preOrder.setTaiKhoan(taiKhoan);
+                        preOrder.setSanPhamCT(sanPhamCTRepository.findById(item.getSanPhamCTId()).orElse(null));
+                        preOrder.setSoLuong(item.getSoLuong());
+                        preOrder.setNgayTao(java.time.LocalDateTime.now());
+                        preOrder.setTrangThai(1); // 1: Đã ghi nhận chờ nhập hàng
+                        preOrderRepository.save(preOrder);
+                    }
+                }
+            }
+
+
             // 5. Lưu lịch sử đơn hàng
             LichSuDonHang lichSuDonHang = new LichSuDonHang();
 //            lichSuDonHang.setIdTaiKhoan(taiKhoan.getId());
@@ -159,8 +190,10 @@ public class DatHangController {
             lichSuDonHangRepository.save(lichSuDonHang);
 
             // 6. Thêm thông báo cho người dùng
+            User macDinh = userRepository.findById(4)
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy user mặc định với ID 3"));
             ThongBao thongBao = new ThongBao();
-            thongBao.setKhachHang(taiKhoan);
+            thongBao.setKhachHang(macDinh);
             thongBao.setTieuDe("Đặt hàng thành công");
             thongBao.setNoiDung("Đơn hàng của bạn đã được đặt thành công.");
             thongBao.setTrangThai(1);

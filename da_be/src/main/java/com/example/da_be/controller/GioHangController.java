@@ -21,22 +21,23 @@ public class GioHangController {
     private GioHangService gioHangService;
 
     @PostMapping("/them")
-    public ResponseEntity<?> themSanPhamVaoGioHang(
-            @RequestBody Map<String, Integer> payload) {
-        try {
-            Integer idTaiKhoan = payload.get("idTaiKhoan");
-            Integer idSanPhamCT = payload.get("idSanPhamCT");
-            Integer soLuong = payload.get("soLuong");
+public ResponseEntity<?> themSanPhamVaoGioHang(
+        @RequestBody Map<String, Object> payload) {
+    try {
+        Integer idTaiKhoan = (Integer) payload.get("idTaiKhoan");
+        Integer idSanPhamCT = (Integer) payload.get("idSanPhamCT");
+        Integer soLuong = (Integer) payload.get("soLuong");
+        Boolean preOrder = payload.get("preOrder") != null ? (Boolean) payload.get("preOrder") : false;
 
-            GioHang gioHang = gioHangService.themSanPhamVaoGioHang(idTaiKhoan, idSanPhamCT, soLuong);
-            return new ResponseEntity<>(gioHang, HttpStatus.CREATED);
+        GioHang gioHang = gioHangService.themSanPhamVaoGioHang(idTaiKhoan, idSanPhamCT, soLuong, preOrder);
+        return new ResponseEntity<>(gioHang, HttpStatus.CREATED);
 
-        } catch (Exception e) {
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("message", e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
-        }
+    } catch (Exception e) {
+        Map<String, String> errorResponse = new HashMap<>();
+        errorResponse.put("message", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
+}
 
     @GetMapping("/{idTaiKhoan}")
     public ResponseEntity<List<GioHangDTO>> getGioHangByTaiKhoan(@PathVariable Integer idTaiKhoan) {

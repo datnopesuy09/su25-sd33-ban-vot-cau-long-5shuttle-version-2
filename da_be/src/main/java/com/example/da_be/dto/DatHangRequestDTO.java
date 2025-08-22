@@ -11,6 +11,7 @@ public class DatHangRequestDTO {
     public static class CartItemDTO {
         private Integer sanPhamCTId;
         private Integer soLuong;
+        private Boolean preOrder; // Thêm trường này
 
         public Integer getSanPhamCTId() {
             return sanPhamCTId;
@@ -27,6 +28,14 @@ public class DatHangRequestDTO {
         public void setSoLuong(Integer soLuong) {
             this.soLuong = soLuong;
         }
+
+        public Boolean getPreOrder() { // Thêm getter
+        return preOrder;
+    }
+
+    public void setPreOrder(Boolean preOrder) { // Thêm setter
+        this.preOrder = preOrder;
+    }
     }
 
     public static class ThongTinGiaoHangDTO {

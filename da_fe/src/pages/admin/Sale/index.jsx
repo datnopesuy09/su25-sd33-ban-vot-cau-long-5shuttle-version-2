@@ -27,6 +27,16 @@ function OfflineSale() {
         fetchBills();
     }, []);
 
+    const fetchProducts = async () => {
+        try {
+            const response = await axios.get('http://localhost:8080/api/san-pham-ct/all-with-image');
+            return response.data;
+        } catch (error) {
+            console.error('Error fetching products:', error);
+            return [];
+        }
+    };
+
     const fetchBills = async () => {
         try {
             const response = await axios.get('http://localhost:8080/api/hoa-don');
@@ -237,11 +247,15 @@ function OfflineSale() {
     };
 
     const handleQuantityChange = async (delta, orderDetailId) => {
-        const currentItem = billDetails.find((item) => item.id === orderDetailId);
-        const newQuantity = Math.max(1, currentItem.soLuong + delta);
-        await updateQuantity(orderDetailId, newQuantity);
-        setQuantity(newQuantity);
-    };
+    const currentItem = billDetails.find((item) => item.id === orderDetailId);
+    const newQuantity = Math.max(1, currentItem.soLuong + delta);
+    await updateQuantity(orderDetailId, newQuantity);
+    setQuantity(newQuantity);
+
+    // Thêm dòng này để cập nhật lại chi tiết hóa đơn và sản phẩm
+    await fetchBillDetails(selectedBill.id);
+    // Nếu cần cập nhật lại danh sách sản phẩm trong ProductModal, có thể truyền callback xuống và gọi lại fetchProducts
+};
 
     const handleProductModal = () => {
         if (!selectedBill) {
@@ -406,6 +420,7 @@ function OfflineSale() {
                 selectedBill={selectedBill}
                 fetchBillDetails={fetchBillDetails}
                 handleConfirmAddProduct={handleConfirmAddProduct}
+                fetchProducts={fetchProducts} // truyền th
             />
 
             {showImportModal && (
