@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
 import axios from 'axios';
 import swal from 'sweetalert';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import ShippingInfo from './ShippingInfo';
 import OrderSummary from './OrderSummary';
 import DiscountModal from './DiscountModal';
@@ -35,7 +35,7 @@ function parseJwt(token) {
 const CheckOut = () => {
     const navigate = useNavigate();
 
-    // const location = useLocation();
+    const location = useLocation();
     // Giả sử idTaiKhoan được truyền qua location.state hoặc dùng giá trị mặc định
     const { user } = useUserAuth();
     const { admin } = useAdminAuth();
@@ -333,6 +333,7 @@ const CheckOut = () => {
         const cartItems = carts.map((item) => ({
             sanPhamCTId: item.sanPhamCT.id,
             soLuong: item.soLuong,
+            preOrder: item.preOrder || false,
         }));
 
         const orderData = {
@@ -342,31 +343,12 @@ const CheckOut = () => {
             discountId: selectedDiscount?.id || null,
             phuongThucThanhToan: selectedPaymentMethod,
         };
-
+console.log('orderData:', orderData);
         try {
             const response = await axios.post('http://localhost:8080/api/dat-hang', orderData);
-            if (response.status === 200) {
-                // Gửi thông báo đến admin
-                const adminId = 1; // Giả định ID admin là 1, bạn cần thay bằng logic lấy ID admin thực tế
-                const notificationData = {
-                    idKhachHang: adminId,
-                    tieuDe: 'Đơn hàng mới',
-                    noiDung: `Đơn hàng mới từ khách hàng phamhung vừa được đặt.`,
-                    idRedirect: `/admin/hoa-don/${response.data.id}`,
-                    kieuThongBao: 'info',
-                    trangThai: 0,
-                };
 
-                try {
-                    await axios.post('http://localhost:8080/api/thong-bao', notificationData, {
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                    });
-                } catch (notificationError) {
-                    console.error('Lỗi khi gửi thông báo đến admin:', notificationError);
-                    // Không dừng quá trình đặt hàng nếu thông báo thất bại
-                }
+            if (response.status === 200) {
+                // Trường hợp sản phẩm hết hàng
                 if (response.data.trangThai === 9) {
                     swal({
                         title: 'Sản phẩm tạm hết hàng',
@@ -375,27 +357,53 @@ const CheckOut = () => {
                         buttons: ['Hủy', 'Chờ nhập hàng'],
                     }).then(async (confirm) => {
                         if (confirm) {
+                            // Xóa giỏ hàng và chuyển trang
                             await axios.delete(`http://localhost:8080/api/gio-hang/xoa/${idTaiKhoan}`);
+
+                            // Cập nhật số lượng giỏ hàng
+                            const countRes = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}/count`);
+                            setCartItemCount(countRes.data || 0);
+
                             navigate('/xac-nhan-don-hang', { state: { order: response.data } });
                         } else {
+                            // Hủy đơn hàng và quay lại giỏ hàng
                             await axios.delete(`http://localhost:8080/api/hoa-don/${response.data.id}`);
                             navigate('/gio-hang');
                         }
-                        // swal('Thành công', 'Đặt hàng thành công!', 'success').then(async () => {
-                        //     await axios.delete('http://localhost:8080/api/gio-hang/xoa-danh-sach', {
-                        //         data: carts.map(item => item.id)
                     });
+                } else {
+                    // Trường hợp đặt hàng thành công bình thường
+                    swal('Thành công', 'Đặt hàng thành công!', 'success').then(async () => {
+                        try {
+                            // Xóa các item đã đặt hàng khỏi giỏ hàng
+                            await axios.delete('http://localhost:8080/api/gio-hang/xoa-danh-sach', {
+                                data: carts.map((item) => item.id),
+                            });
 
-                    const countRes = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}/count`);
-                    setCartItemCount(countRes.data || 0);
+                            // Cập nhật số lượng giỏ hàng
+                            const countRes = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}/count`);
+                            setCartItemCount(countRes.data || 0);
 
-                    navigate('/xac-nhan-don-hang', { state: { order: response.data } });
-                    // });
+                            // Chuyển trang đến trang xác nhận đơn hàng
+                            navigate('/xac-nhan-don-hang', { state: { order: response.data } });
+                        } catch (deleteError) {
+                            console.error('Lỗi khi xóa giỏ hàng:', deleteError);
+                            // Vẫn chuyển trang ngay cả khi xóa giỏ hàng lỗi
+                            navigate('/xac-nhan-don-hang', { state: { order: response.data } });
+                        }
+                    });
                 }
             }
         } catch (error) {
             console.error('Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại.', error);
-            swal('Lỗi', 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại.', 'error');
+
+            // Hiển thị thông báo lỗi chi tiết hơn
+            let errorMessage = 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại.';
+            if (error.response && error.response.data && error.response.data.message) {
+                errorMessage = error.response.data.message;
+            }
+
+            swal('Lỗi', errorMessage, 'error');
         }
     };
 

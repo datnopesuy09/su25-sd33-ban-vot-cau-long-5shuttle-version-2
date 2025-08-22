@@ -106,46 +106,78 @@ export default function ProductDetail() {
     };
 
     const handleAddCart = async () => {
-        const selectedVariant = product.variants.find(
-            (v) => v.mauSacTen === selectedColor && v.trongLuongTen === selectedWeight,
-        );
-        if (!selectedVariant) {
-            swal('Thất bại!', 'Vui lòng chọn màu sắc và trọng lượng!', 'error');
-            return;
-        }
-        if (quantity > selectedVariant.soLuong) {
-            swal('Thất bại!', 'Số lượng vượt quá số lượng trong kho!', 'error');
-            return;
-        }
+    const selectedVariant = product.variants.find(
+        (v) => v.mauSacTen === selectedColor && v.trongLuongTen === selectedWeight,
+    );
+    if (!selectedVariant) {
+        swal('Thất bại!', 'Vui lòng chọn màu sắc và trọng lượng!', 'error');
+        return;
+    }
 
-        const token = user?.token || localStorage.getItem('userToken');
-        const idTaiKhoan =
-            user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
+    const token = user?.token || localStorage.getItem('userToken');
+    const idTaiKhoan =
+        user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
 
-        if (!idTaiKhoan) {
-            toast.warning('Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng');
-            return;
-        }
-        const payload = {
-            idTaiKhoan,
-            idSanPhamCT: selectedVariant.id,
-            soLuong: quantity,
-        };
-        try {
-            const response = await axios.post('http://localhost:8080/api/gio-hang/them', payload);
-            if (response.status === 201) {
-                swal('Thành công!', 'Sản phẩm đã được thêm vào giỏ hàng!', 'success');
-                // Gọi API để lấy số lượng sản phẩm trong giỏ hàng
-                const countResponse = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}/count`);
-                setCartItemCount(countResponse.data); // Cập nhật số lượng giỏ hàng
-            } else {
-                swal('Thất bại!', 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng!', 'error');
+    if (!idTaiKhoan) {
+        toast.warning('Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng');
+        return;
+    }
+
+    // Kiểm tra tồn kho
+    if (quantity > selectedVariant.soLuong) {
+        // Sản phẩm hết hàng, hỏi khách có muốn đặt trước không
+        swal({
+            title: 'Sản phẩm hết hàng',
+            text: 'Sản phẩm bạn chọn hiện đã hết hàng. Bạn có muốn đợi chúng tôi nhập hàng về không?',
+            icon: 'warning',
+            buttons: ['Không', 'Đợi nhập hàng'],
+        }).then(async (confirm) => {
+            if (confirm) {
+                // Gọi API thêm vào giỏ hàng với trạng thái đặt trước (hoặc gọi API PreOrder)
+                const payload = {
+                    idTaiKhoan,
+                    idSanPhamCT: selectedVariant.id,
+                    soLuong: quantity,
+                    preOrder: true // hoặc truyền thêm trường trạng thái nếu BE cần
+                };
+                try {
+                    const response = await axios.post('http://localhost:8080/api/gio-hang/them', payload);
+                    if (response.status === 201) {
+                        swal('Thành công!', 'Yêu cầu đặt trước đã được ghi nhận. Chúng tôi sẽ thông báo khi hàng về!', 'success');
+                        const countResponse = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}/count`);
+                        setCartItemCount(countResponse.data);
+                    } else {
+                        swal('Thất bại!', 'Có lỗi xảy ra khi ghi nhận đặt trước!', 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to add pre-order product to cart', error);
+                    swal('Thất bại!', 'Có lỗi xảy ra khi ghi nhận đặt trước!', 'error');
+                }
             }
-        } catch (error) {
-            console.error('Failed to add product to cart', error);
+        });
+        return;
+    }
+
+    // Nếu còn hàng, thêm vào giỏ như bình thường
+    const payload = {
+        idTaiKhoan,
+        idSanPhamCT: selectedVariant.id,
+        soLuong: quantity,
+    };
+    try {
+        const response = await axios.post('http://localhost:8080/api/gio-hang/them', payload);
+        if (response.status === 201) {
+            swal('Thành công!', 'Sản phẩm đã được thêm vào giỏ hàng!', 'success');
+            const countResponse = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}/count`);
+            setCartItemCount(countResponse.data);
+        } else {
             swal('Thất bại!', 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng!', 'error');
         }
-    };
+    } catch (error) {
+        console.error('Failed to add product to cart', error);
+        swal('Thất bại!', 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng!', 'error');
+    }
+};
 
     const handleThumbnailClick = (image) => {
         setMainImage(image);
@@ -429,14 +461,20 @@ export default function ProductDetail() {
                                         </button>
 
                                         <div className="relative">
-                                            <input
-                                                className="w-16 h-10 text-center text-lg font-semibold border-2 border-gray-300 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
-                                                value={quantity}
-                                                onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
-                                                min="1"
-                                                type="number"
-                                            />
-                                        </div>
+    <input
+        className="w-16 h-10 text-center text-lg font-semibold border-2 border-gray-300 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
+        value={quantity}
+        onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
+        min="1"
+        type="number"
+    />
+    {/* Thông báo vượt quá số lượng tồn */}
+    {quantity > currentQuantity && (
+        <div className="text-xs text-red-500 mt-1">
+            Bạn đã vượt quá {quantity - currentQuantity} sản phẩm so với số lượng tồn kho!
+        </div>
+    )}
+</div>
 
                                         <button
                                             type="button"

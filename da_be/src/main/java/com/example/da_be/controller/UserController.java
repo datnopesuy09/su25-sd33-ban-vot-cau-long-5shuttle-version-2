@@ -101,7 +101,6 @@ public class UserController {
 //        return ApiResponse.<UserResponse>builder()
 //                .result(userService.createUser(request))
 //                .build();
-//
 //    }
 
     @PutMapping("/myOrders/{idHoaDon}/status")
@@ -111,7 +110,6 @@ public class UserController {
                 .result(userService.updateMyOrderStatus(idHoaDon, newStatus))
                 .code(1000)
                 .build();
-
     }
 
 }
