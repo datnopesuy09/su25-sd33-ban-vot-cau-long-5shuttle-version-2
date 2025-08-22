@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from 'react';
 import axios from 'axios';
 import swal from 'sweetalert';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import ShippingInfo from './ShippingInfo';
 import OrderSummary from './OrderSummary';
 import DiscountModal from './DiscountModal';
@@ -35,7 +35,7 @@ function parseJwt(token) {
 const CheckOut = () => {
     const navigate = useNavigate();
 
-    // const location = useLocation();
+    const location = useLocation();
     // Giả sử idTaiKhoan được truyền qua location.state hoặc dùng giá trị mặc định
     const { user } = useUserAuth();
     const { admin } = useAdminAuth();
@@ -103,6 +103,8 @@ const CheckOut = () => {
             const res = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}`);
             const filteredCarts = res.data.filter((item) => selectedItems.includes(item.id));
             setCarts(filteredCarts);
+            console.log('res: ', res);
+            console.log('fiuto cart: ', filteredCarts);
 
             const total = filteredCarts.reduce((sum, item) => {
                 const price = item.sanPhamCT.giaKhuyenMai || item.sanPhamCT.donGia;
@@ -116,7 +118,7 @@ const CheckOut = () => {
             swal('Lỗi', 'Không thể lấy giỏ hàng', 'error');
         }
     };
-
+    console.log('gio hang: ', carts);
     const fetchDefaultAddress = async () => {
         setIsLoadingAddress(true);
         try {

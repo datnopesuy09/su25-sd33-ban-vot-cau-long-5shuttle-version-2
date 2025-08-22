@@ -96,13 +96,13 @@ public class UserController {
                 .build();
     }
 
-    @PostMapping()
-    ApiResponse<UserResponse> createUser(@RequestBody @Valid UserCreationRequest request){
-        return ApiResponse.<UserResponse>builder()
-                .result(userService.createUser(request))
-                .build();
-
-    }
+//    @PostMapping()
+//    ApiResponse<UserResponse> createUser(@RequestBody @Valid UserCreationRequest request){
+//        return ApiResponse.<UserResponse>builder()
+//                .result(userService.createUser(request))
+//                .build();
+//
+//    }
 
     @PutMapping("/myOrders/{idHoaDon}/status")
     public ApiResponse<HoaDonResponse> updateMyOrderStatus(@PathVariable("idHoaDon") Integer idHoaDon,
