@@ -68,9 +68,9 @@ public class DatHangController {
             for (DatHangRequestDTO.CartItemDTO item : cartItems) {
                 SanPhamCT spct = sanPhamCTRepository.findById(item.getSanPhamCTId())
                         .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại: " + item.getSanPhamCTId()));
-                if (item.getSoLuong() > spct.getSoLuong()) {
-                    return ResponseEntity.badRequest().body("Số lượng sản phẩm vượt quá tồn kho: " + spct.getSanPham().getTen());
-                }
+                // if (item.getSoLuong() > spct.getSoLuong()) {
+                //     return ResponseEntity.badRequest().body("Số lượng sản phẩm vượt quá tồn kho: " + spct.getSanPham().getTen());
+                // }
                 BigDecimal gia;
                 // Kiểm tra giá khuyến mãi
                 if (spct.getGiaKhuyenMai() != null) {
@@ -141,7 +141,7 @@ public class DatHangController {
         }
 
         // ...existing code tạo hóa đơn...
-        hoaDon.setTrangThai(hasPreOrder ? 10 : 1);
+        hoaDon.setTrangThai(hasPreOrder ? 9 : 1);
             hoaDonRepository.save(hoaDon);
 
             // 4. Tạo hóa đơn chi tiết và trừ số lượng tồn kho
@@ -173,7 +173,7 @@ public class DatHangController {
                         preOrder.setSanPhamCT(sanPhamCTRepository.findById(item.getSanPhamCTId()).orElse(null));
                         preOrder.setSoLuong(item.getSoLuong());
                         preOrder.setNgayTao(java.time.LocalDateTime.now());
-                        preOrder.setTrangThai(1); // 1: Đã ghi nhận chờ nhập hàng
+                        preOrder.setTrangThai(0); // 1: Đã ghi nhận chờ nhập hàng
                         preOrderRepository.save(preOrder);
                     }
                 }
