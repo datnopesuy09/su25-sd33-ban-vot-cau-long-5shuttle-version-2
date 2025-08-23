@@ -115,13 +115,6 @@ const CartItem = ({
                     <h3 className="font-bold text-gray-900 text-sm lg:text-base line-clamp-2 pr-2">
                         {cart.sanPhamCT.ten}
                     </h3>
-                    {cart.preOrder && (
-                <div className="mb-2">
-                    <span className="inline-block bg-orange-100 text-orange-700 text-xs font-semibold px-3 py-1 rounded-full">
-                        Đang đợi nhập hàng
-                    </span>
-                </div>
-            )}
                     <div className="flex items-center space-x-1 flex-shrink-0">
                         <button
                             onClick={() => setIsFavorite(!isFavorite)}

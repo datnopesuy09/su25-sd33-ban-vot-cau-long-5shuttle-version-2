@@ -43,8 +43,6 @@ public class DatHangController {
     private VoucherRepository voucherRepository;
     @Autowired
     private PhieuGiamGiaRepository phieuGiamGiaRepository;
-    @Autowired
-    private PreOrderRepository preOrderRepository;
 
     @Transactional
     @PostMapping
@@ -68,9 +66,9 @@ public class DatHangController {
             for (DatHangRequestDTO.CartItemDTO item : cartItems) {
                 SanPhamCT spct = sanPhamCTRepository.findById(item.getSanPhamCTId())
                         .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại: " + item.getSanPhamCTId()));
-                // if (item.getSoLuong() > spct.getSoLuong()) {
-                //     return ResponseEntity.badRequest().body("Số lượng sản phẩm vượt quá tồn kho: " + spct.getSanPham().getTen());
-                // }
+                if (item.getSoLuong() > spct.getSoLuong()) {
+                    return ResponseEntity.badRequest().body("Số lượng sản phẩm vượt quá tồn kho: " + spct.getSanPham().getTen());
+                }
                 BigDecimal gia;
                 // Kiểm tra giá khuyến mãi
                 if (spct.getGiaKhuyenMai() != null) {
@@ -129,19 +127,7 @@ public class DatHangController {
             }
 
             hoaDon.setNgayTao(new Date());
-
-
-
-            boolean hasPreOrder = false;
-        for (DatHangRequestDTO.CartItemDTO item : cartItems) {
-            if (Boolean.TRUE.equals(item.getPreOrder())) { // FE cần truyền preOrder lên DTO
-                hasPreOrder = true;
-                break;
-            }
-        }
-
-        // ...existing code tạo hóa đơn...
-        hoaDon.setTrangThai(hasPreOrder ? 9 : 1);
+            hoaDon.setTrangThai(1); // trạng thái mới tạo
             hoaDonRepository.save(hoaDon);
 
             // 4. Tạo hóa đơn chi tiết và trừ số lượng tồn kho
@@ -163,23 +149,6 @@ public class DatHangController {
                 hoaDonCTRepository.save(hoaDonCT);
             }
 
-
-            if (hasPreOrder) {
-                for (DatHangRequestDTO.CartItemDTO item : cartItems) {
-                    if (Boolean.TRUE.equals(item.getPreOrder())) {
-                        PreOrder preOrder = new PreOrder();
-                        preOrder.setHoaDon(hoaDon);
-                        preOrder.setTaiKhoan(taiKhoan);
-                        preOrder.setSanPhamCT(sanPhamCTRepository.findById(item.getSanPhamCTId()).orElse(null));
-                        preOrder.setSoLuong(item.getSoLuong());
-                        preOrder.setNgayTao(java.time.LocalDateTime.now());
-                        preOrder.setTrangThai(0); // 1: Đã ghi nhận chờ nhập hàng
-                        preOrderRepository.save(preOrder);
-                    }
-                }
-            }
-
-
             // 5. Lưu lịch sử đơn hàng
             LichSuDonHang lichSuDonHang = new LichSuDonHang();
 //            lichSuDonHang.setIdTaiKhoan(taiKhoan.getId());
@@ -190,10 +159,8 @@ public class DatHangController {
             lichSuDonHangRepository.save(lichSuDonHang);
 
             // 6. Thêm thông báo cho người dùng
-            User macDinh = userRepository.findById(4)
-                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy user mặc định với ID 3"));
             ThongBao thongBao = new ThongBao();
-            thongBao.setKhachHang(macDinh);
+            thongBao.setKhachHang(taiKhoan);
             thongBao.setTieuDe("Đặt hàng thành công");
             thongBao.setNoiDung("Đơn hàng của bạn đã được đặt thành công.");
             thongBao.setTrangThai(1);

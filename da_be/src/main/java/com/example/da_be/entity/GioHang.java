@@ -31,9 +31,6 @@ public class GioHang {
     @Column(name = "NgaySua")
     private java.util.Date ngaySua;
 
-    @Column(name = "preOrder")
-private Boolean preOrder = false;
-
     // Constructors, Getters, and Setters
     public GioHang() {
     }
@@ -94,12 +91,4 @@ private Boolean preOrder = false;
     public void setNgaySua(java.util.Date ngaySua) {
         this.ngaySua = ngaySua;
     }
-
-    public Boolean getPreOrder() {
-    return preOrder;
-}
-
-public void setPreOrder(Boolean preOrder) {
-    this.preOrder = preOrder;
-}
 }

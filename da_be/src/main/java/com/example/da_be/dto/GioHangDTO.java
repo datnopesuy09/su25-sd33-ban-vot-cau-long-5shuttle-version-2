@@ -1,24 +1,22 @@
 package com.example.da_be.dto;
-
 public class GioHangDTO {
     private Integer id;
     private SanPhamCTDTO sanPhamCT;
     private Integer soLuong;
     private String hinhAnhUrl;
-    private Boolean preOrder; // Thêm trường này
-
     // Constructors, Getters, and Setters
+
 
     public GioHangDTO() {
     }
 
-    public GioHangDTO(Integer id, SanPhamCTDTO sanPhamCT, Integer soLuong, String hinhAnhUrl, Boolean preOrder) {
+    public GioHangDTO(Integer id, SanPhamCTDTO sanPhamCT, Integer soLuong, String hinhAnhUrl) {
         this.id = id;
         this.sanPhamCT = sanPhamCT;
         this.soLuong = soLuong;
         this.hinhAnhUrl = hinhAnhUrl;
-        this.preOrder = preOrder;
     }
+
 
     public Integer getId() {
         return id;
@@ -50,13 +48,5 @@ public class GioHangDTO {
 
     public void setHinhAnhUrl(String hinhAnhUrl) {
         this.hinhAnhUrl = hinhAnhUrl;
-    }
-
-    public Boolean getPreOrder() {
-        return preOrder;
-    }
-
-    public void setPreOrder(Boolean preOrder) {
-        this.preOrder = preOrder;
     }
 }

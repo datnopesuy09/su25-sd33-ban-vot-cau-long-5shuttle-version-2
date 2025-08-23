@@ -52,15 +52,7 @@ const OrderSummary = ({
                                         {item.soLuong}
                                     </span>
                                 </div>
-                                
                                 <div className="flex-grow">
-                                    {item.preOrder && (
-                <div className="mb-2">
-                    <span className="inline-block bg-orange-100 text-orange-700 text-xs font-semibold px-3 py-1 rounded-full">
-                        Đang đợi nhập hàng
-                    </span>
-                </div>
-            )}
                                     <h3 className="font-semibold text-gray-800 text-sm mb-1">{item.sanPhamCT.ten}</h3>
                                     <div className="space-y-1 text-xs text-gray-600">
                                         <p>
