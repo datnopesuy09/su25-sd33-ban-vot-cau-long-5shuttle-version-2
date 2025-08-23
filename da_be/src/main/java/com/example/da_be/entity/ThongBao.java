@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 
 @Entity
 @Table(name = "ThongBao")
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // Bỏ qua proxy Hibernate
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class ThongBao {
 
     @Id
@@ -13,9 +13,12 @@ public class ThongBao {
     private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "IdKhachHang", nullable = false)
-    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // Bỏ qua proxy cho quan hệ
+    @JoinColumn(name = "IdKhachHang", nullable = true) // Cho phép null
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private User khachHang;
+
+    @Column(name = "Email")
+    private String email;
 
     @Column(name = "TieuDe", length = 255)
     private String tieuDe;
@@ -49,6 +52,14 @@ public class ThongBao {
 
     public void setKhachHang(User khachHang) {
         this.khachHang = khachHang;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public String getTieuDe() {

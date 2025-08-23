@@ -1,4 +1,5 @@
-import swal from 'sweetalert';
+// import swal from 'sweetalert';
+import Swal from 'sweetalert2';
 import { useState, useEffect, useContext } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
@@ -66,7 +67,8 @@ export default function ProductDetail() {
                     setCurrentPrice(firstVariant.giaKhuyenMai || firstVariant.donGia);
                 }
             } catch (error) {
-                console.error('Failed to fetch product detail', error);
+                console.error('Lấy chi tiết sản phẩm thất bại', error);
+                toast.error('Không thể tải thông tin sản phẩm!');
             }
         };
 
@@ -142,10 +144,77 @@ export default function ProductDetail() {
                 swal('Thất bại!', 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng!', 'error');
             }
         } catch (error) {
-            console.error('Failed to add product to cart', error);
+            console.error('Thêm sản phẩm vào giỏ hàng thất bại', error);
             swal('Thất bại!', 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng!', 'error');
         }
     };
+
+    const handleNotifyWhenInStock = async () => {
+    const selectedVariant = product.variants.find(
+        (v) => v.mauSacTen === selectedColor && v.trongLuongTen === selectedWeight,
+    );
+    if (!selectedVariant) {
+        Swal.fire('Thất bại!', 'Vui lòng chọn màu sắc và trọng lượng!', 'error');
+        return;
+    }
+
+    const token = user?.token || localStorage.getItem('userToken');
+    const idTaiKhoan =
+        user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
+    const defaultEmail = user?.email || '';
+
+    // Sử dụng SweetAlert2 để thu thập thông tin
+    const formValues = await Swal.fire({
+        title: 'Thông báo khi có hàng',
+        html: `
+            <input id="swal-input1" class="swal2-input" placeholder="Email (bắt buộc)">
+            <input id="swal-input2" class="swal2-input" placeholder="Số điện thoại (tùy chọn)">
+            <input id="swal-input3" class="swal2-input" type="number" placeholder="Số lượng mong muốn" min="1">
+        `,
+        focusConfirm: false,
+        preConfirm: () => {
+            const email = document.getElementById('swal-input1').value;
+            const phone = document.getElementById('swal-input2').value;
+            const requestedQuantity = parseInt(document.getElementById('swal-input3').value) || 1;
+            if (!email) {
+                Swal.showValidationMessage('Vui lòng nhập email!');
+                return false;
+            }
+            if (requestedQuantity < 1) {
+                Swal.showValidationMessage('Số lượng phải lớn hơn 0!');
+                return false;
+            }
+            return { email, phone, requestedQuantity };
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Đăng ký',
+        cancelButtonText: 'Hủy',
+    });
+
+    if (formValues.isConfirmed && formValues.value) {
+        const { email, phone, requestedQuantity } = formValues.value;
+        const payload = {
+            idSanPhamCT: selectedVariant.id,
+            idTaiKhoan: idTaiKhoan || null,
+            email: email || defaultEmail,
+            phone: phone || null,
+            requestedQuantity: requestedQuantity,
+        };
+
+        try {
+            const response = await axios.post('http://localhost:8080/api/pre-order/back-in-stock', payload);
+            if (response.status === 201) {
+                Swal.fire('Thành công!', 'Bạn sẽ nhận thông báo khi sản phẩm có hàng!', 'success');
+            } else {
+                Swal.fire('Thất bại!', response.data || 'Có lỗi xảy ra khi đăng ký thông báo!', 'error');
+            }
+        } catch (error) {
+            console.error('Đăng ký thông báo thất bại', error);
+            const errorMessage = error.response?.data || 'Có lỗi xảy ra khi đăng ký thông báo!';
+            Swal.fire('Thất bại!', errorMessage, 'error');
+        }
+    }
+};
 
     const handleThumbnailClick = (image) => {
         setMainImage(image);
@@ -207,7 +276,7 @@ export default function ProductDetail() {
                                 <p>
                                     Tình trạng:
                                     <span className="text-[#2f19ae]">
-                                        {product.soLuong > 0 ? ' Còn hàng' : ' Hết hàng'}
+                                        {currentQuantity > 0 ? ' Còn hàng' : ' Hết hàng'}
                                     </span>
                                 </p>
                                 <p>
@@ -406,43 +475,70 @@ export default function ProductDetail() {
                                 </div>
 
                                 {/* Quantity Selector */}
-                                <div className="bg-gray-20 rounded-2xl p-4 h-[50px] flex items-center justify-between">
-                                    <div className="flex items-center space-x-4">
-                                        <button
-                                            type="button"
-                                            className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-gray-300 bg-white hover:border-indigo-500 hover:text-indigo-500 transition-colors duration-200"
-                                            onClick={handleDecrease}
-                                        >
-                                            <svg
-                                                className="w-4 h-4"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                viewBox="0 0 24 24"
+                                {currentQuantity > 0 && (
+                                    <div className="bg-gray-20 rounded-2xl p-4 h-[50px] flex items-center justify-between">
+                                        <div className="flex items-center space-x-4">
+                                            <button
+                                                type="button"
+                                                className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-gray-300 bg-white hover:border-indigo-500 hover:text-indigo-500 transition-colors duration-200"
+                                                onClick={handleDecrease}
                                             >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M20 12H4"
-                                                />
-                                            </svg>
-                                        </button>
+                                                <svg
+                                                    className="w-4 h-4"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M20 12H4"
+                                                    />
+                                                </svg>
+                                            </button>
 
-                                        <div className="relative">
-                                            <input
-                                                className="w-16 h-10 text-center text-lg font-semibold border-2 border-gray-300 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
-                                                value={quantity}
-                                                onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
-                                                min="1"
-                                                type="number"
-                                            />
+                                            <div className="relative">
+                                                <input
+                                                    className="w-16 h-10 text-center text-lg font-semibold border-2 border-gray-300 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
+                                                    value={quantity}
+                                                    onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
+                                                    min="1"
+                                                    type="number"
+                                                />
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-gray-300 bg-white hover:border-indigo-500 hover:text-indigo-500 transition-colors duration-200"
+                                                onClick={handleIncrease}
+                                            >
+                                                <svg
+                                                    className="w-4 h-4"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                                    />
+                                                </svg>
+                                            </button>
                                         </div>
+                                    </div>
+                                )}
 
-                                        <button
-                                            type="button"
-                                            className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-gray-300 bg-white hover:border-indigo-500 hover:text-indigo-500 transition-colors duration-200"
-                                            onClick={handleIncrease}
-                                        >
+                                {/* Button conditional */}
+                                {currentQuantity > 0 ? (
+                                    <button
+                                        type="button"
+                                        onClick={handleAddCart}
+                                        className="w-full bg-gradient-to-r from-purple-800 to-pink-200 text-white font-semibold py-3 px-4 rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-200 transform hover:scale-105"
+                                    >
+                                        <div className="flex items-center justify-center space-x-2">
                                             <svg
                                                 className="w-4 h-4"
                                                 fill="none"
@@ -453,31 +549,36 @@ export default function ProductDetail() {
                                                     strokeLinecap="round"
                                                     strokeLinejoin="round"
                                                     strokeWidth={2}
-                                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                                    d="M3 3h2l.4 2M7 13h10l4-8H5.4m2.6 8L6 7H3M7 13v8a2 2 0 002 2h6a2 2 0 002-2v-8m-8 0V9a2 2 0 012-2h4a2 2 0 012 2v4m-6 0h6"
                                                 />
                                             </svg>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Add to Cart Button */}
-                                <button
-                                    type="button"
-                                    onClick={handleAddCart}
-                                    className="w-full bg-gradient-to-r from-purple-800 to-pink-200 text-white font-semibold py-3 px-4 rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-200 transform hover:scale-105"
-                                >
-                                    <div className="flex items-center justify-center space-x-2">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M3 3h2l.4 2M7 13h10l4-8H5.4m2.6 8L6 7H3M7 13v8a2 2 0 002 2h6a2 2 0 002-2v-8m-8 0V9a2 2 0 012-2h4a2 2 0 012 2v4m-6 0h6"
-                                            />
-                                        </svg>
-                                        <span>Thêm vào giỏ hàng</span>
-                                    </div>
-                                </button>
+                                            <span>Thêm vào giỏ hàng</span>
+                                        </div>
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={handleNotifyWhenInStock}
+                                        className="w-full bg-gradient-to-r from-blue-800 to-cyan-200 text-white font-semibold py-3 px-4 rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 transform hover:scale-105"
+                                    >
+                                        <div className="flex items-center justify-center space-x-2">
+                                            <svg
+                                                className="w-4 h-4"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M15 17h5l-1-5m-4 5V7m-4 10V7m-4 10V7M5 12h14"
+                                                />
+                                            </svg>
+                                            <span>Thông báo khi có hàng</span>
+                                        </div>
+                                    </button>
+                                )}
                             </form>
                         </div>
                     </div>
