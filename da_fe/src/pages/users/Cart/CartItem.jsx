@@ -105,9 +105,6 @@ const CartItem = ({
                         }}
                     />
                 </div>
-                <div className="absolute -top-1 -right-1 bg-blue-600 text-white text-xs px-2 py-0.5 rounded-full">
-                    #{cart.id}
-                </div>
             </div>
             <div className="flex-1 min-w-0">
                 {/* Header */}

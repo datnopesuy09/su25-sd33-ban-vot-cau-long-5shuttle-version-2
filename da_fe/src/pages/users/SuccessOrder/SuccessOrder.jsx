@@ -109,7 +109,7 @@ const SuccessOrder = ({ orderNumber = "VCL2024061201", onContinueShopping }) => 
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-5 mb-6 border border-blue-100">
                   <div className="flex items-center gap-2 mb-3">
                     <Zap className="w-5 h-5 text-blue-600" />
-                    <h4 className="font-bold text-blue-800">Game Plan - Tiếp theo sẽ ra sao?</h4>
+                    <h4 className="font-bold text-blue-800">5shuttle – Vợt chất trận hay</h4>
                   </div>
                   <div className="grid gap-3">
                     <div className="flex items-center gap-3 text-blue-700">
@@ -118,11 +118,11 @@ const SuccessOrder = ({ orderNumber = "VCL2024061201", onContinueShopping }) => 
                     </div>
                     <div className="flex items-center gap-3 text-blue-700">
                       <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                      <span className="text-sm">📱 Theo dõi đơn hàng qua SMS/Email</span>
+                      <span className="text-sm">📱 Vui lòng QUAY VIDEO khi mở hộp để đảm bảo quyền lợi</span>
                     </div>
                     <div className="flex items-center gap-3 text-blue-700">
                       <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                      <span className="text-sm">🚚 Nhận hàng trong 3-5 ngày làm việc</span>
+                      <span className="text-sm">🚚 Thời gian giao hàng 3-5 ngày làm việc</span>
                     </div>
                     <div className="flex items-center gap-3 text-blue-700">
                       <div className="w-2 h-2 bg-blue-400 rounded-full"></div>

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
+
 import {
-    Box, Typography, Paper, Button, Stack, Avatar, Grid
+    Box, Typography, Paper, Button, Stack, Avatar, Grid,
+    Divider
 } from '@mui/material';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import numeral from 'numeral';
 import swal from 'sweetalert';
@@ -14,13 +16,13 @@ import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 dayjs.extend(isSameOrBefore);
 import ModalReturn from './modalReturn';
-import Tooltip from '@mui/material/Tooltip';
 
 function OrderDetail() {
     const { id } = useParams();
     const [billDetail, setBillDetail] = useState([]);
     const [voucher, setVoucher] = useState(null);
     const [openReturnModal, setOpenReturnModal] = useState(false);
+    const navigate = useNavigate();
 
     const formatCurrency = (money) => numeral(money).format('0,0') + ' ₫';
 
@@ -193,6 +195,11 @@ function OrderDetail() {
                         <span>Giảm giá</span>
                         <span>-{formatCurrency(discountAmount)}</span>
                     </Box>
+                    <Divider sx={{ mt: 2 }} />
+                    <Box display="flex" justifyContent="flex-end">
+                        <Typography > Thành tiền: <span style={{ fontWeight: 'bold' }}>{formatCurrency(tongThanhToan)}</span>
+                        </Typography>
+                    </Box>
                 </Stack>
             </Paper>
 
@@ -203,13 +210,31 @@ function OrderDetail() {
                 bgcolor="#fff"
                 borderTop="1px solid #eee"
                 p={2}
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
+                // display="flex"
+                // justifyContent="space-between"
+                // alignItems="center"
                 flexWrap="wrap"
                 gap={1}
             >
-                <Stack direction="row" spacing={1}>
+                <Stack>
+                    <Box display="flex" justifyContent="space-between">
+                        <Typography fontSize={13}>
+                            Phương thức thanh toán:
+                        </Typography>
+                        <Typography fontSize={13}>
+                            {hoaDon?.phuongThucThanhToan}
+                        </Typography>
+                    </Box>
+                    <Box display="flex" justifyContent="space-between">
+                        <Typography fontSize={13}>
+                            Thời gian đặt hàng:
+                        </Typography>
+                        <Typography fontSize={13}>
+                            {dayjs(hoaDon?.ngayTao).format('DD/MM/YYYY HH:mm')}
+                        </Typography>
+                    </Box>
+                </Stack>
+                <Stack direction="row" spacing={1} sx={{ mt: 2 }} justify-content="end">
                     {hoaDon?.trangThai === 1 && (
                         <Button
                             onClick={() => handleHuyDonHang(hoaDon.id)}
@@ -220,7 +245,11 @@ function OrderDetail() {
                         </Button>
                     )}
                     {isReturnAllowed() && (
-                        <Button variant="outlined" color="error" onClick={() => setOpenReturnModal(true)}>
+                        <Button
+                            variant="outlined"
+                            color="error"
+                            onClick={() => navigate(`/profile/order-return/${hoaDon.id}`)}
+                        >
                             Trả hàng/Hoàn tiền
                         </Button>
                     )}
@@ -228,12 +257,6 @@ function OrderDetail() {
                         Trở về
                     </Button>
                 </Stack>
-                <Typography fontWeight={600}>
-                    Tổng thanh toán: <span style={{ color: 'red' }}>{formatCurrency(tongThanhToan)}</span>
-                </Typography>
-
-                <ModalReturn open={openReturnModal} setOpen={setOpenReturnModal} setTab={() => { }} />
-
             </Box>
         </Box>
     );

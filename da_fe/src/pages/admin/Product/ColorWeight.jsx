@@ -3,15 +3,15 @@ import { Plus, X, ChevronDown, ChevronUp } from 'lucide-react';
 import axios from 'axios';
 import AddAttributeModal from './AddAttributeModal';
 
-// const ColorWeight = ({ setSelectedColors, setSelectedWeights, errors, resetTrigger }) => {
-const ColorWeight = ({
-    selectedColors,
-    setSelectedColors,
-    selectedWeights,
-    setSelectedWeights,
-    errors,
-    resetTrigger,
-}) => {
+const ColorWeight = ({ setSelectedColors, setSelectedWeights, errors, resetTrigger }) => {
+// const ColorWeight = ({
+//     selectedColors,
+//     setSelectedColors,
+//     selectedWeights,
+//     setSelectedWeights,
+//     errors,
+//     resetTrigger,
+// }) => {
     const [colors, setColors] = useState([]);
     const [weights, setWeights] = useState([]);
     const [selectedColorsState, setSelectedColorsState] = useState([]);
@@ -45,27 +45,27 @@ const ColorWeight = ({
     }, []);
 
     // Đồng bộ selectedColors từ props
-    useEffect(() => {
-        if (selectedColors && selectedColors.length > 0) {
-            setSelectedColorsState(selectedColors);
-        }
-    }, [selectedColors]);
+    // useEffect(() => {
+    //     if (selectedColors && selectedColors.length > 0) {
+    //         setSelectedColorsState(selectedColors);
+    //     }
+    // }, [selectedColors]);
 
-    // Đồng bộ selectedWeights từ props
-    useEffect(() => {
-        if (selectedWeights && selectedWeights.length > 0) {
-            setSelectedWeightsState(selectedWeights);
-        }
-    }, [selectedWeights]);
+    // // Đồng bộ selectedWeights từ props
+    // useEffect(() => {
+    //     if (selectedWeights && selectedWeights.length > 0) {
+    //         setSelectedWeightsState(selectedWeights);
+    //     }
+    // }, [selectedWeights]);
 
     // // Đồng bộ với parent component
-    // useEffect(() => {
-    //     setSelectedColors(selectedColorsState);
-    // }, [selectedColorsState, setSelectedColors]);
+    useEffect(() => {
+        setSelectedColors(selectedColorsState);
+    }, [selectedColorsState, setSelectedColors]);
 
-    // useEffect(() => {
-    //     setSelectedWeights(selectedWeightsState);
-    // }, [selectedWeightsState, setSelectedWeights]);
+    useEffect(() => {
+        setSelectedWeights(selectedWeightsState);
+    }, [selectedWeightsState, setSelectedWeights]);
 
     // Reset state nội bộ khi resetTrigger thay đổi
     useEffect(() => {
