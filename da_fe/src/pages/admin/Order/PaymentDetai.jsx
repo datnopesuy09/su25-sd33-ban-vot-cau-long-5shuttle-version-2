@@ -10,7 +10,6 @@ const PaymentDetails = ({
     total,
     discountAmount,
 }) => {
-    
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
             <div className="max-w-7xl mx-auto">
@@ -43,6 +42,7 @@ const PaymentDetails = ({
                                             <input
                                                 type="text"
                                                 value={discountCode}
+                                                disabled
                                                 onChange={(e) => setDiscountCode(e.target.value)}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm"
                                                 placeholder="Nhập mã"
@@ -58,10 +58,9 @@ const PaymentDetails = ({
                                                     type="number"
                                                     value={discountPercent}
                                                     onChange={(e) =>
-                                                        setDiscountPercent(
-                                                            Math.max(0, Math.min(100, e.target.value)),
-                                                        )
+                                                        setDiscountPercent(Math.max(0, Math.min(100, e.target.value)))
                                                     }
+                                                    disabled
                                                     className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm"
                                                     placeholder="0"
                                                     min="0"
