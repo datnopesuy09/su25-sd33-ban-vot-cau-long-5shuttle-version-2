@@ -132,7 +132,8 @@ CREATE TABLE DiaChi (
 
 CREATE TABLE ThongBao (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    IdKhachHang INT,
+    IdKhachHang INT NULL,
+    Email VARCHAR(255) NULL,
     TieuDe NVARCHAR(255),
     NoiDung NVARCHAR(255),
     IdRedirect NVARCHAR(255),
@@ -142,7 +143,7 @@ CREATE TABLE ThongBao (
 );
 
 CREATE TABLE GioHang (
-Id INT AUTO_INCREMENT PRIMARY KEY,
+    Id INT AUTO_INCREMENT PRIMARY KEY,
     IdSanPhamCT INT,
     IdUser INT,
     SoLuong INT,
@@ -238,10 +239,13 @@ CREATE TABLE TraHang (
 
 CREATE TABLE PreOrder (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    id_hoa_don INT NOT NULL,
+    id_hoa_don INT NULL, -- Cho phép NULL
     id_tai_khoan INT NOT NULL,
+    Email VARCHAR(255) NULL,
+    Phone VARCHAR(255) NULL,
     id_san_pham_ct INT NOT NULL,
     so_luong INT NOT NULL,
+    RequestedQuantity INT NOT NULL DEFAULT 1,
     ngay_tao DATETIME NOT NULL,
     trang_thai INT DEFAULT 0, -- 0: Chờ nhập hàng, 1: Đã nhập hàng, 2: Đã xác nhận
     FOREIGN KEY (id_hoa_don) REFERENCES HoaDon(id),
@@ -249,6 +253,19 @@ CREATE TABLE PreOrder (
     FOREIGN KEY (id_san_pham_ct) REFERENCES SanPhamCT(id)
 );
 
+CREATE TABLE BackInStockRequest (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    IdSanPhamCT INT NOT NULL,
+    IdUser INT NULL,
+    Email VARCHAR(255) NULL,
+    Phone VARCHAR(255) NULL,
+    RequestedQuantity INT NOT NULL DEFAULT 1,
+    RequestDate DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    Status INT NOT NULL DEFAULT 0, -- 0: Pending, 1: Notified, 2: Canceled
+    TrangThai INT NULL,
+    FOREIGN KEY (IdSanPhamCT) REFERENCES SanPhamCT(Id),
+    FOREIGN KEY (IdUser) REFERENCES User(Id)
+);
 
 CREATE TABLE PhieuTraHang (
     Id INT AUTO_INCREMENT PRIMARY KEY,
@@ -275,13 +292,11 @@ CREATE TABLE PhieuTraHangCT (
     SoLuongTra INT NOT NULL,
     SoLuongPheDuyet INT NULL,
     LyDoTraHang NVARCHAR(500),
-	GhiChuNhanVien NVARCHAR(255),
+    GhiChuNhanVien NVARCHAR(255),
     TrangThai ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
-    
     FOREIGN KEY (IdPhieuTraHang) REFERENCES PhieuTraHang(Id),
     FOREIGN KEY (IdHoaDonCT) REFERENCES HoaDonCT(Id)
 );
-
 
 CREATE TABLE `Role`
 (
@@ -317,6 +332,7 @@ CREATE TABLE Role_Permissions
     CONSTRAINT fk_role_permissions_role FOREIGN KEY (IdRole) REFERENCES `Role` (Id),
     CONSTRAINT fk_role_permissions_permission FOREIGN KEY (IdPermission) REFERENCES Permission (Id)
 );
+
 
 -- Bảng Role
 INSERT INTO `Role` (Name, `Description`)

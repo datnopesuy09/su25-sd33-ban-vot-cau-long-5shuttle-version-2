@@ -1,5 +1,6 @@
 // import swal from 'sweetalert';
 import Swal from 'sweetalert2';
+import swal from 'sweetalert';
 import { useState, useEffect, useContext } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
@@ -37,9 +38,6 @@ export default function ProductDetail() {
     const [mainImage, setMainImage] = useState('');
     const [currentPrice, setCurrentPrice] = useState(0);
     const [currentQuantity, setCurrentQuantity] = useState(0);
-    const [comments, setComments] = useState([]);
-    const [newComment, setNewComment] = useState('');
-    const [newRating, setNewRating] = useState(1);
     const { setCartItemCount } = useContext(CartContext);
     const { user } = useUserAuth();
 
@@ -150,87 +148,74 @@ export default function ProductDetail() {
     };
 
     const handleNotifyWhenInStock = async () => {
-    const selectedVariant = product.variants.find(
-        (v) => v.mauSacTen === selectedColor && v.trongLuongTen === selectedWeight,
-    );
-    if (!selectedVariant) {
-        Swal.fire('Thất bại!', 'Vui lòng chọn màu sắc và trọng lượng!', 'error');
-        return;
-    }
+        const selectedVariant = product.variants.find(
+            (v) => v.mauSacTen === selectedColor && v.trongLuongTen === selectedWeight,
+        );
+        if (!selectedVariant) {
+            Swal.fire('Thất bại!', 'Vui lòng chọn màu sắc và trọng lượng!', 'error');
+            return;
+        }
 
-    const token = user?.token || localStorage.getItem('userToken');
-    const idTaiKhoan =
-        user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
-    const defaultEmail = user?.email || '';
+        const token = user?.token || localStorage.getItem('userToken');
+        const idTaiKhoan =
+            user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
+        const defaultEmail = user?.email || '';
 
-    // Sử dụng SweetAlert2 để thu thập thông tin
-    const formValues = await Swal.fire({
-        title: 'Thông báo khi có hàng',
-        html: `
+        // Sử dụng SweetAlert2 để thu thập thông tin
+        const formValues = await Swal.fire({
+            title: 'Thông báo khi có hàng',
+            html: `
             <input id="swal-input1" class="swal2-input" placeholder="Email (bắt buộc)">
             <input id="swal-input2" class="swal2-input" placeholder="Số điện thoại (tùy chọn)">
             <input id="swal-input3" class="swal2-input" type="number" placeholder="Số lượng mong muốn" min="1">
         `,
-        focusConfirm: false,
-        preConfirm: () => {
-            const email = document.getElementById('swal-input1').value;
-            const phone = document.getElementById('swal-input2').value;
-            const requestedQuantity = parseInt(document.getElementById('swal-input3').value) || 1;
-            if (!email) {
-                Swal.showValidationMessage('Vui lòng nhập email!');
-                return false;
-            }
-            if (requestedQuantity < 1) {
-                Swal.showValidationMessage('Số lượng phải lớn hơn 0!');
-                return false;
-            }
-            return { email, phone, requestedQuantity };
-        },
-        showCancelButton: true,
-        confirmButtonText: 'Đăng ký',
-        cancelButtonText: 'Hủy',
-    });
+            focusConfirm: false,
+            preConfirm: () => {
+                const email = document.getElementById('swal-input1').value;
+                const phone = document.getElementById('swal-input2').value;
+                const requestedQuantity = parseInt(document.getElementById('swal-input3').value) || 1;
+                if (!email) {
+                    Swal.showValidationMessage('Vui lòng nhập email!');
+                    return false;
+                }
+                if (requestedQuantity < 1) {
+                    Swal.showValidationMessage('Số lượng phải lớn hơn 0!');
+                    return false;
+                }
+                return { email, phone, requestedQuantity };
+            },
+            showCancelButton: true,
+            confirmButtonText: 'Đăng ký',
+            cancelButtonText: 'Hủy',
+        });
 
-    if (formValues.isConfirmed && formValues.value) {
-        const { email, phone, requestedQuantity } = formValues.value;
-        const payload = {
-            idSanPhamCT: selectedVariant.id,
-            idTaiKhoan: idTaiKhoan || null,
-            email: email || defaultEmail,
-            phone: phone || null,
-            requestedQuantity: requestedQuantity,
-        };
+        if (formValues.isConfirmed && formValues.value) {
+            const { email, phone, requestedQuantity } = formValues.value;
+            const payload = {
+                idSanPhamCT: selectedVariant.id,
+                idTaiKhoan: idTaiKhoan || null,
+                email: email || defaultEmail,
+                phone: phone || null,
+                requestedQuantity: requestedQuantity,
+            };
 
-        try {
-            const response = await axios.post('http://localhost:8080/api/pre-order/back-in-stock', payload);
-            if (response.status === 201) {
-                Swal.fire('Thành công!', 'Bạn sẽ nhận thông báo khi sản phẩm có hàng!', 'success');
-            } else {
-                Swal.fire('Thất bại!', response.data || 'Có lỗi xảy ra khi đăng ký thông báo!', 'error');
+            try {
+                const response = await axios.post('http://localhost:8080/api/pre-order/back-in-stock', payload);
+                if (response.status === 201) {
+                    Swal.fire('Thành công!', 'Bạn sẽ nhận thông báo khi sản phẩm có hàng!', 'success');
+                } else {
+                    Swal.fire('Thất bại!', response.data || 'Có lỗi xảy ra khi đăng ký thông báo!', 'error');
+                }
+            } catch (error) {
+                console.error('Đăng ký thông báo thất bại', error);
+                const errorMessage = error.response?.data || 'Có lỗi xảy ra khi đăng ký thông báo!';
+                Swal.fire('Thất bại!', errorMessage, 'error');
             }
-        } catch (error) {
-            console.error('Đăng ký thông báo thất bại', error);
-            const errorMessage = error.response?.data || 'Có lỗi xảy ra khi đăng ký thông báo!';
-            Swal.fire('Thất bại!', errorMessage, 'error');
         }
-    }
-};
+    };
 
     const handleThumbnailClick = (image) => {
         setMainImage(image);
-    };
-
-    // Hàm để thêm bình luận
-    const handleCommentSubmit = (e) => {
-        e.preventDefault();
-        if (newComment.trim() === '') return; // Không cho phép bình luận trống
-        const commentData = {
-            text: newComment,
-            rating: newRating,
-        };
-        setComments([...comments, commentData]);
-        setNewComment('');
-        setNewRating(1); // Reset đánh giá về 1 sao
     };
 
     if (!product) {
@@ -429,18 +414,21 @@ export default function ProductDetail() {
                                                 return (
                                                     <div
                                                         key={weight}
-                                                        className={`relative flex items-center justify-center rounded-xl border-2 px-2 py-2 text-sm font-semibold transition-all duration-300 ${
+                                                        className={classNames(
+                                                            'relative flex items-center justify-center rounded-xl border-2 px-2 py-2 text-sm font-semibold transition-all duration-300 cursor-pointer',
                                                             selectedWeight === weight
                                                                 ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-md transform scale-105'
-                                                                : 'border-gray-300'
-                                                        } ${
-                                                            inStock
-                                                                ? 'cursor-pointer bg-white text-gray-900 hover:border-gray-400 hover:shadow-sm'
-                                                                : 'cursor-not-allowed bg-gray-50 text-gray-300'
-                                                        }`}
+                                                                : 'border-gray-300 hover:border-gray-400 hover:shadow-sm',
+                                                            !inStock && 'bg-gray-50 text-gray-500',
+                                                        )}
                                                         onClick={() => {
-                                                            if (inStock) {
-                                                                setSelectedWeight(weight);
+                                                            setSelectedWeight(weight);
+                                                            if (variant) {
+                                                                setCurrentImages(variant.hinhAnhUrls);
+                                                                setMainImage(variant.hinhAnhUrls[0]);
+                                                                setCurrentPrice(variant.giaKhuyenMai || variant.donGia);
+                                                                setCurrentQuantity(variant.soLuong);
+                                                                setQuantity(1);
                                                             }
                                                         }}
                                                     >
@@ -583,63 +571,6 @@ export default function ProductDetail() {
                         </div>
                     </div>
                 </section>
-
-                {/* Phần bình luận và đánh giá */}
-                <div className="mt-10 px-4">
-                    <h2 className="text-lg font-semibold">Bình luận và đánh giá</h2>
-                    <form onSubmit={handleCommentSubmit} className="mt-4">
-                        <textarea
-                            className="w-full border rounded-md p-2"
-                            rows="4"
-                            placeholder="Nhập bình luận của bạn..."
-                            value={newComment}
-                            onChange={(e) => setNewComment(e.target.value)}
-                        />
-                        <div className="flex items-center mt-2">
-                            <span className="mr-2">Đánh giá:</span>
-                            {[1, 2, 3, 4, 5].map((star) => (
-                                <span
-                                    key={star}
-                                    className={classNames(
-                                        'cursor-pointer',
-                                        newRating >= star ? 'text-yellow-500' : 'text-gray-300',
-                                    )}
-                                    onClick={() => setNewRating(star)}
-                                >
-                                    ★
-                                </span>
-                            ))}
-                        </div>
-                        <button type="submit" className="mt-2 bg-indigo-600 text-white px-4 py-2 rounded-md">
-                            Gửi bình luận
-                        </button>
-                    </form>
-
-                    {/* Hiển thị danh sách bình luận */}
-                    <div className="mt-6">
-                        {comments.length > 0 ? (
-                            comments.map((comment, index) => (
-                                <div key={index} className="border-b py-2">
-                                    <div className="flex items-center">
-                                        <span className="text-yellow-500">
-                                            {Array.from({ length: comment.rating }, (_, i) => (
-                                                <span key={i}>★</span>
-                                            ))}
-                                            {Array.from({ length: 5 - comment.rating }, (_, i) => (
-                                                <span key={i} className="text-gray-300">
-                                                    ★
-                                                </span>
-                                            ))}
-                                        </span>
-                                    </div>
-                                    <p className="mt-1">{comment.text}</p>
-                                </div>
-                            ))
-                        ) : (
-                            <p>Chưa có bình luận nào.</p>
-                        )}
-                    </div>
-                </div>
             </div>
         </div>
     );
