@@ -407,7 +407,8 @@ const OrderInfo = ({
           <h2 className="text-lg font-medium text-gray-800">Thông tin đơn hàng - Đơn tại quầy</h2>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+            disabled={currentOrderStatus >= 3}
+            className={`bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 ${currentOrderStatus >= 3 ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             Cập nhật
           </button>

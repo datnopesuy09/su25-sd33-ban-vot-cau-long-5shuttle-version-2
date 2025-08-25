@@ -41,7 +41,6 @@ const Navbar = () => {
     const [notificationCount, setNotificationCount] = useState(0);
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
-    // const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
     useEffect(() => {
         const fetchNotifications = async () => {
@@ -59,8 +58,7 @@ const Navbar = () => {
             }
 
             try {
-                // Lấy id khách hàng: ưu tiên user.id (nếu fetchUserInfo trả về),
-                // nếu không có thì decode token (nếu backend để id trong payload.sub hoặc payload.id)
+                // Lấy id khách hàng
                 const idKhachHang = user?.id || parseJwt(token)?.sub || parseJwt(token)?.id;
                 if (!idKhachHang) {
                     console.warn('Không tìm thấy id khách hàng (user.id và token payload đều không có).');
@@ -74,13 +72,17 @@ const Navbar = () => {
                     headers: { Authorization: `Bearer ${token}` },
                 });
 
-                // tuỳ API của bạn, có thể response.data hoặc response.data.result
-                setNotifications(response.data || []);
-                setNotificationCount((response.data || []).filter((n) => n.trangThai === 0).length);
+                // Sắp xếp thông báo theo thời gian tạo (mới nhất lên đầu)
+                const sortedNotifications = (response.data || []).sort((a, b) => {
+                    const timeA = new Date(a.createdAt || a.ngayTao || 0);
+                    const timeB = new Date(b.createdAt || b.ngayTao || 0);
+                    return timeB - timeA; // Sắp xếp giảm dần (mới nhất trước)
+                });
+
+                setNotifications(sortedNotifications);
+                setNotificationCount(sortedNotifications.filter((n) => n.trangThai === 0).length);
             } catch (error) {
                 console.error('Lỗi khi lấy thông báo:', error);
-                setNotifications([]);
-                setNotificationCount(0);
                 Swal.fire({
                     icon: 'error',
                     title: 'Lỗi',
@@ -92,7 +94,6 @@ const Navbar = () => {
             }
         };
 
-        // Gọi nếu đã login (đây vẫn an toàn vì bên trong đã kiểm tra token)
         if (isLoggedIn) {
             fetchNotifications();
         }
@@ -100,7 +101,10 @@ const Navbar = () => {
 
     const handleNotificationClick = () => {
         setNotificationDropdownOpen(!notificationDropdownOpen);
-        setNotificationCount(0); // Reset số lượng thông báo
+        // Chỉ reset notification count khi mở dropdown và có thông báo chưa đọc
+        if (notificationDropdownOpen && notifications.some((n) => n.trangThai === 0)) {
+            setNotificationCount(0);
+        }
     };
 
     const handleNotificationClose = () => {
@@ -108,28 +112,67 @@ const Navbar = () => {
     };
 
     const handleMarkAsRead = async (notificationId) => {
+        // Kiểm tra token trước khi gửi yêu cầu
+        const token = user?.token || localStorage.getItem('userToken');
+        if (!token) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Lỗi',
+                text: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+                confirmButtonColor: '#2f19ae',
+            });
+            navigate('/login');
+            return;
+        }
+
+        // Kiểm tra trạng thái thông báo trước khi gửi yêu cầu
+        const notification = notifications.find((n) => n.id === notificationId);
+        if (!notification) {
+            console.warn(`Thông báo với ID ${notificationId} không tồn tại trong danh sách.`);
+            return;
+        }
+        if (notification.trangThai === 1) {
+            console.log(`Thông báo với ID ${notificationId} đã được đánh dấu là đã đọc.`);
+            return;
+        }
+
         try {
-            await axios.put(
+            const response = await axios.put(
                 `http://localhost:8080/api/thong-bao/${notificationId}`,
                 { trangThai: 1 },
                 {
                     headers: {
-                        Authorization: `Bearer ${user.token}`,
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
                     },
                 },
             );
 
-            setNotifications((prev) =>
-                prev.map((notification) =>
-                    notification.id === notificationId ? { ...notification, trangThai: 1 } : notification,
-                ),
-            );
+            if (response.status === 200) {
+                setNotifications((prev) =>
+                    prev.map((notification) =>
+                        notification.id === notificationId ? { ...notification, trangThai: 1 } : notification,
+                    ),
+                );
+                setNotificationCount((prev) => Math.max(0, prev - 1));
+            }
         } catch (error) {
             console.error('Lỗi khi đánh dấu thông báo đã đọc:', error);
+            let errorMessage = 'Không thể đánh dấu thông báo đã đọc. Vui lòng thử lại.';
+            if (error.response) {
+                if (error.response.status === 401 || error.response.status === 403) {
+                    errorMessage = 'Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.';
+                    navigate('/login');
+                } else if (error.response.status === 404) {
+                    errorMessage = 'Thông báo không tồn tại.';
+                } else if (error.response.status === 400) {
+                    errorMessage = 'Yêu cầu không hợp lệ. Vui lòng kiểm tra lại.';
+                }
+            }
             Swal.fire({
                 icon: 'error',
                 title: 'Lỗi',
-                text: 'Không thể đánh dấu thông báo đã đọc. Vui lòng thử lại.',
+                text: errorMessage,
                 confirmButtonColor: '#2f19ae',
             });
         }
@@ -147,7 +190,7 @@ const Navbar = () => {
     };
 
     const getNotificationIcon = (type) => {
-        switch (type) {
+        switch (type?.toLowerCase()) {
             case 'success':
                 return <Check className="w-5 h-5 text-green-500" />;
             case 'warning':
@@ -200,8 +243,6 @@ const Navbar = () => {
         { key: 'lienhe', label: 'Liên hệ', path: '/lien-he' },
     ];
 
-    console.log('user: ', user);
-    console.log('dữ liệu thông báo: ', notifications);
     return (
         <>
             <nav
@@ -303,7 +344,7 @@ const Navbar = () => {
                                                                         handleMarkAsRead(notification.id);
                                                                     }
                                                                     if (notification.idRedirect) {
-                                                                        navigate(notification.idRedirect);
+                                                                        // navigate(notification.idRedirect);
                                                                         handleNotificationClose();
                                                                     }
                                                                 }}
@@ -335,6 +376,7 @@ const Navbar = () => {
                                                                             <span className="text-xs text-gray-400">
                                                                                 {formatTimeAgo(
                                                                                     notification.createdAt ||
+                                                                                        notification.ngayTao ||
                                                                                         new Date(),
                                                                                 )}
                                                                             </span>

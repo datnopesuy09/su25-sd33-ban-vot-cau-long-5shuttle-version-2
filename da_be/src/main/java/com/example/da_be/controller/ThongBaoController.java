@@ -8,9 +8,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
-@CrossOrigin(origins = "http://localhost:5173") // Cho phép kết nối từ React
+@CrossOrigin(origins = "http://localhost:5173")
 @RequestMapping("/api/thong-bao")
 public class ThongBaoController {
 
@@ -20,7 +21,11 @@ public class ThongBaoController {
     // Lấy danh sách tất cả thông báo
     @GetMapping
     public ResponseEntity<List<ThongBao>> getAllThongBao() {
-        return ResponseEntity.ok(thongBaoService.getAllThongBao());
+        try {
+            return ResponseEntity.ok(thongBaoService.getAllThongBao());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
 
     // Lấy thông tin thông báo theo ID
@@ -37,20 +42,48 @@ public class ThongBaoController {
     @PostMapping
     public ResponseEntity<ThongBao> addThongBao(@RequestBody ThongBao thongBao) {
         try {
-            return ResponseEntity.status(HttpStatus.CREATED).body(thongBaoService.saveOrUpdateThongBao(thongBao));
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(thongBaoService.saveOrUpdateThongBao(thongBao));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    // Cập nhật thông tin thông báo
+    // Cập nhật trạng thái thông báo (chỉ cập nhật trạng thái)
     @PutMapping("/{id}")
+    public ResponseEntity<ThongBao> updateTrangThaiThongBao(
+            @PathVariable int id, 
+            @RequestBody Map<String, Object> updates) {
+        try {
+            // Kiểm tra xem có field trangThai trong request không
+            if (!updates.containsKey("trangThai")) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+            }
+            
+            Integer trangThai = (Integer) updates.get("trangThai");
+            ThongBao updatedThongBao = thongBaoService.updateTrangThaiThongBao(id, trangThai);
+            return ResponseEntity.ok(updatedThongBao);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    // Cập nhật toàn bộ thông tin thông báo
+    @PutMapping("/{id}/full")
     public ResponseEntity<ThongBao> updateThongBao(@PathVariable int id, @RequestBody ThongBao thongBao) {
         try {
-            thongBao.setId(id); // Đảm bảo ID trong body và path là giống nhau
+            thongBao.setId(id);
             return ResponseEntity.ok(thongBaoService.saveOrUpdateThongBao(thongBao));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
@@ -68,6 +101,10 @@ public class ThongBaoController {
     // Lấy danh sách thông báo theo idKhachHang
     @GetMapping("/khach-hang/{idKhachHang}")
     public ResponseEntity<List<ThongBao>> getThongBaoByKhachHang(@PathVariable int idKhachHang) {
-        return ResponseEntity.ok(thongBaoService.getThongBaoByKhachHang(idKhachHang));
+        try {
+            return ResponseEntity.ok(thongBaoService.getThongBaoByKhachHang(idKhachHang));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
     }
 }

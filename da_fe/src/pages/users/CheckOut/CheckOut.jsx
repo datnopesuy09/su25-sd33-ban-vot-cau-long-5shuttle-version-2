@@ -594,6 +594,8 @@ console.log('orderData:', orderData);
                     setSelectedPaymentMethod={setSelectedPaymentMethod}
                     handleSubmit={handleSubmit}
                     shippingFee={shippingFee}
+                    promoDiscount={promoDiscount}
+                    selectedDiscount={selectedDiscount}
                 />
             </div>
 
@@ -602,6 +604,7 @@ console.log('orderData:', orderData);
                 setShowModal={setShowModal}
                 discounts={discounts}
                 totalPrice={totalPrice}
+                selectedDiscount={selectedDiscount} // Thêm prop này để modal biết phiếu đang chọn
                 handleSelectDiscount={handleSelectDiscount}
                 handleRemoveDiscount={handleRemoveDiscount}
             />

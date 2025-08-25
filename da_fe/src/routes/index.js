@@ -55,6 +55,7 @@ import MyOrderDetail from '../pages/admin/nhanvien/draft.jsx';
 import { computeAxisValue } from '@mui/x-charts/internals';
 import UpdateProduct from '../pages/admin/Product/update.jsx';
 import ModalReturn from '../pages/users/TaiKhoan/demo.jsx';
+import InStoreOrders from '../pages/admin/Sale/InStoreOrders.jsx';
 // Public routes
 const publicRoutes = [
     { path: '/', component: Home },
@@ -65,6 +66,7 @@ const publicRoutes = [
     { path: '/admin/tai-khoan/khach-hang/edit/:id', component: EditCustomer, layout: AdminLayout },
     { path: '/admin/thong-ke', component: ThongKe, layout: AdminLayout },
     { path: '/admin/ban-hang-tai-quay', component: OfflineSale, layout: AdminLayout },
+    { path: '/admin/ban-hang-tai-quay/don-hang', component: InStoreOrders, layout: AdminLayout },
 
     { path: '/admin/quan-ly-san-pham/mau-sac', component: Color, layout: AdminLayout },
     { path: '/admin/quan-ly-san-pham/san-pham', component: SanPham, layout: AdminLayout },
