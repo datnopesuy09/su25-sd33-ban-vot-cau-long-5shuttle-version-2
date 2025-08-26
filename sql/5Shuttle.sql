@@ -108,10 +108,11 @@ CREATE TABLE DiaChi (
     IdUser INT,
     Ten NVARCHAR(255),
     Sdt VARCHAR(255),
-    IdTinh NVARCHAR(255),
-    IdHuyen NVARCHAR(255),
-    IdXa NVARCHAR(255),
+    Tinh NVARCHAR(255),
+    Huyen NVARCHAR(255),
+    Xa NVARCHAR(255),
     DiaChiCuThe NVARCHAR(255),
+    LoaiDiaChi NVARCHAR(255),
     FOREIGN KEY (IdUser) REFERENCES User(Id)
 );
 
@@ -209,6 +210,61 @@ CREATE TABLE LichSuDonHang (
     TrangThai INT,
     FOREIGN KEY (IdUser) REFERENCES User(Id),
     FOREIGN KEY (IdHoaDon) REFERENCES HoaDon(Id)
+);
+
+CREATE TABLE TraHang (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    hoa_don_ct_id INT NOT NULL,
+    so_luong INT NOT NULL,
+    ly_do VARCHAR(255),
+    ngay_tao DATETIME NOT NULL,
+    trang_thai INT NOT NULL DEFAULT 0, -- 0: Chờ duyệt, 1: Đã duyệt, 2: Từ chối
+    FOREIGN KEY (hoa_don_ct_id) REFERENCES HoaDonCT(id)
+);
+
+CREATE TABLE PreOrder (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    id_hoa_don INT NOT NULL,
+    id_tai_khoan INT NOT NULL,
+    id_san_pham_ct INT NOT NULL,
+    so_luong INT NOT NULL,
+    ngay_tao DATETIME NOT NULL,
+    trang_thai INT DEFAULT 0, -- 0: Chờ nhập hàng, 1: Đã nhập hàng, 2: Đã xác nhận
+    FOREIGN KEY (id_hoa_don) REFERENCES HoaDon(id),
+    FOREIGN KEY (id_tai_khoan) REFERENCES User(id),
+    FOREIGN KEY (id_san_pham_ct) REFERENCES SanPhamCT(id)
+);
+
+CREATE TABLE PhieuTraHang (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    IdUser INT NOT NULL,
+    IdHoaDon INT NOT NULL,
+    Ma NVARCHAR(100) NOT NULL,
+    NgayTao DATETIME,
+    NgayXuLy DATETIME,
+    HinhThucTra NVARCHAR(50),
+    TrangThai ENUM('PENDING', 'APPROVED', 'REJECTED', 'REFUNDED') DEFAULT 'PENDING',
+    IdNhanVienXuLy INT NULL,
+    GhiChuKhachHang NVARCHAR(255),
+    GhiChuNhanVien NVARCHAR(255),
+    FOREIGN KEY (IdUser) REFERENCES User(Id),
+    FOREIGN KEY (IdHoaDon) REFERENCES HoaDon(Id),
+    FOREIGN KEY (IdNhanVienXuLy) REFERENCES User(Id)
+);
+
+CREATE TABLE PhieuTraHangCT (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    IdPhieuTraHang INT NOT NULL,
+    IdHoaDonCT INT NOT NULL,
+    Ma NVARCHAR(100) NOT NULL,
+    SoLuongTra INT NOT NULL,
+    SoLuongPheDuyet INT NULL,
+    LyDoTraHang NVARCHAR(500),
+	GhiChuNhanVien NVARCHAR(255),
+    TrangThai ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
+    
+    FOREIGN KEY (IdPhieuTraHang) REFERENCES PhieuTraHang(Id),
+    FOREIGN KEY (IdHoaDonCT) REFERENCES HoaDonCT(Id)
 );
 
 CREATE TABLE User
