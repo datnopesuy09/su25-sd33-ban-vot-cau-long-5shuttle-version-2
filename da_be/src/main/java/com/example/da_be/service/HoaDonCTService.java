@@ -37,6 +37,8 @@ public class HoaDonCTService {
     private PreOrderRepository preOrderRepository;
     @Autowired
     private ThongBaoRepository thongBaoRepository;
+    @Autowired
+    private KhoHangService khoHangService;
 
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
@@ -174,6 +176,7 @@ public class HoaDonCTService {
         return traHangRepository.save(traHang);
     }
 
+    @Transactional
     public void approveReturn(Integer traHangId) {
         TraHang traHang = traHangRepository.findById(traHangId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy yêu cầu trả hàng"));
@@ -187,18 +190,25 @@ public class HoaDonCTService {
         if (newSoLuong < 0) {
             throw new IllegalStateException("Số lượng trả vượt quá số lượng hiện có");
         }
+        
+        // Cập nhật số lượng trong hóa đơn chi tiết
         hoaDonCT.setSoLuong(newSoLuong);
         hoaDonCTRepository.save(hoaDonCT);
 
+        // Hoàn lại số lượng vào kho
+        khoHangService.restoreStockOnReturn(hoaDonCT, traHang.getSoLuong());
+
+        // Cập nhật trạng thái trả hàng
         traHang.setTrangThai(1);
         traHangRepository.save(traHang);
 
+        // Kiểm tra nếu tất cả sản phẩm đã được trả
         HoaDon hoaDon = hoaDonCT.getHoaDon();
         boolean allReturned = hoaDonCTRepository.findByHoaDonId(hoaDon.getId())
                 .stream()
                 .allMatch(hdct -> hdct.getSoLuong() == 0);
         if (allReturned) {
-            hoaDon.setTrangThai(8);
+            hoaDon.setTrangThai(8); // Trạng thái trả hàng hoàn toàn
             hoaDonRepository.save(hoaDon);
         }
     }
