@@ -9,6 +9,7 @@ import OrderInfo from './OrderInfor';
 import OrderProgress from './OrderProgress';
 import ProductList from './ProductList';
 import PaymentDetails from './PaymentDetai';
+import KhoHangManagement from '../../../components/KhoHangManagement';
 import swal from 'sweetalert';
 import axios from 'axios';
 import ProductModal from '../Sale/ProductModal';
@@ -690,6 +691,18 @@ function OrderStatus() {
                     getActionButtonStyle={getActionButtonStyle}
                     getActionButtonText={getActionButtonText}
                     handleCancelOrder={handleCancelOrder}
+                />
+            </div>
+
+            {/* Quản lý kho hàng - chỉ hiển thị cho admin */}
+            <div className="max-w-5xl mx-auto mt-8">
+                <KhoHangManagement
+                    hoaDon={orderData}
+                    onRestoreComplete={() => {
+                        // Refresh dữ liệu sau khi hoàn kho
+                        fetchBillDetails(hoaDonId);
+                    }}
+                    currentOrderStatus={currentOrderStatus}
                 />
             </div>
 

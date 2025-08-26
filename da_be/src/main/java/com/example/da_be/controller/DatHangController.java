@@ -3,6 +3,7 @@ import com.example.da_be.dto.DatHangRequestDTO;
 import com.example.da_be.entity.*;
 import com.example.da_be.exception.ResourceNotFoundException;
 import com.example.da_be.repository.*;
+import com.example.da_be.service.KhoHangService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -43,6 +45,8 @@ public class DatHangController {
     private VoucherRepository voucherRepository;
     @Autowired
     private PhieuGiamGiaRepository phieuGiamGiaRepository;
+    @Autowired
+    private KhoHangService khoHangService;
 
     @Transactional
     @PostMapping
@@ -130,26 +134,33 @@ public class DatHangController {
             hoaDon.setTrangThai(1); // trạng thái mới tạo
             hoaDonRepository.save(hoaDon);
 
-            // 4. Tạo hóa đơn chi tiết và trừ số lượng tồn kho
+            // 4. Tạo danh sách hóa đơn chi tiết
+            List<HoaDonCT> hoaDonCTList = new ArrayList<>();
             for (DatHangRequestDTO.CartItemDTO item : cartItems) {
                 SanPhamCT spct = sanPhamCTRepository.findById(item.getSanPhamCTId())
                         .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại: " + item.getSanPhamCTId()));
-
-                // Trừ số lượng trong kho
-                int soLuongConLai = spct.getSoLuong() - item.getSoLuong();
-                spct.setSoLuong(soLuongConLai);
-                sanPhamCTRepository.save(spct);
 
                 HoaDonCT hoaDonCT = new HoaDonCT();
                 hoaDonCT.setHoaDon(hoaDon);
                 hoaDonCT.setSanPhamCT(spct);
                 hoaDonCT.setSoLuong(item.getSoLuong());
-                hoaDonCT.setGiaBan(BigDecimal.valueOf(spct.getDonGia())); // Có thể thay đổi nếu cần
+                hoaDonCT.setGiaBan(BigDecimal.valueOf(spct.getDonGia()));
                 hoaDonCT.setTrangThai(1);
                 hoaDonCTRepository.save(hoaDonCT);
+                hoaDonCTList.add(hoaDonCT);
             }
 
-            // 5. Lưu lịch sử đơn hàng
+            // 5. Trừ số lượng tồn kho sử dụng KhoHangService
+            try {
+                khoHangService.reserveStock(hoaDon, hoaDonCTList);
+            } catch (RuntimeException e) {
+                // Nếu không đủ hàng, xóa hóa đơn đã tạo
+                hoaDonCTRepository.deleteAll(hoaDonCTList);
+                hoaDonRepository.delete(hoaDon);
+                return ResponseEntity.badRequest().body("Không đủ hàng trong kho: " + e.getMessage());
+            }
+
+            // 6. Lưu lịch sử đơn hàng
             LichSuDonHang lichSuDonHang = new LichSuDonHang();
 //            lichSuDonHang.setIdTaiKhoan(taiKhoan.getId());
 //            lichSuDonHang.setIdHoaDon(hoaDon.getId());
@@ -158,7 +169,7 @@ public class DatHangController {
             lichSuDonHang.setTrangThai(1);
             lichSuDonHangRepository.save(lichSuDonHang);
 
-            // 6. Thêm thông báo cho người dùng
+            // 7. Thêm thông báo cho người dùng
             ThongBao thongBao = new ThongBao();
             thongBao.setKhachHang(taiKhoan);
             thongBao.setTieuDe("Đặt hàng thành công");
