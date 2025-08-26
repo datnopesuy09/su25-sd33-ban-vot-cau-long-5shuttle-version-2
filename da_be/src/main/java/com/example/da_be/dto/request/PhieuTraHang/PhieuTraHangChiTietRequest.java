@@ -21,6 +21,7 @@ public class PhieuTraHangChiTietRequest {
     Integer soLuongTra; // Số lượng sản phẩm muốn trả
 
     @Size(max = 500, message = "Ghi chú chi tiết không được vượt quá 500 ký tự")
-    String ghiChu; // Ghi chú riêng cho từng mặt hàng trả
+    @NotNull(message = "Lý do trả hàng không được bỏ trống")
+    String lyDoTraHang; // Ghi chú riêng cho từng mặt hàng trả
 
 }

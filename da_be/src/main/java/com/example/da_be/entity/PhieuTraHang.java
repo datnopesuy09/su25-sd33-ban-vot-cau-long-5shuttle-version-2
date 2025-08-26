@@ -1,6 +1,6 @@
 package com.example.da_be.entity;
 
-import com.example.da_be.enums.HinhThucTra;
+
 import com.example.da_be.enums.TrangThaiTra;
 import jakarta.persistence.*;
 import lombok.*;
@@ -22,10 +22,13 @@ public class PhieuTraHang {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Integer id;
 
+    @Column(name = "Ma")
+    String maPhieuTraHang;
+
     // Khóa ngoại đến bảng User (IdUser INT NOT NULL)
     @ManyToOne
     @JoinColumn(name = "IdUser", nullable = false)
-    User user; // Giả sử bạn đã có entity User
+    User user;
 
     // Khóa ngoại đến bảng HoaDon (IdHoaDon INT NOT NULL)
     @ManyToOne
@@ -39,17 +42,21 @@ public class PhieuTraHang {
     LocalDateTime ngayXuLy;
 
     // Ánh xạ đến cột HinhThucTra ENUM
-    @Enumerated(EnumType.STRING) // Lưu giá trị enum dưới dạng chuỗi trong cơ sở dữ liệu
-    @Column(name = "HinhThucTra", columnDefinition = "ENUM('online', 'tai_quay') DEFAULT 'online'")
-    HinhThucTra hinhThucTra;
+
+    @Column(name = "HinhThucTra")
+    String hinhThucTra;
+
 
     // Ánh xạ đến cột TrangThai ENUM
     @Enumerated(EnumType.STRING) // Lưu giá trị enum dưới dạng chuỗi trong cơ sở dữ liệu
-    @Column(name = "TrangThai", columnDefinition = "ENUM('pending', 'approved', 'rejected', 'refunded') DEFAULT 'pending'")
+    @Column(name = "TrangThai", columnDefinition = "ENUM('PENDING', 'APPROVED', 'REJECTED', 'REFUNDED') DEFAULT 'pending'")
     TrangThaiTra trangThai;
 
-    @Column(name = "GhiChu", length = 255) // Ánh xạ đến cột GhiChu NVARCHAR(255)
-    String ghiChu;
+    @Column(name = "GhiChuKhachHang", length = 255) // Ánh xạ đến cột GhiChu NVARCHAR(255)
+    String ghiChuKhachHang;
+
+    @Column(name = "GhiChuNhanVien", length = 255) // Ánh xạ đến cột GhiChu NVARCHAR(255)
+    String ghiChuNhanVien;
 
     // Khóa ngoại đến bảng User cho người xử lý (IdNhanVienXuLy INT NULL)
     @ManyToOne

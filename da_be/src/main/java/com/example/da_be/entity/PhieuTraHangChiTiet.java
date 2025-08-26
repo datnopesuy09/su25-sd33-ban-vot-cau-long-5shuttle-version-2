@@ -19,6 +19,9 @@ public class PhieuTraHangChiTiet {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Integer id;
 
+    @Column(name = "Ma")
+    String maPhieuTraHangChiTiet;
+
     // Khóa ngoại đến PhieuTraHang (IdPhieuTraHang INT NOT NULL)
     @ManyToOne
     @JoinColumn(name = "IdPhieuTraHang", nullable = false)
@@ -32,12 +35,18 @@ public class PhieuTraHangChiTiet {
     @Column(name = "SoLuongTra", nullable = false)
     Integer soLuongTra;
 
-    @Column(name = "GhiChu", length = 500) // Ánh xạ đến cột GhiChu NVARCHAR(500)
-    String ghiChu;
+    @Column(name = "SoLuongPheDuyet", nullable = false)
+    Integer soLuongPheDuyet;
+
+    @Column(name = "LyDoTraHang", length = 500)
+    String lyDoTraHang;
+
+    @Column(name = "GhiChuNhanVien", length = 255) // Ánh xạ đến cột GhiChu NVARCHAR(500)
+    String ghiChuNhanVien;
 
     // Ánh xạ đến cột TrangThai ENUM
     @Enumerated(EnumType.STRING) // Lưu giá trị enum dưới dạng chuỗi trong cơ sở dữ liệu
-    @Column(name = "TrangThai", columnDefinition = "ENUM('pending', 'approved', 'rejected') DEFAULT 'pending'")
+    @Column(name = "TrangThai", columnDefinition = "ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING'")
     TrangThaiTra trangThai;
 
 }

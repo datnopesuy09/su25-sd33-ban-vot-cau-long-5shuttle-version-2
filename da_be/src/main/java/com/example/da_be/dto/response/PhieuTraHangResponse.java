@@ -1,6 +1,7 @@
 package com.example.da_be.dto.response;
 
-import com.example.da_be.enums.HinhThucTra;
+import com.example.da_be.entity.HoaDon;
+import com.example.da_be.entity.User;
 import com.example.da_be.enums.TrangThaiTra;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
@@ -18,22 +19,34 @@ import java.util.List;
 public class PhieuTraHangResponse {
     Integer id; // ID duy nhất của phiếu trả hàng
 
+    String maPhieuTraHang;
+
     Integer userId; // ID của người dùng đã tạo phiếu
 
-    Integer hoaDonId; // ID của hóa đơn liên quan
+    String hoTenKhachHang;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss") // Định dạng ngày giờ khi trả về JSON
+    String emailKhachHang;
+
+    String sdtKhachHang;
+
+    String diaChiKhachHang;
+
+    String hoaDonMa;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     LocalDateTime ngayTao; // Thời gian tạo phiếu
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss") // Định dạng ngày giờ khi trả về JSON
-    LocalDateTime ngayCapNhat; // Thời gian cập nhật gần nhất
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    LocalDateTime ngayXuLy;
 
-    HinhThucTra hinhThucTra; // Hình thức trả hàng (online/tai_quay)
+    String hinhThucTra;
 
-    String ghiChu; // Ghi chú chung cho phiếu trả hàng
+    String ghiChuKhachHang;
 
-    TrangThaiTra trangThai; // Trạng thái hiện tại của phiếu (chờ xác nhận, đã hoàn thành...)
+    TrangThaiTra trangThai;
 
-    List<PhieuTraHangChiTietResponse> chiTietPhieuTraHang; // Danh sách các chi tiết trả hàng
+    String staffEmail;
+
+    List<PhieuTraHangChiTietResponse> chiTietTraHang;
 
 }
