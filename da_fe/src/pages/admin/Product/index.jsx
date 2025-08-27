@@ -119,6 +119,10 @@ function Product() {
 
     const handleUpdate = (id) => {
         navigate(`/admin/quan-ly-san-pham/san-pham-ct/${id}/update`);
+
+    const handleDetail = (id) => {
+        navigate(`/admin/quan-ly-san-pham/san-pham-ct/${id}/detail`);
+
     };
 
     return (
@@ -208,8 +212,13 @@ function Product() {
                                     </td>
                                     <td className="py-2 px-4 text-center">
                                         <button
-                                            onClick={() => handleUpdate(sp.id)}
-                                            className="text-amber-500 hover:text-amber-600 transition-transform transform hover:scale-110 text-xl mr-2"
+
+                                            // onClick={() => handleUpdate(sp.id)}
+                                            // className="text-amber-500 hover:text-amber-600 transition-transform transform hover:scale-110 text-xl mr-2"
+
+                                            onClick={() => handleDetail(sp.id)}
+                                            className="text-amber-500 hover:text-amber-600 transition-transform transform hover:scale-110 text-xl"
+
                                             title="Xem chi tiết"
                                         >
                                             <TbEyeEdit />

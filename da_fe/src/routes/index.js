@@ -56,6 +56,8 @@ import { computeAxisValue } from '@mui/x-charts/internals';
 import UpdateProduct from '../pages/admin/Product/update.jsx';
 import ModalReturn from '../pages/users/TaiKhoan/demo.jsx';
 import InStoreOrders from '../pages/admin/Sale/InStoreOrders.jsx';
+import orderReturn from '../pages/users/TaiKhoan/orderReturn.jsx';
+import SpctDetail from '../pages/admin/Product/SpctDetail.jsx';
 // Public routes
 const publicRoutes = [
     { path: '/', component: Home },
@@ -79,6 +81,7 @@ const publicRoutes = [
     { path: '/admin/quan-ly-san-pham/san-pham-ct', component: ProductAdmin, layout: AdminLayout },
     { path: '/admin/quan-ly-san-pham/san-pham-ct/add', component: AddProduct, layout: AdminLayout },
     { path: '/admin/quan-ly-san-pham/san-pham-ct/:id/update', component: UpdateProduct, layout: AdminLayout },
+    { path: '/admin/quan-ly-san-pham/san-pham-ct/:id/detail', component: SpctDetail, layout: AdminLayout },
     { path: '/gio-hang', component: Cart },
     { path: '/xac-nhan-don-hang', component: SuccessOrder },
     { path: '/san-pham/san-pham-ct/:id', component: ProductDetail },
@@ -107,6 +110,7 @@ const publicRoutes = [
             { path: 'change-password', component: ChangePassword, layout: null },
             { path: 'address', component: AddressUser, layout: null },
             { path: 'my-voucher', component: MyVoucher, layout: null },
+            { path: 'order-return/:id', component: orderReturn, layout: null },
         ],
     },
     { path: '/login', component: Sign },
@@ -115,8 +119,7 @@ const publicRoutes = [
     { path: '/admin/thong-ke', component: ThongKe, layout: AdminLayout },
 
     { path: '/test', component: ResponsiveAppBar, layout: null },
-     { path: '/check', component: ModalReturn, layout: null },
-
+    { path: '/check', component: ModalReturn, layout: null },
 ];
 
 const privateRoutes = [];

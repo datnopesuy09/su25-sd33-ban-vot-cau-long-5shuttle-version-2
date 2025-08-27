@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Box, TextField, Typography, Paper, Button, Grid, Tabs, Tab, InputAdornment } from '@mui/material';
+import { Box, TextField, Typography, Paper, Button, Grid, Tabs, Tab, InputAdornment, Divider } from '@mui/material';
+
 import SearchIcon from '@mui/icons-material/Search';
 import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
@@ -9,6 +10,8 @@ import dayjs from 'dayjs';
 import { useUserAuth } from '../../../contexts/userAuthContext';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { red } from '@mui/material/colors';
+import { redPalette } from '@mui/x-charts';
 
 const tabs = ['Tất cả', 'Chờ xác nhận', 'Chờ giao hàng', 'Đang vận chuyển', 'Hoàn thành', 'Đã hủy', 'Trả hàng'];
 
@@ -114,6 +117,20 @@ function UserOrder() {
             } catch (error) {
                 console.error('Lỗi khi lấy đơn hàng:', error);
                 toast.error('Không thể lấy đơn hàng');
+                //   const detailRes = await axios.get(
+                //     `http://localhost:8080/users/myOderDetail/${bill.id}`,
+                //     { headers }
+                //   );
+                //   const chiTiet = detailRes.data.result;
+
+                //   return {
+                //     ...bill,
+                //     chiTiet,
+                //     // lấy ngayTao chuẩn từ hoaDon trong chi tiết
+                //     ngayTao: chiTiet?.[0]?.hoaDon?.ngayTao || null,
+                //   };
+                // } catch {
+                //   return bill;
             }
         };
 
@@ -164,6 +181,25 @@ function UserOrder() {
                 }}
                 sx={{ mb: 2 }}
             />
+            {/* return (
+    <Box>
+      <Tabs
+        value={tabs.indexOf(selectedTab)}
+        onChange={(e, newValue) => setSelectedTab(tabs[newValue])}
+        sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
+      >
+        {tabs.map((tab) => (
+          <Tab
+            key={tab}
+            label={tab}
+            sx={{
+              fontSize: '14px',
+              textTransform: 'none',
+              color: selectedTab === tab ? 'primary.main' : 'text.primary',
+            }}
+          />
+        ))}
+      </Tabs> */}
 
             {/* Danh sách đơn */}
             <Box>
@@ -238,6 +274,99 @@ function UserOrder() {
             </Box>
         </Box>
     );
+    {
+        /* Danh sách đơn */
+    }
+    //     <Box>
+    //       {filteredBills.length > 0 ? (
+    //         filteredBills.map((item) => (
+    //           <Paper key={item.id} variant="outlined" sx={{ mb: 1 }}>
+    //             <Box sx={{ p: 1.5 }} display="flex" justifyContent="space-between" alignItems="center">
+    //               <Typography fontWeight={600} fontSize={14}>
+    //                 {item.ma}
+    //               </Typography>
+    //               <Box className={`px-2 py-1 text-sm rounded ${getStatusStyle(item.trangThai)}`} sx={{ textTransform: 'uppercase' }}>
+    //                 {getStatus(item.trangThai)}
+    //               </Box>
+    //             </Box>
+    //             <Divider sx={{ mx: 1.5 }} />
+    //             <Box sx={{ px: 2, pt: 1.5 }}>
+    //               {item.chiTiet?.map((sp, idx) => (
+    //                 <React.Fragment key={idx}>
+    //                   <Box display="flex" justifyContent="space-between" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+    //                     <Box>
+    //                       <Grid container spacing={1}>
+    //                         <Grid item sx={3}>
+    //                           <img
+    //                             src={sp?.sanPhamCT?.hinhAnh || 'https://via.placeholder.com/80'}
+    //                             alt="ảnh sản phẩm"
+    //                             style={{ width: '100%', borderRadius: 4 }}
+    //                           />
+    //                         </Grid>
+    //                         <Grid item sx={9}>
+    //                           <Typography noWrap fontWeight={500} mb={0.5}>
+    //                             {sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'}
+    //                           </Typography>
+    //                           <Typography variant="body2" color="text.secondary">
+    //                             Phân loại: {sp?.sanPhamCT?.mauSac?.ten}, {sp?.sanPhamCT?.trongLuong?.ten}, {sp?.sanPhamCT?.doCung?.ten}
+    //                           </Typography>
+    //                           <Typography variant="body2" color="text.secondary">
+    //                             x{sp.soLuong}
+    //                           </Typography>
+    //                         </Grid>
+    //                       </Grid>
+    //                     </Box>
+    //                     <Box ml={0}>
+    //                       {sp?.sanPhamCT?.giaKhuyenMai ? (
+    //                         <>
+    //                           <Typography sx={{ textDecoration: 'line-through', fontSize: 13, color: '#888' }}>
+    //                             {formatCurrency(sp.giaBan)}
+    //                           </Typography>
+    //                           <Typography color="error">{formatCurrency(sp?.sanPhamCT?.giaKhuyenMai)}</Typography>
+    //                         </>
+    //                       ) : (
+    //                         <Typography>{formatCurrency(sp.giaBan)}</Typography>
+    //                       )}
+    //                     </Box>
+    //                   </Box>
+
+    //                   {/* Divider giữa các sản phẩm, không hiển thị sau sản phẩm cuối */}
+    //                   {idx < item.chiTiet.length - 1 && <Divider sx={{ my: 1 }} />}
+    //                 </React.Fragment>
+    //               ))}
+    //             </Box>
+    //             <Divider />
+    //             <Grid container justifyContent="space-between" sx={{ p: 1.5 }}>
+    //               <Grid item xs={12} md={6}>
+    //                 <Typography fontSize={13}>
+    //                   Ngày đặt: {dayjs(item.ngayTao).format('DD/MM/YYYY HH:mm')}
+    //                 </Typography>
+    //               </Grid>
+    //               <Grid item xs={12} md={6} textAlign={{ xs: 'left', md: 'right' }}>
+    //                 <Typography fontWeight={500}>
+    //                   Tổng tiền: <span style={{ color: 'red' }}>{formatCurrency(item.tongTien)}</span>
+    //                 </Typography>
+    //                 <Button
+    //                   size="small"
+    //                   variant="outlined"
+    //                   component={Link}
+    //                   to={`/profile/order-detail/${item.id}`}
+    //                   sx={{ mt: 1, textTransform: 'none' }}
+    //                 >
+    //                   Xem chi tiết
+    //                 </Button>
+    //               </Grid>
+    //             </Grid>
+    //           </Paper>
+    //         ))
+    //       ) : (
+    //         <Box textAlign="center" mt={4}>
+    //           <Typography color="text.secondary">Chưa có đơn hàng nào</Typography>
+    //         </Box>
+    //       )}
+    //     </Box>
+    //   </Box>
+    // );
 }
 
 export default UserOrder;

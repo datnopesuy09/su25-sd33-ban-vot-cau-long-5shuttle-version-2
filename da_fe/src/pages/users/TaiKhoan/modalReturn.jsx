@@ -6,7 +6,6 @@ import {
   DialogActions,
   Button,
   Box,
-  Grid,
   Paper,
   Table,
   TableHead,
@@ -21,6 +20,8 @@ import {
   Chip,
   Stack,
   Typography,
+  MenuItem,
+  Select,
 } from '@mui/material';
 import { RemoveCircle } from '@mui/icons-material';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
@@ -50,6 +51,8 @@ export default function ModalReturn({ open, setOpen, setTab }) {
         price: 200000,
         image: 'https://via.placeholder.com/60',
         note: '',
+        reason: '',
+        customReason: '',
       },
       {
         id: 2,
@@ -59,6 +62,8 @@ export default function ModalReturn({ open, setOpen, setTab }) {
         price: 500000,
         image: 'https://via.placeholder.com/60',
         note: '',
+        reason: '',
+        customReason: '',
       },
     ]);
   }, []);
@@ -66,6 +71,22 @@ export default function ModalReturn({ open, setOpen, setTab }) {
   const changeNote = (value, product) => {
     const updated = billDetail.map((item) =>
       item.id === product.id ? { ...item, note: value } : item
+    );
+    setBillDetail(updated);
+  };
+
+  const changeReason = (value, product) => {
+    const updated = billDetail.map((item) =>
+      item.id === product.id
+        ? { ...item, reason: value, customReason: value === 'Khác' ? item.customReason : '' }
+        : item
+    );
+    setBillDetail(updated);
+  };
+
+  const changeCustomReason = (value, product) => {
+    const updated = billDetail.map((item) =>
+      item.id === product.id ? { ...item, customReason: value } : item
     );
     setBillDetail(updated);
   };
@@ -95,6 +116,7 @@ export default function ModalReturn({ open, setOpen, setTab }) {
         price: bd.price,
         idBillDetail: bd.id,
         note: bd.note,
+        reason: bd.reason === 'Khác' ? bd.customReason : bd.reason,
       }));
 
     const returnBill = {
@@ -119,7 +141,7 @@ export default function ModalReturn({ open, setOpen, setTab }) {
   );
 
   return (
-    <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={() => setOpen(false)} maxWidth="lg" fullWidth>
       <DialogTitle>Yêu cầu trả hàng</DialogTitle>
 
       <DialogContent dividers>
@@ -132,7 +154,7 @@ export default function ModalReturn({ open, setOpen, setTab }) {
           </Stack>
         </Box>
 
-        <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
+        <TableContainer component={Paper} sx={{ maxHeight: 500 }}>
           <Table stickyHeader size="small">
             <TableHead>
               <TableRow>
@@ -155,6 +177,7 @@ export default function ModalReturn({ open, setOpen, setTab }) {
                 <TableCell align="center">Số lượng</TableCell>
                 <TableCell align="center">Đơn giá</TableCell>
                 <TableCell align="center">Tổng</TableCell>
+                <TableCell align="center">Lý do trả hàng</TableCell>
                 <TableCell align="center">Ghi chú</TableCell>
               </TableRow>
             </TableHead>
@@ -241,6 +264,37 @@ export default function ModalReturn({ open, setOpen, setTab }) {
                     </Typography>
                   </TableCell>
 
+                  {/* Lý do */}
+                  <TableCell align="center">
+                    <Stack spacing={1}>
+                      <Select
+                        size="small"
+                        value={product.reason}
+                        onChange={(e) => changeReason(e.target.value, product)}
+                        displayEmpty
+                        disabled={product.quantityReturn <= 0}
+                      >
+                        <MenuItem value="">
+                          <em>Chọn lý do</em>
+                        </MenuItem>
+                        <MenuItem value="Sản phẩm bị lỗi">Sản phẩm bị lỗi</MenuItem>
+                        <MenuItem value="Giao sai sản phẩm">Giao sai sản phẩm</MenuItem>
+                        <MenuItem value="Không đúng mô tả">Không đúng mô tả</MenuItem>
+                        <MenuItem value="Khác">Khác</MenuItem>
+                      </Select>
+                      {product.reason === 'Khác' && (
+                        <TextField
+                          size="small"
+                          placeholder="Nhập lý do..."
+                          value={product.customReason}
+                          onChange={(e) => changeCustomReason(e.target.value, product)}
+                          disabled={product.quantityReturn <= 0}
+                        />
+                      )}
+                    </Stack>
+                  </TableCell>
+
+                  {/* Ghi chú */}
                   <TableCell align="center">
                     <TextField
                       fullWidth
