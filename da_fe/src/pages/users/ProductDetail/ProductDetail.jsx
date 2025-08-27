@@ -161,32 +161,102 @@ export default function ProductDetail() {
             user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
         const defaultEmail = user?.email || '';
 
-        // Sử dụng SweetAlert2 để thu thập thông tin
+        // Kiểm tra xem đã đăng ký chưa
+        try {
+            const checkResponse = await axios.get(`http://localhost:8080/api/pre-order/check-existing`, {
+                params: {
+                    idSanPhamCT: selectedVariant.id,
+                    email: defaultEmail || '',
+                    idTaiKhoan: idTaiKhoan || null,
+                },
+            });
+
+            if (checkResponse.data.exists) {
+                Swal.fire('Thông báo!', 'Bạn đã đăng ký thông báo cho sản phẩm này rồi!', 'info');
+                return;
+            }
+        } catch (error) {
+            console.log('Checking existing registration failed:', error);
+        }
+
+        // Sử dụng SweetAlert2 để thu thập thông tin với giao diện cải tiến
         const formValues = await Swal.fire({
-            title: 'Thông báo khi có hàng',
+            title: 'Đăng ký thông báo khi có hàng',
             html: `
-            <input id="swal-input1" class="swal2-input" placeholder="Email (bắt buộc)">
-            <input id="swal-input2" class="swal2-input" placeholder="Số điện thoại (tùy chọn)">
-            <input id="swal-input3" class="swal2-input" type="number" placeholder="Số lượng mong muốn" min="1">
-        `,
+                <div class="text-left space-y-4">
+                    <div class="bg-blue-50 p-4 rounded-lg mb-4">
+                        <h4 class="font-semibold text-blue-800 mb-2">📋 Quy trình thông báo:</h4>
+                        <ul class="text-sm text-blue-700 space-y-1">
+                            <li>1️⃣ Thông báo theo thứ tự đăng ký</li>
+                            <li>2️⃣ Bạn có 24h để hoàn tất đơn hàng</li>
+                            <li>3️⃣ Sau 24h sản phẩm chuyển người tiếp theo</li>
+                            <li>4️⃣ Mỗi email chỉ đăng ký 1 lần</li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                        <input id="swal-input1" class="swal2-input" placeholder="Nhập email của bạn" value="${defaultEmail}">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại (khuyên dùng)</label>
+                        <input id="swal-input2" class="swal2-input" placeholder="Nhập số điện thoại để nhận SMS">
+                        <p class="text-xs text-gray-500 mt-1">SMS sẽ được gửi ngay lập tức khi có hàng</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Số lượng mong muốn *</label>
+                        <select id="swal-input3" class="swal2-input">
+                            <option value="1">1 sản phẩm</option>
+                            <option value="2">2 sản phẩm</option>
+                            <option value="3">3 sản phẩm</option>
+                            <option value="4">4 sản phẩm</option>
+                            <option value="5">5 sản phẩm</option>
+                        </select>
+                        <p class="text-xs text-orange-600 mt-1">⚠️ Số lượng càng ít, cơ hội nhận thông báo càng cao</p>
+                    </div>
+
+                    <div class="bg-green-50 p-3 rounded-lg">
+                        <p class="text-sm text-green-800">
+                            <strong>💡 Mẹo:</strong> Đăng ký với số lượng nhỏ để tăng cơ hội nhận được thông báo!
+                        </p>
+                    </div>
+                </div>
+            `,
+            customClass: {
+                htmlContainer: 'text-left',
+                popup: 'max-w-md',
+            },
             focusConfirm: false,
             preConfirm: () => {
                 const email = document.getElementById('swal-input1').value;
                 const phone = document.getElementById('swal-input2').value;
                 const requestedQuantity = parseInt(document.getElementById('swal-input3').value) || 1;
+
                 if (!email) {
                     Swal.showValidationMessage('Vui lòng nhập email!');
                     return false;
                 }
-                if (requestedQuantity < 1) {
-                    Swal.showValidationMessage('Số lượng phải lớn hơn 0!');
+
+                // Validate email format
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    Swal.showValidationMessage('Email không hợp lệ!');
                     return false;
                 }
+
+                if (requestedQuantity < 1 || requestedQuantity > 5) {
+                    Swal.showValidationMessage('Số lượng phải từ 1-5!');
+                    return false;
+                }
+
                 return { email, phone, requestedQuantity };
             },
             showCancelButton: true,
-            confirmButtonText: 'Đăng ký',
-            cancelButtonText: 'Hủy',
+            confirmButtonText: 'Đăng ký ngay',
+            cancelButtonText: 'Hủy bỏ',
+            confirmButtonColor: '#3b82f6',
         });
 
         if (formValues.isConfirmed && formValues.value) {
@@ -194,21 +264,41 @@ export default function ProductDetail() {
             const payload = {
                 idSanPhamCT: selectedVariant.id,
                 idTaiKhoan: idTaiKhoan || null,
-                email: email || defaultEmail,
+                email: email,
                 phone: phone || null,
                 requestedQuantity: requestedQuantity,
+                priority: 'FCFS', // First Come First Served
+                registeredAt: new Date().toISOString(),
             };
 
             try {
                 const response = await axios.post('http://localhost:8080/api/pre-order/back-in-stock', payload);
                 if (response.status === 201) {
-                    Swal.fire('Thành công!', 'Bạn sẽ nhận thông báo khi sản phẩm có hàng!', 'success');
+                    Swal.fire({
+                        title: 'Đăng ký thành công! 🎉',
+                        html: `
+                            <div class="text-left">
+                                <p class="mb-3">Bạn đã đăng ký thành công thông báo cho sản phẩm:</p>
+                                <div class="bg-gray-50 p-3 rounded-lg mb-3">
+                                    <strong>${product.tenSanPham}</strong><br>
+                                    Màu: ${selectedColor} | Trọng lượng: ${selectedWeight}<br>
+                                    Số lượng: ${requestedQuantity}
+                                </div>
+                                <p class="text-sm text-gray-600">
+                                    📧 Chúng tôi sẽ gửi email thông báo khi sản phẩm có hàng.<br>
+                                    ${phone ? '📱 SMS cũng sẽ được gửi đến số điện thoại của bạn.' : ''}
+                                </p>
+                            </div>
+                        `,
+                        icon: 'success',
+                        confirmButtonText: 'Đã hiểu',
+                    });
                 } else {
                     Swal.fire('Thất bại!', response.data || 'Có lỗi xảy ra khi đăng ký thông báo!', 'error');
                 }
             } catch (error) {
                 console.error('Đăng ký thông báo thất bại', error);
-                const errorMessage = error.response?.data || 'Có lỗi xảy ra khi đăng ký thông báo!';
+                const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi đăng ký thông báo!';
                 Swal.fire('Thất bại!', errorMessage, 'error');
             }
         }

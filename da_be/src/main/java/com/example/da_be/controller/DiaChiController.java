@@ -23,6 +23,23 @@ public class DiaChiController {
 
     DiaChiService diaChiService;
 
+    @GetMapping("/public/all")
+    ApiResponse<List<DiaChiResponse>> getAllAddressesPublic(){
+        return ApiResponse.<List<DiaChiResponse>>builder()
+                .result(diaChiService.getAllDiaChi()) // Method mới
+                .code(1000)
+                .build();
+    }
+
+
+    @GetMapping("/public/by-user/{userId}")
+    ApiResponse<List<DiaChiResponse>> getAddressByUserId(@PathVariable Integer userId){
+        return ApiResponse.<List<DiaChiResponse>>builder()
+                .result(diaChiService.getDiaChiByUserId(userId))
+                .code(1000)
+                .build();
+    }
+
     @GetMapping("/getMyAddress")
     ApiResponse<List<DiaChiResponse>> getAll(){
         return ApiResponse.<List<DiaChiResponse>>builder()
