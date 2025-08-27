@@ -7,7 +7,6 @@ import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import { Link } from 'react-router-dom';
 import { TbEyeEdit } from 'react-icons/tb';
 import { toast } from 'react-toastify';
-import swal from 'sweetalert';
 import Swal from 'sweetalert2';
 
 function Product() {
@@ -76,25 +75,25 @@ function Product() {
 
         // Mở modal để nhập số lượng mới
         const { value: newStock } = await Swal.fire({
-    title: `Nhập số lượng kho mới cho ${product?.ten}`,
-    html: `
+            title: `Nhập số lượng kho mới cho ${product?.ten}`,
+            html: `
         <p>Yêu cầu nhập hàng: ${requestedQuantity}</p>
         <input id="swal-input1" class="swal2-input" type="number" placeholder="Số lượng mới" min="0">
     `,
-    focusConfirm: false,
-    preConfirm: () => {
-        const input = document.getElementById('swal-input1').value;
-        const newStockValue = parseInt(input);
-        if (isNaN(newStockValue) || newStockValue < 0) {
-            Swal.showValidationMessage('Vui lòng nhập số lượng hợp lệ!');
-            return false;
-        }
-        return newStockValue;
-    },
-    showCancelButton: true,
-    confirmButtonText: 'Cập nhật',
-    cancelButtonText: 'Hủy',
-});
+            focusConfirm: false,
+            preConfirm: () => {
+                const input = document.getElementById('swal-input1').value;
+                const newStockValue = parseInt(input);
+                if (isNaN(newStockValue) || newStockValue < 0) {
+                    Swal.showValidationMessage('Vui lòng nhập số lượng hợp lệ!');
+                    return false;
+                }
+                return newStockValue;
+            },
+            showCancelButton: true,
+            confirmButtonText: 'Cập nhật',
+            cancelButtonText: 'Hủy',
+        });
 
         if (newStock !== undefined) {
             try {
@@ -117,12 +116,8 @@ function Product() {
         }
     };
 
-    const handleUpdate = (id) => {
-        navigate(`/admin/quan-ly-san-pham/san-pham-ct/${id}/update`);
-
     const handleDetail = (id) => {
         navigate(`/admin/quan-ly-san-pham/san-pham-ct/${id}/detail`);
-
     };
 
     return (
@@ -199,9 +194,7 @@ function Product() {
                                     <td className="py-2 px-4">{startIndex + index + 1}</td>
                                     <td className="py-2 px-4">{sp.ten}</td>
                                     <td className="py-2 px-4 text-center">{sp.soLuong}</td>
-                                    <td className="py-2 px-4 text-center">
-                                        {pendingRequests[sp.id] || 0}
-                                    </td>
+                                    <td className="py-2 px-4 text-center">{pendingRequests[sp.id] || 0}</td>
                                     <td className="py-2 px-4 text-center">
                                         <span
                                             className={`inline-block px-3 py-1 rounded-full text-xs font-medium 
@@ -212,13 +205,8 @@ function Product() {
                                     </td>
                                     <td className="py-2 px-4 text-center">
                                         <button
-
-                                            // onClick={() => handleUpdate(sp.id)}
-                                            // className="text-amber-500 hover:text-amber-600 transition-transform transform hover:scale-110 text-xl mr-2"
-
                                             onClick={() => handleDetail(sp.id)}
                                             className="text-amber-500 hover:text-amber-600 transition-transform transform hover:scale-110 text-xl"
-
                                             title="Xem chi tiết"
                                         >
                                             <TbEyeEdit />
@@ -228,7 +216,12 @@ function Product() {
                                             className="text-blue-500 hover:text-blue-600 transition-transform transform hover:scale-110 text-xl"
                                             title="Cập nhật kho"
                                         >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg
+                                                className="w-5 h-5"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
                                                 <path
                                                     strokeLinecap="round"
                                                     strokeLinejoin="round"

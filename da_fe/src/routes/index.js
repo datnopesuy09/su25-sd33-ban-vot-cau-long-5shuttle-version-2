@@ -35,7 +35,6 @@ import CheckOut from '../pages/users/CheckOut/CheckOut';
 import SuccessOrder from '../pages/users/SuccessOrder/SuccessOrder';
 import OrderStatus from '../pages/admin/Order/OrderStatus';
 import Order from '../pages/admin/Order';
-import Indexx from '../pages/admin/Giảm Giá/PhieuGiamGia/index.jsx';
 import AddVoucher from '../pages/admin/Giảm Giá/PhieuGiamGia/add.jsx';
 import OfflineSale from '../pages/admin/Sale/index.jsx';
 import DotGiamGia from '../pages/admin/Giảm Giá/Đợt Giảm Giá/index.jsx';
@@ -51,13 +50,12 @@ import ChangePassword from '../pages/users/TaiKhoan/changePass.jsx';
 import AddressUser from '../pages/users/TaiKhoan/userAdress.jsx';
 import MyVoucher from '../pages/users/TaiKhoan/myVoucher.jsx';
 import AdminInfo from '../pages/admin/ad-info.jsx';
-import MyOrderDetail from '../pages/admin/nhanvien/draft.jsx';
-import { computeAxisValue } from '@mui/x-charts/internals';
+
 import UpdateProduct from '../pages/admin/Product/update.jsx';
-import ModalReturn from '../pages/users/TaiKhoan/demo.jsx';
 import InStoreOrders from '../pages/admin/Sale/InStoreOrders.jsx';
-import orderReturn from '../pages/users/TaiKhoan/orderReturn.jsx';
+import OrderReturn from '../pages/users/TaiKhoan/orderReturn.jsx';
 import SpctDetail from '../pages/admin/Product/SpctDetail.jsx';
+import ModalReturn from '../pages/users/TaiKhoan/modalReturn.jsx';
 // Public routes
 const publicRoutes = [
     { path: '/', component: Home },
@@ -110,7 +108,7 @@ const publicRoutes = [
             { path: 'change-password', component: ChangePassword, layout: null },
             { path: 'address', component: AddressUser, layout: null },
             { path: 'my-voucher', component: MyVoucher, layout: null },
-            { path: 'order-return/:id', component: orderReturn, layout: null },
+            { path: 'order-return/:id', component: OrderReturn, layout: null },
         ],
     },
     { path: '/login', component: Sign },
