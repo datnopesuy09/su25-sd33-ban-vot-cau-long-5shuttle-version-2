@@ -180,6 +180,7 @@ public class SanPhamCTService {
                     SanPhamCT matched = variantOpt.get();
                     VariantDTO variantDTO = new VariantDTO();
                     variantDTO.setId(matched.getId());
+
                     variantDTO.setMauSacTen(color);
                     variantDTO.setTrongLuongTen(weight);
                     variantDTO.setDonGia(matched.getDonGia());

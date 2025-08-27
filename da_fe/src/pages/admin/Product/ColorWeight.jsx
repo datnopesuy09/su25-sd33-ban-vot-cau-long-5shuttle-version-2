@@ -4,14 +4,14 @@ import axios from 'axios';
 import AddAttributeModal from './AddAttributeModal';
 
 const ColorWeight = ({ setSelectedColors, setSelectedWeights, errors, resetTrigger }) => {
-// const ColorWeight = ({
-//     selectedColors,
-//     setSelectedColors,
-//     selectedWeights,
-//     setSelectedWeights,
-//     errors,
-//     resetTrigger,
-// }) => {
+    // const ColorWeight = ({
+    //     selectedColors,
+    //     setSelectedColors,
+    //     selectedWeights,
+    //     setSelectedWeights,
+    //     errors,
+    //     resetTrigger,
+    // }) => {
     const [colors, setColors] = useState([]);
     const [weights, setWeights] = useState([]);
     const [selectedColorsState, setSelectedColorsState] = useState([]);
@@ -44,7 +44,7 @@ const ColorWeight = ({ setSelectedColors, setSelectedWeights, errors, resetTrigg
         fetchWeights();
     }, []);
 
-    // Đồng bộ selectedColors từ props
+    // // Đồng bộ selectedColors từ props
     // useEffect(() => {
     //     if (selectedColors && selectedColors.length > 0) {
     //         setSelectedColorsState(selectedColors);
@@ -58,7 +58,7 @@ const ColorWeight = ({ setSelectedColors, setSelectedWeights, errors, resetTrigg
     //     }
     // }, [selectedWeights]);
 
-    // // Đồng bộ với parent component
+    // Đồng bộ với parent component
     useEffect(() => {
         setSelectedColors(selectedColorsState);
     }, [selectedColorsState, setSelectedColors]);
