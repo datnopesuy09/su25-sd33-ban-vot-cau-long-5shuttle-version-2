@@ -28,6 +28,24 @@ public class DiaChiService {
     DiaChiMapper diaChiMapper;
     UserRepository userRepository;
 
+    public List<DiaChiResponse> getAllDiaChi() {
+        List<DiaChi> diaChiList = diaChiRepository.findAll();
+        return diaChiList.stream()
+                .map(diaChiMapper::toDiaChiResponse)
+                .toList();
+    }
+
+
+    public List<DiaChiResponse> getDiaChiByUserId(Integer userId) {
+    User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found with id: " + userId)); // Thay đổi này
+    
+    List<DiaChi> diaChiList = diaChiRepository.findByTaiKhoanId(userId); // Thay đổi này
+    return diaChiList.stream()
+            .map(diaChiMapper::toDiaChiResponse)
+            .toList();
+}
+
     private User getCurrentAuthenticatedUser() {
         var context = SecurityContextHolder.getContext();
         var email = context.getAuthentication().getName();
