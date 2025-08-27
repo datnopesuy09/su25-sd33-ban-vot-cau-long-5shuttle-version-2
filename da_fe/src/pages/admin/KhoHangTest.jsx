@@ -75,7 +75,7 @@ const KhoHangTestPage = () => {
             6: { label: 'Hoàn thành', color: 'bg-gray-200 text-gray-800' },
             7: { label: 'Đã hủy', color: 'bg-red-200 text-red-800' },
             8: { label: 'Trả hàng', color: 'bg-orange-200 text-orange-800' },
-            9: { label: 'Chờ nhập hàng', color: 'bg-yellow-300 text-yellow-900' },
+            // 9: { label: 'Chờ nhập hàng', color: 'bg-yellow-300 text-yellow-900' },
         };
         return statusMap[status] || { label: 'Không xác định', color: 'bg-gray-200 text-gray-800' };
     };

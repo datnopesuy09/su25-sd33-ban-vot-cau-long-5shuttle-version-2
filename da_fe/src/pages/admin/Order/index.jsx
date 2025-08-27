@@ -104,8 +104,8 @@ function Order() {
                 return { label: 'Đã hủy', color: 'bg-red-200 text-red-800' };
             case 8:
                 return { label: 'Trả hàng', color: 'bg-red-400 text-white' };
-            case 9:
-                return { label: 'Chờ nhập hàng', color: 'bg-orange-200 text-orange-800' };
+            // case 9:
+            //     return { label: 'Chờ nhập hàng', color: 'bg-orange-200 text-orange-800' };
             default:
                 return { label: 'Không xác định', color: 'bg-gray-200 text-gray-800' };
         }
@@ -113,7 +113,7 @@ function Order() {
 
     const statusOptions = [
         { label: 'TẤT CẢ', value: 'all' },
-        { label: 'CHỜ NHẬP HÀNG', value: '9' },
+        // { label: 'CHỜ NHẬP HÀNG', value: '9' },
         { label: 'CHỜ XÁC NHẬN', value: '1' },
         { label: 'CHỜ GIAO HÀNG', value: '2' },
         { label: 'ĐANG VẬN CHUYỂN', value: '3' },

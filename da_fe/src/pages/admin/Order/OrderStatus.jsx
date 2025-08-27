@@ -728,7 +728,7 @@ function OrderStatus() {
                     setReturnHistory={setReturnHistory}
                     currentOrderStatus={currentOrderStatus}
                 />
-                {preOrders.length > 0 && (
+                {/* {preOrders.length > 0 && (
                     <div className="p-6">
                         <h2 className="text-xl font-bold text-gray-800 mb-4">Danh sách đặt trước</h2>
                         <div className="space-y-4">
@@ -768,7 +768,7 @@ function OrderStatus() {
                             ))}
                         </div>
                     </div>
-                )}
+                )} */}
                 {returnHistory.length > 0 && (
                     <div className="p-6">
                         <h2 className="text-xl font-bold text-gray-800 mb-4">Lịch sử trả hàng</h2>

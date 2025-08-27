@@ -72,10 +72,10 @@ const KhoHangManagement = ({ hoaDon, onRestoreComplete, currentOrderStatus }) =>
 
     // Hoàn kho thủ công cho đơn hàng đã hủy
     const handleRestoreStock = async () => {
-        if (orderStatus !== 7) {
-            swal('Cảnh báo!', 'Chỉ có thể hoàn kho cho đơn hàng đã hủy', 'warning');
-            return;
-        }
+        // if (orderStatus !== 7) {
+        //     swal('Cảnh báo!', 'Chỉ có thể hoàn kho cho đơn hàng đã hủy', 'warning');
+        //     return;
+        // }
 
         if (restoreInfo.isRestored) {
             swal('Cảnh báo!', 'Đơn hàng này đã được hoàn kho trước đó!', 'warning');
@@ -178,7 +178,7 @@ const KhoHangManagement = ({ hoaDon, onRestoreComplete, currentOrderStatus }) =>
             6: { label: 'Hoàn thành', color: 'bg-gray-200 text-gray-800' },
             7: { label: 'Đã hủy', color: 'bg-red-200 text-red-800' },
             8: { label: 'Trả hàng', color: 'bg-orange-200 text-orange-800' },
-            9: { label: 'Chờ nhập hàng', color: 'bg-yellow-300 text-yellow-900' },
+            // 9: { label: 'Chờ nhập hàng', color: 'bg-yellow-300 text-yellow-900' },
         };
         return statusMap[status] || { label: 'Không xác định', color: 'bg-gray-200 text-gray-800' };
     };
@@ -217,9 +217,9 @@ const KhoHangManagement = ({ hoaDon, onRestoreComplete, currentOrderStatus }) =>
 
                 <div className="flex flex-wrap gap-3">
                     {/* Nút hoàn kho thông thường */}
-                    <button
+                    {/* <button
                         onClick={handleRestoreStock}
-                        disabled={isLoading || !restoreInfo.canNormalRestore}
+                        // disabled={isLoading || !restoreInfo.canNormalRestore}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                             restoreInfo.canNormalRestore && !isLoading
                                 ? 'bg-blue-600 text-white hover:bg-blue-700'
@@ -227,7 +227,7 @@ const KhoHangManagement = ({ hoaDon, onRestoreComplete, currentOrderStatus }) =>
                         }`}
                     >
                         {isLoading ? 'Đang xử lý...' : 'Hoàn kho'}
-                    </button>
+                    </button> */}
 
                     {/* Nút force hoàn kho (chỉ admin) */}
                     <button

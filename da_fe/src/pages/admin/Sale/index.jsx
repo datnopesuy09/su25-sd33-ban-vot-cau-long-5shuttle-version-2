@@ -247,15 +247,15 @@ function OfflineSale() {
     };
 
     const handleQuantityChange = async (delta, orderDetailId) => {
-    const currentItem = billDetails.find((item) => item.id === orderDetailId);
-    const newQuantity = Math.max(1, currentItem.soLuong + delta);
-    await updateQuantity(orderDetailId, newQuantity);
-    setQuantity(newQuantity);
+        const currentItem = billDetails.find((item) => item.id === orderDetailId);
+        const newQuantity = Math.max(1, currentItem.soLuong + delta);
+        await updateQuantity(orderDetailId, newQuantity);
+        setQuantity(newQuantity);
 
-    // Thêm dòng này để cập nhật lại chi tiết hóa đơn và sản phẩm
-    await fetchBillDetails(selectedBill.id);
-    // Nếu cần cập nhật lại danh sách sản phẩm trong ProductModal, có thể truyền callback xuống và gọi lại fetchProducts
-};
+        // Thêm dòng này để cập nhật lại chi tiết hóa đơn và sản phẩm
+        await fetchBillDetails(selectedBill.id);
+        // Nếu cần cập nhật lại danh sách sản phẩm trong ProductModal, có thể truyền callback xuống và gọi lại fetchProducts
+    };
 
     const handleProductModal = () => {
         if (!selectedBill) {
@@ -358,7 +358,7 @@ function OfflineSale() {
                                 />
                             </div>
 
-                            {preOrders.length > 0 && (
+                            {/* {preOrders.length > 0 && (
                                 <div className="p-6">
                                     <h2 className="text-xl font-bold text-gray-800 mb-4">Danh sách đặt trước</h2>
                                     <div className="space-y-4">
@@ -399,7 +399,7 @@ function OfflineSale() {
                                         ))}
                                     </div>
                                 </div>
-                            )}
+                            )} */}
                         </div>
                     )}
                 </div>
