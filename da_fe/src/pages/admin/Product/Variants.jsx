@@ -92,7 +92,7 @@ const Variants = ({ variants, handleRemoveVariant, handleChange, imagesByColor, 
     };
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 mt-4">
             <div className="bg-white rounded-xl shadow-lg overflow-hidden">
                 <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
