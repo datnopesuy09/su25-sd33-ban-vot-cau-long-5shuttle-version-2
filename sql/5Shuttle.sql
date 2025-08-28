@@ -223,6 +223,7 @@ CREATE TABLE LichSuDonHang (
     IdUser INT,
     IdHoaDon INT,
     MoTa NVARCHAR(255),
+    TrangThaiHoaDon NVARCHAR(255),
     NgayTao DATETIME,
     NgaySua DATETIME,
     TrangThai INT,

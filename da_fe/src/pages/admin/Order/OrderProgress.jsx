@@ -475,7 +475,15 @@ const OrderProgress = ({
                     <button
                         className={`px-6 py-3 rounded-xl transition-all duration-300 transform hover:scale-105 font-medium ${getActionButtonStyle(currentOrderStatus)}`}
                         disabled={currentOrderStatus === 6}
-                        onClick={() => handlePrepareStatusChange(currentOrderStatus)}
+                        onClick={() => {
+                            // Xác định trạng thái tiếp theo dựa trên logic nghiệp vụ
+                            let nextStatus = currentOrderStatus + 1;
+                            if (currentOrderStatus === 4) {
+                                // Trạng thái 4 cần thanh toán trước khi chuyển sang 5
+                                nextStatus = 5;
+                            }
+                            handlePrepareStatusChange(nextStatus);
+                        }}
                     >
                         {getActionButtonText(currentOrderStatus)}
                     </button>
