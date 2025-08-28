@@ -1,5 +1,6 @@
 package com.example.da_be.service;
 
+import com.example.da_be.dto.UpdateDeliveryInfoRequest;
 import com.example.da_be.entity.HoaDon;
 import com.example.da_be.entity.PhieuGiamGia;
 import com.example.da_be.entity.ThongBao;
@@ -114,6 +115,26 @@ public class HoaDonService {
         thongBaoRepository.save(thongBao);
 
         return updatedHoaDon;
+    }
+
+    @Transactional
+    public HoaDon updateDeliveryInfo(Integer idHoaDon, UpdateDeliveryInfoRequest request) {
+        HoaDon hoaDon = hoaDonRepository.findById(idHoaDon)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hóa đơn"));
+
+        // Cập nhật thông tin giao hàng
+        if (request.getTenNguoiNhan() != null) {
+            hoaDon.setTenNguoiNhan(request.getTenNguoiNhan());
+        }
+        if (request.getSdtNguoiNhan() != null) {
+            hoaDon.setSdtNguoiNhan(request.getSdtNguoiNhan());
+        }
+        if (request.getDiaChiNguoiNhan() != null) {
+            hoaDon.setDiaChiNguoiNhan(request.getDiaChiNguoiNhan());
+        }
+
+        hoaDon.setNgaySua(new Date());
+        return hoaDonRepository.save(hoaDon);
     }
 
 }

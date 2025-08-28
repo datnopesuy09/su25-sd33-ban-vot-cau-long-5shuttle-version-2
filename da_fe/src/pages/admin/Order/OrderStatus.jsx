@@ -276,6 +276,29 @@ function OrderStatus() {
         }
     };
 
+    const handleUpdateDeliveryInfo = async (deliveryInfo) => {
+        try {
+            const response = await axios.put(
+                `http://localhost:8080/api/hoa-don/${orderData.id}/delivery-info`,
+                deliveryInfo,
+                {
+                    headers: { 'Content-Type': 'application/json' },
+                },
+            );
+
+            if (response.status === 200) {
+                // Cập nhật orderData với thông tin mới
+                Object.assign(orderData, deliveryInfo);
+
+                swal('Thành công', 'Cập nhật thông tin người nhận thành công!', 'success');
+            }
+        } catch (error) {
+            console.error('Lỗi khi cập nhật thông tin giao hàng:', error);
+            swal('Lỗi', error.response?.data || 'Không thể cập nhật thông tin giao hàng', 'error');
+            throw error; // Re-throw để OrderInfo có thể handle
+        }
+    };
+
     const getStatusLabel = (status) => {
         switch (status) {
             case 1:
@@ -715,6 +738,7 @@ function OrderStatus() {
                     getStatusLabel={getStatusLabel}
                     getStatusStyle={getStatusStyle}
                     getStatus={getStatus}
+                    onUpdateDeliveryInfo={handleUpdateDeliveryInfo}
                 />
                 <ProductList
                     orderDetailDatas={orderDetailDatas}
