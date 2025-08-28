@@ -89,24 +89,20 @@ public class SanPhamCTController {
         SanPhamCT existingSanPhamCT = sanPhamCTRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("SanPhamCT not found"));
 
-        // Cập nhật các thuộc tính của SanPhamCT
+        // Chỉ cập nhật các thuộc tính đơn giản
         existingSanPhamCT.setSoLuong(sanPhamCT.getSoLuong());
         existingSanPhamCT.setDonGia(sanPhamCT.getDonGia());
-        existingSanPhamCT.setTrangThai(sanPhamCT.getTrangThai());
-        existingSanPhamCT.setMoTa(sanPhamCT.getMoTa());
+        
+        // Chỉ cập nhật trạng thái và mô tả nếu có
+        if (sanPhamCT.getTrangThai() != null) {
+            existingSanPhamCT.setTrangThai(sanPhamCT.getTrangThai());
+        }
+        if (sanPhamCT.getMoTa() != null) {
+            existingSanPhamCT.setMoTa(sanPhamCT.getMoTa());
+        }
 
-
-        // Cập nhật thông tin sản phẩm
-        SanPham existingSanPham = existingSanPhamCT.getSanPham();
-        existingSanPham.setTen(sanPhamCT.getSanPham().getTen());
-
-        // Cập nhật các mối quan hệ
-        existingSanPhamCT.setThuongHieu(sanPhamCT.getThuongHieu());
-        existingSanPhamCT.setChatLieu(sanPhamCT.getChatLieu());
-        existingSanPhamCT.setDiemCanBang(sanPhamCT.getDiemCanBang());
-        existingSanPhamCT.setDoCung(sanPhamCT.getDoCung());
-        existingSanPhamCT.setMauSac(sanPhamCT.getMauSac());
-        existingSanPhamCT.setTrongLuong(sanPhamCT.getTrongLuong());
+        // Không cập nhật các entity liên quan để tránh lỗi TransientPropertyValueException
+        // Các entity liên quan (ThuongHieu, ChatLieu, etc.) không nên thay đổi khi chỉ update số lượng và giá
 
         sanPhamCTRepository.save(existingSanPhamCT);
 
@@ -144,6 +140,65 @@ public class SanPhamCTController {
             return ResponseEntity
                     .badRequest()
                     .body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Có lỗi xảy ra: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/update-basic/{id}")
+    public ResponseEntity<?> updateBasicInfo(
+            @PathVariable int id,
+            @RequestBody Map<String, Object> payload
+    ) {
+        try {
+            SanPhamCT existingSanPhamCT = sanPhamCTRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại"));
+
+            // Cập nhật số lượng nếu có
+            if (payload.containsKey("soLuong")) {
+                Object soLuongObj = payload.get("soLuong");
+                Integer soLuong = null;
+                if (soLuongObj instanceof Integer) {
+                    soLuong = (Integer) soLuongObj;
+                } else if (soLuongObj instanceof String) {
+                    soLuong = Integer.parseInt((String) soLuongObj);
+                }
+                if (soLuong != null) {
+                    existingSanPhamCT.setSoLuong(soLuong);
+                }
+            }
+
+            // Cập nhật đơn giá nếu có
+            if (payload.containsKey("donGia")) {
+                Object donGiaObj = payload.get("donGia");
+                Double donGia = null;
+                if (donGiaObj instanceof Integer) {
+                    donGia = ((Integer) donGiaObj).doubleValue();
+                } else if (donGiaObj instanceof Long) {
+                    donGia = ((Long) donGiaObj).doubleValue();
+                } else if (donGiaObj instanceof Double) {
+                    donGia = (Double) donGiaObj;
+                } else if (donGiaObj instanceof String) {
+                    donGia = Double.parseDouble((String) donGiaObj);
+                }
+                if (donGia != null) {
+                    existingSanPhamCT.setDonGia(donGia);
+                }
+            }
+
+            sanPhamCTRepository.save(existingSanPhamCT);
+            
+            return ResponseEntity.ok(existingSanPhamCT);
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body("Sản phẩm không tồn tại");
+        } catch (NumberFormatException e) {
+            return ResponseEntity
+                    .badRequest()
+                    .body("Dữ liệu không hợp lệ");
         } catch (Exception e) {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
