@@ -52,12 +52,12 @@ import AddressUser from '../pages/users/TaiKhoan/userAdress.jsx';
 import MyVoucher from '../pages/users/TaiKhoan/myVoucher.jsx';
 import AdminInfo from '../pages/admin/ad-info.jsx';
 import MyOrderDetail from '../pages/admin/nhanvien/draft.jsx';
+import ReturnOrders from '../pages/admin/Order/ReturnOrders.jsx';
 import { computeAxisValue } from '@mui/x-charts/internals';
 import UpdateProduct from '../pages/admin/Product/update.jsx';
-import ModalReturn from '../pages/users/TaiKhoan/demo.jsx';
 import orderReturn from '../pages/users/TaiKhoan/orderReturn.jsx';
 import SpctDetail from '../pages/admin/Product/SpctDetail.jsx';
-// Public routes
+
 const publicRoutes = [
     { path: '/', component: Home },
     { path: '/admin', component: Admin, layout: AdminLayout },
@@ -115,9 +115,10 @@ const publicRoutes = [
 
     { path: '/forgot-password', component: ForgotPassword },
     { path: '/admin/thong-ke', component: ThongKe, layout: AdminLayout },
+    { path: '/admin/tra-hang', component: ReturnOrders, layout: AdminLayout },
 
     { path: '/test', component: ResponsiveAppBar, layout: null },
-    { path: '/check', component: ModalReturn, layout: null },
+
 ];
 
 const privateRoutes = [];

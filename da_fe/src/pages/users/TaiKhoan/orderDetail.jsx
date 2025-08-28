@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-
 import {
     Box, Typography, Paper, Button, Stack, Avatar, Grid,
     Divider
@@ -84,7 +83,7 @@ function OrderDetail() {
                                 'Content-Type': 'application/json',
                                 Authorization: `Bearer ${token}`,
                             },
-                        }
+                        },
                     );
                     toast.success('Đã hủy đơn hàng thành công');
                     fetchData();
@@ -101,8 +100,9 @@ function OrderDetail() {
         const returnableStatuses = [4, 6]; // Đã giao hoặc hoàn thành
         const daysAllowed = 7;
 
-        return returnableStatuses.includes(hoaDon.trangThai) &&
-            dayjs().diff(dayjs(hoaDon.ngayTao), 'day') <= daysAllowed;
+        return (
+            returnableStatuses.includes(hoaDon.trangThai) && dayjs().diff(dayjs(hoaDon.ngayTao), 'day') <= daysAllowed
+        );
     };
 
     const totalAmount = billDetail.reduce((total, item) => {
@@ -110,8 +110,9 @@ function OrderDetail() {
         return total + price * item.soLuong;
     }, 0);
 
-    const discountAmount = !voucher ? 0 :
-        voucher.kieuGiaTri === 0
+    const discountAmount = !voucher
+        ? 0
+        : voucher.kieuGiaTri === 0
             ? Math.min((totalAmount * voucher.giaTri) / 100, voucher.giaTriMax || Infinity)
             : voucher.giaTri;
 
@@ -121,7 +122,9 @@ function OrderDetail() {
 
     return (
         <Box>
-            <Typography variant="h6" fontWeight={600} mb={2}>Thông tin đơn hàng</Typography>
+            <Typography variant="h6" fontWeight={600} mb={2}>
+                Thông tin đơn hàng
+            </Typography>
 
             {hoaDon && (
                 <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
@@ -130,7 +133,11 @@ function OrderDetail() {
                         <LocationOnIcon color="action" />
                         <Box>
                             <Typography fontWeight={400}>
-                                {hoaDon.tenNguoiNhan} <span variant="body2" color="text.secondary"> | ({hoaDon.sdtNguoiNhan})</span>
+                                {hoaDon.tenNguoiNhan}{' '}
+                                <span variant="body2" color="text.secondary">
+                                    {' '}
+                                    | ({hoaDon.sdtNguoiNhan})
+                                </span>
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
                                 {hoaDon.diaChiNguoiNhan}
@@ -156,7 +163,8 @@ function OrderDetail() {
                                 {bill.sanPhamCT?.sanPham?.ten}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                                Phân loại: {bill.sanPhamCT?.mauSac?.ten}, {bill.sanPhamCT?.trongLuong?.ten}, {bill.sanPhamCT?.doCung?.ten}
+                                Phân loại: {bill.sanPhamCT?.mauSac?.ten}, {bill.sanPhamCT?.trongLuong?.ten},{' '}
+                                {bill.sanPhamCT?.doCung?.ten}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
                                 Số lượng: {bill.soLuong}
@@ -233,14 +241,13 @@ function OrderDetail() {
                             {dayjs(hoaDon?.ngayTao).format('DD/MM/YYYY HH:mm')}
                         </Typography>
                     </Box>
+                    {/* <Typography fontWeight={600}>
+                        Tổng thanh toán: <span style={{ color: 'red' }}>{formatCurrency(tongThanhToan)}</span>
+                    </Typography> */}
                 </Stack>
                 <Stack direction="row" spacing={1} sx={{ mt: 2 }} justify-content="end">
                     {hoaDon?.trangThai === 1 && (
-                        <Button
-                            onClick={() => handleHuyDonHang(hoaDon.id)}
-                            variant="outlined"
-                            color="error"
-                        >
+                        <Button onClick={() => handleHuyDonHang(hoaDon.id)} variant="outlined" color="error">
                             Hủy đơn hàng
                         </Button>
                     )}
@@ -257,6 +264,8 @@ function OrderDetail() {
                         Trở về
                     </Button>
                 </Stack>
+                {/* 
+                <ModalReturn open={openReturnModal} setOpen={setOpenReturnModal} setTab={() => {}} /> */}
             </Box>
         </Box>
     );

@@ -1,7 +1,7 @@
 package com.example.da_be.email;
 
 public class MailConstant {
-    public static final String LOGO_PATH = "/static/images/logo.png";
+    public static final String LOGO_PATH = "/images/logo.png";
 
     public static final String FONT_INVOICE = "/static/font/font-hoa-don.ttf";
 

@@ -25,8 +25,7 @@ import javax.crypto.spec.SecretKeySpec;
 public class SecurityConfig {
 
     private final String[] PUBLIC_ENDPOINTS = {
-            "/users",
-            "/auth/token", "/auth/introspect"
+            "/users", "/auth/token", "/auth/introspect"
     };
 
     @Value("${jwt.signerKey}")
@@ -35,8 +34,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
         httpSecurity.authorizeHttpRequests(request ->
-                //request.requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINTS).permitAll()
-                        request.anyRequest().permitAll());
+                request.anyRequest().permitAll());
+
+//        httpSecurity
+//                .oauth2Login(oauth2 -> oauth2
+//                        .defaultSuccessUrl("http://localhost:5173/login/success", true)
+//                        .failureUrl("http://localhost:5173/login/failure")
+//                );
 
         httpSecurity.oauth2ResourceServer(oauth2 ->
                 oauth2.jwt(jwtConfigurer ->
@@ -94,6 +98,10 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder(10);
     }
 
+//    @Bean
+//    public AuthenticationSuccessHandler oAuth2SuccessHandler() {
+//        return new CustomOAuth2SuccessHandler(); // sẽ viết ở bước 3
+//    }
 }
 
 
