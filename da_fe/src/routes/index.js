@@ -35,7 +35,6 @@ import CheckOut from '../pages/users/CheckOut/CheckOut';
 import SuccessOrder from '../pages/users/SuccessOrder/SuccessOrder';
 import OrderStatus from '../pages/admin/Order/OrderStatus';
 import Order from '../pages/admin/Order';
-import Indexx from '../pages/admin/Giảm Giá/PhieuGiamGia/index.jsx';
 import AddVoucher from '../pages/admin/Giảm Giá/PhieuGiamGia/add.jsx';
 import OfflineSale from '../pages/admin/Sale/index.jsx';
 import DotGiamGia from '../pages/admin/Giảm Giá/Đợt Giảm Giá/index.jsx';
@@ -53,11 +52,12 @@ import MyVoucher from '../pages/users/TaiKhoan/myVoucher.jsx';
 import AdminInfo from '../pages/admin/ad-info.jsx';
 import MyOrderDetail from '../pages/admin/nhanvien/draft.jsx';
 import ReturnOrders from '../pages/admin/Order/ReturnOrders.jsx';
-import { computeAxisValue } from '@mui/x-charts/internals';
 import UpdateProduct from '../pages/admin/Product/update.jsx';
-import orderReturn from '../pages/users/TaiKhoan/orderReturn.jsx';
 import SpctDetail from '../pages/admin/Product/SpctDetail.jsx';
 
+import InStoreOrders from '../pages/admin/Sale/InStoreOrders.jsx';
+import OrderReturn from '../pages/users/TaiKhoan/orderReturn.jsx';
+// Public routes
 const publicRoutes = [
     { path: '/', component: Home },
     { path: '/admin', component: Admin, layout: AdminLayout },
@@ -67,6 +67,7 @@ const publicRoutes = [
     { path: '/admin/tai-khoan/khach-hang/edit/:id', component: EditCustomer, layout: AdminLayout },
     { path: '/admin/thong-ke', component: ThongKe, layout: AdminLayout },
     { path: '/admin/ban-hang-tai-quay', component: OfflineSale, layout: AdminLayout },
+    { path: '/admin/ban-hang-tai-quay/don-hang', component: InStoreOrders, layout: AdminLayout },
 
     { path: '/admin/quan-ly-san-pham/mau-sac', component: Color, layout: AdminLayout },
     { path: '/admin/quan-ly-san-pham/san-pham', component: SanPham, layout: AdminLayout },
@@ -108,7 +109,7 @@ const publicRoutes = [
             { path: 'change-password', component: ChangePassword, layout: null },
             { path: 'address', component: AddressUser, layout: null },
             { path: 'my-voucher', component: MyVoucher, layout: null },
-            { path: 'order-return/:id', component: orderReturn, layout: null },
+            { path: 'order-return/:id', component: OrderReturn, layout: null },
         ],
     },
     { path: '/login', component: Sign },
@@ -118,7 +119,6 @@ const publicRoutes = [
     { path: '/admin/tra-hang', component: ReturnOrders, layout: AdminLayout },
 
     { path: '/test', component: ResponsiveAppBar, layout: null },
-
 ];
 
 const privateRoutes = [];

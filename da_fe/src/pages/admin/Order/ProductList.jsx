@@ -109,8 +109,10 @@ const ProductList = ({
                 return { label: 'Không xác định', color: 'bg-gray-200 text-gray-800' };
         }
     };
+
     console.log('trả hàng: ', returnHistory);
     console.log('hàng: ', orderDetailDatas);
+
     return (
         <div className="bg-gray-50 p-6">
             <div className="max-w-6xl mx-auto">
@@ -118,8 +120,8 @@ const ProductList = ({
                     <h1 className="text-2xl font-bold text-gray-800">Danh sách sản phẩm</h1>
                     <button
                         onClick={handleOpenProductModal}
-                        disabled={isOrderInTransit}
-                        className={`bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2 ${isOrderInTransit ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={currentOrderStatus >= 3}
+                        className={`bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2 ${currentOrderStatus >= 3 ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         <Plus size={18} />
                         Thêm sản phẩm
@@ -203,8 +205,8 @@ const ProductList = ({
                                         <div className="flex items-center gap-3 mb-4">
                                             <button
                                                 onClick={() => handleQuantityChange(-1, orderDetail.id)}
-                                                disabled={isOrderInTransit || orderDetail.soLuong <= 1}
-                                                className={`w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center hover:border-blue-500 hover:text-blue-500 transition-colors duration-200 ${isOrderInTransit || orderDetail.soLuong <= 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                disabled={currentOrderStatus >= 3 || orderDetail.soLuong <= 1}
+                                                className={`w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center hover:border-blue-500 hover:text-blue-500 transition-colors duration-200 ${currentOrderStatus >= 3 || orderDetail.soLuong <= 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             >
                                                 <Minus size={14} />
                                             </button>
@@ -213,15 +215,15 @@ const ProductList = ({
                                             </span>
                                             <button
                                                 onClick={() => handleQuantityChange(1, orderDetail.id)}
-                                                disabled={isOrderInTransit || orderDetail.sanPhamCT.soLuong <= 0}
-                                                className={`w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center hover:border-blue-500 hover:text-blue-500 transition-colors duration-200 ${isOrderInTransit || orderDetail.sanPhamCT.soLuong <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                disabled={currentOrderStatus >= 3 || orderDetail.sanPhamCT.soLuong <= 0}
+                                                className={`w-8 h-8 rounded-full border-2 border-gray-300 flex items-center justify-center hover:border-blue-500 hover:text-blue-500 transition-colors duration-200 ${currentOrderStatus >= 3 || orderDetail.sanPhamCT.soLuong <= 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             >
                                                 <Plus size={14} />
                                             </button>
                                         </div>
                                         <button
                                             onClick={() => handleOpenReturnModal(orderDetail)}
-                                            // disabled={!canReturn}
+                                            disabled={!canReturn}
                                             className={`p-2 bg-red-100 rounded-full hover:bg-red-200 transition-colors duration-200 ${!canReturn ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             title="Trả hàng"
                                         >

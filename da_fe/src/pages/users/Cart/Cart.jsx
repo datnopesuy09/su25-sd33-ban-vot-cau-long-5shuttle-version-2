@@ -6,8 +6,30 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import swal from 'sweetalert';
 import { CartContext } from './CartContext';
+
+import { X, Tag } from 'lucide-react';
+
+import { ShoppingCart, ShoppingBag, AlertCircle, CheckCircle2, Loader2, Truck, Shield, Gift } from 'lucide-react';
 import { useUserAuth } from '../../../contexts/userAuthContext';
-import { Loader2, ShoppingCart, ShoppingBag, Truck, Shield, Gift } from 'lucide-react';
+
+function parseJwt(token) {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+            atob(base64)
+                .split('')
+                .map(function (c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                })
+                .join(''),
+        );
+        return JSON.parse(jsonPayload);
+    } catch (e) {
+        return {};
+    }
+}
+
 
 const Cart = () => {
     const navigate = useNavigate();
@@ -20,8 +42,20 @@ const Cart = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isCheckingOut, setIsCheckingOut] = useState(false);
 
+    // const [notification, setNotification] = useState(null);
+
+
+
+    const token = user?.token || localStorage.getItem('userToken');
+    const idTaiKhoan = user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
+
+    console.log('id user: ', idTaiKhoan);
+    // Calculate shipping (free if over 1M VND)
+
+
     const [selectedItems, setSelectedItems] = useState([]);
     const isAllSelected = carts.length > 0 && selectedItems.length === carts.length;
+
 
     const shipping = totalPrice > 1000000 ? 0 : 30000;
     const finalTotal = totalPrice + shipping;
@@ -35,7 +69,7 @@ const Cart = () => {
     const handleSelectAll = () => {
         setSelectedItems(isAllSelected ? [] : carts.map((item) => item.id));
     };
-
+ console.log('Selected items cart:', selectedItems);
     useEffect(() => {
         const total = carts
             .filter((item) => selectedItems.includes(item.id))
@@ -80,6 +114,7 @@ const Cart = () => {
             const countRes = await axios.get(`http://localhost:8080/api/gio-hang/${userId}/count`);
             setCartItemCount(countRes.data || 0);
         } catch (error) {
+            console.error('Không thể cập nhật số lượng sản phẩm.', error);
             swal('Lỗi', 'Không thể cập nhật số lượng sản phẩm.', 'error');
         }
     };
@@ -95,6 +130,7 @@ const Cart = () => {
             // swal('Thành công', 'Đã xóa sản phẩm khỏi giỏ hàng.', 'success');
         } catch (error) {
             swal('Lỗi', 'Không thể xóa sản phẩm.', 'error');
+            console.error('Không thể xóa sản phẩm.', error);
         }
     };
 
@@ -104,13 +140,16 @@ const Cart = () => {
             await new Promise((resolve) => setTimeout(resolve, 1000));
             navigate('/gio-hang/checkout', { state: { selectedItems }});
         } catch (error) {
+            console.error('Có lỗi xảy ra khi chuyển đến thanh toán', error);
             swal('Lỗi', 'Có lỗi xảy ra khi chuyển đến thanh toán', 'error');
         } finally {
             setIsCheckingOut(false);
         }
     };
 
+
     if (!userId) return null;
+
 
     if (isLoading) {
         return (

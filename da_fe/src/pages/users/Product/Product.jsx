@@ -38,7 +38,19 @@ export default function Product() {
     const [stiffs, setStiffs] = useState([]);
     const [weights, setWeights] = useState([]);
     const [products, setProducts] = useState([]);
+    const [filteredProducts, setFilteredProducts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedFilters, setSelectedFilters] = useState({
+        thuonghieu: [],
+        mausac: [],
+        trongluong: [],
+        chatlieu: [],
+        diemcanbang: [],
+        docung: [],
+    });
+    const [priceRange, setPriceRange] = useState({ min: '', max: '' });
+    const [sortBy, setSortBy] = useState('popular');
+    const [searchQuery, setSearchQuery] = useState('');
 
     const loadBrands = async () => {
         try {
@@ -103,6 +115,7 @@ export default function Product() {
             console.log('products: ', products);
 
             setProducts(products);
+            setFilteredProducts(products); // Initialize filtered products
         } catch (error) {
             console.error('Failed to fetch Products', error);
         } finally {
@@ -130,7 +143,119 @@ export default function Product() {
         fetchData();
     }, []);
 
-    console.log("orrrrrr: ", products);
+    console.log('orrrrrr: ', products);
+
+    // Filter handling functions
+    const handleFilterChange = (filterId, value, isChecked) => {
+        setSelectedFilters((prev) => {
+            const newFilters = { ...prev };
+            if (isChecked) {
+                newFilters[filterId] = [...newFilters[filterId], value];
+            } else {
+                newFilters[filterId] = newFilters[filterId].filter((item) => item !== value);
+            }
+            return newFilters;
+        });
+    };
+
+    const handlePriceRangeChange = (type, value) => {
+        setPriceRange((prev) => ({
+            ...prev,
+            [type]: value,
+        }));
+    };
+
+    const handleSortChange = (sortOption) => {
+        setSortBy(sortOption);
+    };
+
+    const clearAllFilters = () => {
+        setSelectedFilters({
+            thuonghieu: [],
+            mausac: [],
+            trongluong: [],
+            chatlieu: [],
+            diemcanbang: [],
+            docung: [],
+        });
+        setPriceRange({ min: '', max: '' });
+        setSearchQuery('');
+    };
+
+    // Filter and sort products
+    useEffect(() => {
+        let filtered = [...products];
+
+        // Apply search filter
+        if (searchQuery.trim()) {
+            filtered = filtered.filter(
+                (product) =>
+                    product.tenSanPham?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    product.thuongHieu?.toLowerCase().includes(searchQuery.toLowerCase()),
+            );
+        }
+
+        // Apply category filters
+        Object.keys(selectedFilters).forEach((filterId) => {
+            if (selectedFilters[filterId].length > 0) {
+                filtered = filtered.filter((product) => {
+                    switch (filterId) {
+                        case 'thuonghieu':
+                            return selectedFilters[filterId].includes(product.thuongHieu);
+                        case 'mausac':
+                            return selectedFilters[filterId].includes(product.mauSac);
+                        case 'trongluong':
+                            return selectedFilters[filterId].includes(product.trongLuong);
+                        case 'chatlieu':
+                            return selectedFilters[filterId].includes(product.chatLieu);
+                        case 'diemcanbang':
+                            return selectedFilters[filterId].includes(product.diemCanBang);
+                        case 'docung':
+                            return selectedFilters[filterId].includes(product.doCung);
+                        default:
+                            return true;
+                    }
+                });
+            }
+        });
+
+        // Apply price filter
+        if (priceRange.min || priceRange.max) {
+            filtered = filtered.filter((product) => {
+                const price = product.giaKhuyenMai || product.donGia;
+                const min = priceRange.min ? parseFloat(priceRange.min) : 0;
+                const max = priceRange.max ? parseFloat(priceRange.max) : Infinity;
+                return price >= min && price <= max;
+            });
+        }
+
+        // Apply sorting
+        switch (sortBy) {
+            case 'newest':
+                filtered = filtered.sort((a, b) => new Date(b.ngayTao) - new Date(a.ngayTao));
+                break;
+            case 'price-high-low':
+                filtered = filtered.sort((a, b) => {
+                    const priceA = a.giaKhuyenMai || a.donGia;
+                    const priceB = b.giaKhuyenMai || b.donGia;
+                    return priceB - priceA;
+                });
+                break;
+            case 'price-low-high':
+                filtered = filtered.sort((a, b) => {
+                    const priceA = a.giaKhuyenMai || a.donGia;
+                    const priceB = b.giaKhuyenMai || b.donGia;
+                    return priceA - priceB;
+                });
+                break;
+            case 'popular':
+            default:
+                // Keep original order or sort by some popularity metric
+                break;
+        }
+
+        setFilteredProducts(filtered);
+    }, [products, selectedFilters, priceRange, searchQuery, sortBy]);
 
     const filters = [
         {
@@ -185,14 +310,22 @@ export default function Product() {
 
     const EnhancedProductListing = ({
         products,
+        filteredProducts,
         loading,
         filters,
         sortOptions,
         mobileFiltersOpen,
         setMobileFiltersOpen,
+        selectedFilters,
+        handleFilterChange,
+        priceRange,
+        handlePriceRangeChange,
+        searchQuery,
+        setSearchQuery,
+        handleSortChange,
+        clearAllFilters,
     }) => {
         const [viewMode, setViewMode] = useState('grid');
-        const [searchQuery, setSearchQuery] = useState('');
         const [openDisclosures, setOpenDisclosures] = useState({});
 
         const toggleDisclosure = (sectionId) => {
@@ -216,8 +349,7 @@ export default function Product() {
                                 {/* Enhanced Header */}
                                 <div className="flex items-center justify-between px-6 pb-4 border-b border-gray-200">
                                     <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
-                                        </div>
+                                        <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg"></div>
                                         <h2 className="text-xl font-bold text-gray-900">Bộ lọc</h2>
                                     </div>
                                     <button
@@ -232,6 +364,30 @@ export default function Product() {
 
                                 {/* Filters */}
                                 <div className="mt-4">
+                                    {/* Price Range Filter for Mobile */}
+                                    <div className="border-b border-gray-100 px-6 py-6">
+                                        <h3 className="font-semibold text-gray-900 text-base mb-4">Khoảng giá</h3>
+                                        <div className="space-y-3">
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="number"
+                                                    placeholder="Từ"
+                                                    value={priceRange.min}
+                                                    onChange={(e) => handlePriceRangeChange('min', e.target.value)}
+                                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                />
+                                                <input
+                                                    type="number"
+                                                    placeholder="Đến"
+                                                    value={priceRange.max}
+                                                    onChange={(e) => handlePriceRangeChange('max', e.target.value)}
+                                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                />
+                                            </div>
+                                            <div className="text-xs text-gray-500">VNĐ</div>
+                                        </div>
+                                    </div>
+
                                     {filters.map((section) => (
                                         <div key={section.id} className="border-b border-gray-100 px-6 py-6">
                                             <h3 className="-mx-2 -my-3 flow-root">
@@ -263,6 +419,18 @@ export default function Product() {
                                                                     id={`filter-mobile-${section.id}-${optionIdx}`}
                                                                     name={`${section.id}[]`}
                                                                     type="checkbox"
+                                                                    checked={
+                                                                        selectedFilters[section.id]?.includes(
+                                                                            option.value,
+                                                                        ) || false
+                                                                    }
+                                                                    onChange={(e) =>
+                                                                        handleFilterChange(
+                                                                            section.id,
+                                                                            option.value,
+                                                                            e.target.checked,
+                                                                        )
+                                                                    }
                                                                     className="h-5 w-5 rounded-lg border-2 border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2 transition-all"
                                                                 />
                                                                 <label
@@ -295,7 +463,10 @@ export default function Product() {
                                 <h1 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
                                     Sản phẩm mới
                                 </h1>
-                                <p className="text-gray-600 mt-2">Khám phá những sản phẩm công nghệ mới nhất</p>
+                                <p className="text-gray-600 mt-2">
+                                    Khám phá những sản phẩm công nghệ mới nhất
+                                    {!loading && ` (${filteredProducts?.length || 0} sản phẩm)`}
+                                </p>
                             </div>
                         </div>
 
@@ -331,17 +502,36 @@ export default function Product() {
                                     <div className="py-2">
                                         {sortOptions.map((option) => (
                                             <MenuItem key={option.name}>
-                                                <a
-                                                    href={option.href}
+                                                <button
+                                                    onClick={() => {
+                                                        let sortValue = '';
+                                                        switch (option.name) {
+                                                            case 'Phổ biến nhất':
+                                                                sortValue = 'popular';
+                                                                break;
+                                                            case 'Mới nhất':
+                                                                sortValue = 'newest';
+                                                                break;
+                                                            case 'Giá từ cao đến thấp':
+                                                                sortValue = 'price-high-low';
+                                                                break;
+                                                            case 'Giá từ thấp lên cao':
+                                                                sortValue = 'price-low-high';
+                                                                break;
+                                                            default:
+                                                                sortValue = 'popular';
+                                                        }
+                                                        handleSortChange(sortValue);
+                                                    }}
                                                     className={classNames(
                                                         option.current
                                                             ? 'bg-blue-50 text-blue-700 font-semibold'
                                                             : 'text-gray-700 hover:bg-gray-50',
-                                                        'block px-4 py-2.5 text-sm transition-colors data-[focus]:bg-gray-50',
+                                                        'block w-full text-left px-4 py-2.5 text-sm transition-colors data-[focus]:bg-gray-50',
                                                     )}
                                                 >
                                                     {option.name}
-                                                </a>
+                                                </button>
                                             </MenuItem>
                                         ))}
                                     </div>
@@ -371,8 +561,7 @@ export default function Product() {
                                             : 'text-gray-500 hover:text-gray-700',
                                         'p-2 rounded-lg transition-all',
                                     )}
-                                >
-                                </button>
+                                ></button>
                             </div>
 
                             {/* Mobile Filter Button */}
@@ -396,11 +585,45 @@ export default function Product() {
                             {/* Enhanced Desktop Filters */}
                             <form className="hidden lg:block space-y-6">
                                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 w-[222px]">
-                                    <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-3">
-                                        <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-3">
+                                            <div className="p-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg"></div>
+                                            Bộ lọc tìm kiếm
+                                        </h3>
+                                        {Object.values(selectedFilters).some((arr) => arr.length > 0) && (
+                                            <button
+                                                type="button"
+                                                onClick={clearAllFilters}
+                                                className="text-xs text-red-600 hover:text-red-700 font-medium"
+                                            >
+                                                Xóa tất cả
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Price Range Filter */}
+                                    <div className="border-b border-gray-100 pb-6 mb-6">
+                                        <h4 className="font-semibold text-gray-900 text-base mb-4">Khoảng giá</h4>
+                                        <div className="space-y-3">
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="number"
+                                                    placeholder="Từ"
+                                                    value={priceRange.min}
+                                                    onChange={(e) => handlePriceRangeChange('min', e.target.value)}
+                                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                />
+                                                <input
+                                                    type="number"
+                                                    placeholder="Đến"
+                                                    value={priceRange.max}
+                                                    onChange={(e) => handlePriceRangeChange('max', e.target.value)}
+                                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                />
+                                            </div>
+                                            <div className="text-xs text-gray-500">VNĐ</div>
                                         </div>
-                                        Bộ lọc tìm kiếm
-                                    </h3>
+                                    </div>
 
                                     {filters.map((section) => (
                                         <Disclosure
@@ -436,6 +659,18 @@ export default function Product() {
                                                                 id={`filter-${section.id}-${optionIdx}`}
                                                                 name={`${section.id}[]`}
                                                                 type="checkbox"
+                                                                checked={
+                                                                    selectedFilters[section.id]?.includes(
+                                                                        option.value,
+                                                                    ) || false
+                                                                }
+                                                                onChange={(e) =>
+                                                                    handleFilterChange(
+                                                                        section.id,
+                                                                        option.value,
+                                                                        e.target.checked,
+                                                                    )
+                                                                }
                                                                 className="h-5 w-5 rounded-lg border-2 border-gray-300 text-blue-600 focus:ring-blue-500 focus:ring-2 transition-all"
                                                             />
                                                             <label
@@ -472,8 +707,8 @@ export default function Product() {
                                                 'w-full',
                                             )}
                                         >
-                                            {products?.length > 0 ? (
-                                                products.map((product) => (
+                                            {filteredProducts?.length > 0 ? (
+                                                filteredProducts.map((product) => (
                                                     <ProductCard
                                                         key={product.id}
                                                         product={product}
@@ -488,9 +723,17 @@ export default function Product() {
                                                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
                                                         Không tìm thấy sản phẩm
                                                     </h3>
-                                                    <p className="text-gray-600">
+                                                    <p className="text-gray-600 mb-4">
                                                         Thử điều chỉnh bộ lọc hoặc từ khóa tìm kiếm
                                                     </p>
+                                                    {Object.values(selectedFilters).some((arr) => arr.length > 0) && (
+                                                        <button
+                                                            onClick={clearAllFilters}
+                                                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                                        >
+                                                            Xóa tất cả bộ lọc
+                                                        </button>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -507,11 +750,20 @@ export default function Product() {
     return (
         <EnhancedProductListing
             products={products}
+            filteredProducts={filteredProducts}
             loading={loading}
             filters={filters}
             sortOptions={sortOptions}
             mobileFiltersOpen={mobileFiltersOpen}
             setMobileFiltersOpen={setMobileFiltersOpen}
+            selectedFilters={selectedFilters}
+            handleFilterChange={handleFilterChange}
+            priceRange={priceRange}
+            handlePriceRangeChange={handlePriceRangeChange}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            handleSortChange={handleSortChange}
+            clearAllFilters={clearAllFilters}
         />
     );
 }

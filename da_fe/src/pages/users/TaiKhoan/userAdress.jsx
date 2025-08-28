@@ -37,6 +37,8 @@ const AddressUser = () => {
     const { user } = useUserAuth();
     const token = localStorage.getItem("userToken");
 
+
+    console.log("token", token);
     const fetchListDiaChi = async () => {
         try {
             const res = await axios.get("http://localhost:8080/dia-chi/getMyAddress", {

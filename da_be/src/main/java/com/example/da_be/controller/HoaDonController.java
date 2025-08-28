@@ -1,6 +1,7 @@
 package com.example.da_be.controller;
 
 import com.example.da_be.dto.ThanhToanRequestDTO;
+import com.example.da_be.dto.UpdateDeliveryInfoRequest;
 import com.example.da_be.entity.HoaDon;
 import com.example.da_be.exception.ResourceNotFoundException;
 import com.example.da_be.service.HoaDonCTService;
@@ -99,6 +100,20 @@ public class HoaDonController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Lỗi khi nhập hàng: " + e.getMessage());
+        }
+    }
+
+    @PutMapping("/{id}/delivery-info")
+    public ResponseEntity<?> updateDeliveryInfo(@PathVariable int id, @RequestBody UpdateDeliveryInfoRequest request) {
+        try {
+            HoaDon updatedHoaDon = hoaDonService.updateDeliveryInfo(id, request);
+            if (updatedHoaDon != null) {
+                return ResponseEntity.ok(updatedHoaDon);
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi khi cập nhật thông tin giao hàng: " + e.getMessage());
         }
     }
 

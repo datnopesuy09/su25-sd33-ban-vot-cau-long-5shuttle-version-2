@@ -104,8 +104,8 @@ function Order() {
                 return { label: 'Đã hủy', color: 'bg-red-200 text-red-800' };
             case 8:
                 return { label: 'Trả hàng', color: 'bg-red-400 text-white' };
-            case 9:
-                return { label: 'Chờ nhập hàng', color: 'bg-orange-200 text-orange-800' };
+            // case 9:
+            //     return { label: 'Chờ nhập hàng', color: 'bg-orange-200 text-orange-800' };
             default:
                 return { label: 'Không xác định', color: 'bg-gray-200 text-gray-800' };
         }
@@ -113,7 +113,7 @@ function Order() {
 
     const statusOptions = [
         { label: 'TẤT CẢ', value: 'all' },
-        { label: 'CHỜ NHẬP HÀNG', value: '9' },
+        // { label: 'CHỜ NHẬP HÀNG', value: '9' },
         { label: 'CHỜ XÁC NHẬN', value: '1' },
         { label: 'CHỜ GIAO HÀNG', value: '2' },
         { label: 'ĐANG VẬN CHUYỂN', value: '3' },
@@ -181,7 +181,7 @@ function Order() {
                             />
                         </div>
                         <div className="flex items-center gap-2 bg-white rounded-lg p-1.5 border">
-                            <span className="text-xs font-medium text-gray-600">Loại:</span>
+                            {/* <span className="text-xs font-medium text-gray-600">Loại:</span>
                             <label className="flex items-center gap-1 text-xs cursor-pointer">
                                 <input
                                     type="radio"
@@ -192,8 +192,8 @@ function Order() {
                                     className="text-blue-600 focus:ring-blue-500 w-3 h-3"
                                 />
                                 <span>Tất cả</span>
-                            </label>
-                            <label className="flex items-center gap-1 text-xs cursor-pointer">
+                            </label> */}
+                            {/* <label className="flex items-center gap-1 text-xs cursor-pointer">
                                 <input
                                     type="radio"
                                     name="type"
@@ -203,8 +203,8 @@ function Order() {
                                     className="text-blue-600 focus:ring-blue-500 w-3 h-3"
                                 />
                                 <span>Trực tuyến</span>
-                            </label>
-                            <label className="flex items-center gap-1 text-xs cursor-pointer">
+                            </label> */}
+                            {/* <label className="flex items-center gap-1 text-xs cursor-pointer">
                                 <input
                                     type="radio"
                                     name="type"
@@ -214,7 +214,7 @@ function Order() {
                                     className="text-blue-600 focus:ring-blue-500 w-3 h-3"
                                 />
                                 <span>Tại quầy</span>
-                            </label>
+                            </label> */}
                         </div>
                         <button className="ml-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-1">
                             <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -15,10 +15,15 @@ export const SidebarData = [
         vaiTro: 'Admin',
     },
     {
-        title: 'Bán hàng tại quầy',
-        icon: <ReceiptIcon />,
-        link: '/admin/ban-hang-tai-quay',
-    },
+    title: 'Bán hàng tại quầy',
+    icon: <ReceiptIcon />,
+    link: '/admin/ban-hang-tai-quay',
+    subItems: [
+        { title: 'Bán hàng', link: '/admin/ban-hang-tai-quay' },
+        { title: 'Đơn hàng', link: '/admin/ban-hang-tai-quay/don-hang' },
+    ],
+},
+
     {
         title: 'Quản lý đơn hàng',
         icon: <ShoppingCartIcon />,
