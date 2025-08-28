@@ -82,6 +82,7 @@ const CheckOut = () => {
     const [isLoadingAddress, setIsLoadingAddress] = useState(false);
 
     const selectedItems = location.state?.selectedItems || [];
+    const isBuyNow = location.state?.buyNow || false; // Kiểm tra có phải là mua ngay không
 
     const formatPhoneNumber = (phone) => {
         if (!phone) return '';
@@ -345,7 +346,7 @@ const CheckOut = () => {
             discountId: selectedDiscount?.id || null,
             phuongThucThanhToan: selectedPaymentMethod,
         };
-console.log('orderData:', orderData);
+        console.log('orderData:', orderData);
         try {
             const response = await axios.post('http://localhost:8080/api/dat-hang', orderData);
 
@@ -460,6 +461,45 @@ console.log('orderData:', orderData);
     return (
         <div className="container mx-auto p-4">
             <h1 className="text-2xl font-bold mb-4">Thanh toán</h1>
+
+            {/* Banner thông báo mua ngay */}
+            {isBuyNow && (
+                <div className="mb-4 bg-gradient-to-r from-red-500 to-orange-500 text-white p-4 rounded-xl shadow-lg">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                                />
+                            </svg>
+                            <div>
+                                <h3 className="font-bold text-lg">🚀 Mua ngay - Thanh toán nhanh</h3>
+                                <p className="text-sm opacity-90">
+                                    Bạn đang ở chế độ mua ngay. Đơn hàng sẽ được xử lý ưu tiên!
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                                />
+                            </svg>
+                            Quay lại
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-white/95 p-6 rounded-2xl shadow-xl border border-white/20">
                     <div className="flex items-center mb-4">

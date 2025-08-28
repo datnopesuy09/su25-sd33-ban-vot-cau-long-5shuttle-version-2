@@ -139,8 +139,11 @@ CREATE TABLE ThongBao (
     IdRedirect NVARCHAR(255),
     KieuThongBao NVARCHAR(255),
     TrangThai INT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (IdKhachHang) REFERENCES User(Id)
 );
+
 
 CREATE TABLE GioHang (
     Id INT AUTO_INCREMENT PRIMARY KEY,
@@ -247,6 +250,7 @@ CREATE TABLE PreOrder (
     so_luong INT NOT NULL,
     RequestedQuantity INT NOT NULL DEFAULT 1,
     ngay_tao DATETIME NOT NULL,
+    requested_quantity INT NOT NULL DEFAULT 1,
     trang_thai INT DEFAULT 0, -- 0: Chờ nhập hàng, 1: Đã nhập hàng, 2: Đã xác nhận
     FOREIGN KEY (id_hoa_don) REFERENCES HoaDon(id),
     FOREIGN KEY (id_tai_khoan) REFERENCES User(id),
@@ -332,6 +336,22 @@ CREATE TABLE Role_Permissions
     CONSTRAINT fk_role_permissions_role FOREIGN KEY (IdRole) REFERENCES `Role` (Id),
     CONSTRAINT fk_role_permissions_permission FOREIGN KEY (IdPermission) REFERENCES Permission (Id)
 );
+
+
+CREATE TABLE IF NOT EXISTS lich_su_hoan_kho (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    hoa_don_id INT NOT NULL,
+    san_pham_ct_id INT NOT NULL,
+    so_luong_hoan INT NOT NULL,
+    loai_hoan_kho ENUM('AUTO', 'MANUAL', 'FORCE') NOT NULL,
+    ly_do TEXT,
+    nguoi_thuc_hien VARCHAR(100),
+    thoi_gian TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (hoa_don_id) REFERENCES HoaDon(id),
+    INDEX idx_hoa_don_id (hoa_don_id),
+    INDEX idx_san_pham_ct_id (san_pham_ct_id)
+);
+
 
 
 -- Bảng Role

@@ -2,7 +2,7 @@
 import Swal from 'sweetalert2';
 import swal from 'sweetalert';
 import { useState, useEffect, useContext } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { CartContext } from '../Cart/CartContext';
 import ProductCard from '../Product/ProductCard';
@@ -30,6 +30,7 @@ import { toast } from 'react-toastify';
 
 export default function ProductDetail() {
     const { id } = useParams(); // Lấy ID từ URL
+    const navigate = useNavigate(); // Thêm navigate hook
     const [product, setProduct] = useState(null);
     const [selectedColor, setSelectedColor] = useState('');
     const [selectedWeight, setSelectedWeight] = useState('');
@@ -144,6 +145,62 @@ export default function ProductDetail() {
         } catch (error) {
             console.error('Thêm sản phẩm vào giỏ hàng thất bại', error);
             swal('Thất bại!', 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng!', 'error');
+        }
+    };
+
+    const handleBuyNow = async () => {
+        const selectedVariant = product.variants.find(
+            (v) => v.mauSacTen === selectedColor && v.trongLuongTen === selectedWeight,
+        );
+        if (!selectedVariant) {
+            swal('Thất bại!', 'Vui lòng chọn màu sắc và trọng lượng!', 'error');
+            return;
+        }
+        if (quantity > selectedVariant.soLuong) {
+            swal('Thất bại!', 'Số lượng vượt quá số lượng trong kho!', 'error');
+            return;
+        }
+
+        const token = user?.token || localStorage.getItem('userToken');
+        const idTaiKhoan =
+            user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
+
+        if (!idTaiKhoan) {
+            toast.warning('Bạn cần đăng nhập để mua hàng');
+            return;
+        }
+
+        try {
+            // Thêm sản phẩm vào giỏ hàng trước
+            const payload = {
+                idTaiKhoan,
+                idSanPhamCT: selectedVariant.id,
+                soLuong: quantity,
+            };
+
+            const response = await axios.post('http://localhost:8080/api/gio-hang/them', payload);
+            if (response.status === 201) {
+                // Lấy thông tin cart item vừa thêm
+                const cartResponse = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}`);
+                const latestCartItem = cartResponse.data.find((item) => item.sanPhamCT.id === selectedVariant.id);
+
+                if (latestCartItem) {
+                    // Chuyển đến trang checkout với item đã chọn
+                    navigate('/gio-hang/checkout', {
+                        state: {
+                            selectedItems: [latestCartItem.id],
+                            buyNow: true,
+                        },
+                    });
+                } else {
+                    swal('Lỗi!', 'Không thể tìm thấy sản phẩm trong giỏ hàng!', 'error');
+                }
+            } else {
+                swal('Thất bại!', 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng!', 'error');
+            }
+        } catch (error) {
+            console.error('Mua ngay thất bại', error);
+            swal('Thất bại!', 'Có lỗi xảy ra khi mua sản phẩm!', 'error');
         }
     };
 
@@ -611,28 +668,55 @@ export default function ProductDetail() {
 
                                 {/* Button conditional */}
                                 {currentQuantity > 0 ? (
-                                    <button
-                                        type="button"
-                                        onClick={handleAddCart}
-                                        className="w-full bg-gradient-to-r from-purple-800 to-pink-200 text-white font-semibold py-3 px-4 rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-200 transform hover:scale-105"
-                                    >
-                                        <div className="flex items-center justify-center space-x-2">
-                                            <svg
-                                                className="w-4 h-4"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M3 3h2l.4 2M7 13h10l4-8H5.4m2.6 8L6 7H3M7 13v8a2 2 0 002 2h6a2 2 0 002-2v-8m-8 0V9a2 2 0 012-2h4a2 2 0 012 2v4m-6 0h6"
-                                                />
-                                            </svg>
-                                            <span>Thêm vào giỏ hàng</span>
-                                        </div>
-                                    </button>
+                                    <div className="flex flex-col gap-3">
+                                        {/* Nút MUA NGAY */}
+                                        <button
+                                            type="button"
+                                            onClick={handleBuyNow}
+                                            className="w-full bg-gradient-to-r from-red-600 to-orange-500 text-white font-semibold py-3 px-4 rounded-xl hover:from-red-700 hover:to-orange-600 transition-all duration-200 transform hover:scale-105 shadow-lg"
+                                        >
+                                            <div className="flex items-center justify-center space-x-2">
+                                                <svg
+                                                    className="w-5 h-5"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M13 10V3L4 14h7v7l9-11h-7z"
+                                                    />
+                                                </svg>
+                                                <span>MUA NGAY</span>
+                                            </div>
+                                        </button>
+
+                                        {/* Nút Thêm vào giỏ hàng */}
+                                        <button
+                                            type="button"
+                                            onClick={handleAddCart}
+                                            className="w-full bg-gradient-to-r from-purple-800 to-pink-200 text-white font-semibold py-3 px-4 rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-200 transform hover:scale-105"
+                                        >
+                                            <div className="flex items-center justify-center space-x-2">
+                                                <svg
+                                                    className="w-4 h-4"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M3 3h2l.4 2M7 13h10l4-8H5.4m2.6 8L6 7H3M7 13v8a2 2 0 002 2h6a2 2 0 002-2v-8m-8 0V9a2 2 0 012-2h4a2 2 0 012 2v4m-6 0h6"
+                                                    />
+                                                </svg>
+                                                <span>Thêm vào giỏ hàng</span>
+                                            </div>
+                                        </button>
+                                    </div>
                                 ) : (
                                     <button
                                         type="button"
