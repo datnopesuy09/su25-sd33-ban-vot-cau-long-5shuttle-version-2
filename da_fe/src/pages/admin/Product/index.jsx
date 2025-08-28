@@ -12,7 +12,6 @@ import Swal from 'sweetalert2';
 function Product() {
     const navigate = useNavigate();
     const [dataTable, setDataTable] = useState([]);
-    const [pendingRequests, setPendingRequests] = useState({}); // Lưu trữ { idSanPhamCT: totalRequestedQuantity }
     const [filterStatus, setFilterStatus] = useState('');
     const [currentPage, setCurrentPage] = useState(0);
     const itemsPerPage = 5;
@@ -46,75 +45,9 @@ function Product() {
             });
     };
 
-    // Lấy danh sách yêu cầu nhập hàng
-    const getPendingRequests = () => {
-        axios
-            .get(`http://localhost:8080/api/pre-order/pending`)
-            .then((response) => {
-                const requestsMap = {};
-                response.data.forEach(([idSanPhamCT, totalRequested]) => {
-                    requestsMap[idSanPhamCT] = totalRequested;
-                });
-                setPendingRequests(requestsMap);
-            })
-            .catch((error) => {
-                console.error('Có lỗi xảy ra khi lấy yêu cầu nhập hàng:', error);
-                toast.error('Không thể tải danh sách yêu cầu nhập hàng!');
-            });
-    };
-
     useEffect(() => {
         getAllSanPham();
-        getPendingRequests();
     }, []);
-
-    // Xử lý cập nhật số lượng kho
-    const handleUpdateStock = async (id) => {
-        const product = dataTable.find((p) => p.id === id);
-        const requestedQuantity = pendingRequests[id] || 0;
-
-        // Mở modal để nhập số lượng mới
-        const { value: newStock } = await Swal.fire({
-            title: `Nhập số lượng kho mới cho ${product?.ten}`,
-            html: `
-        <p>Yêu cầu nhập hàng: ${requestedQuantity}</p>
-        <input id="swal-input1" class="swal2-input" type="number" placeholder="Số lượng mới" min="0">
-    `,
-            focusConfirm: false,
-            preConfirm: () => {
-                const input = document.getElementById('swal-input1').value;
-                const newStockValue = parseInt(input);
-                if (isNaN(newStockValue) || newStockValue < 0) {
-                    Swal.showValidationMessage('Vui lòng nhập số lượng hợp lệ!');
-                    return false;
-                }
-                return newStockValue;
-            },
-            showCancelButton: true,
-            confirmButtonText: 'Cập nhật',
-            cancelButtonText: 'Hủy',
-        });
-
-        if (newStock !== undefined) {
-            try {
-                const response = await axios.patch(`http://localhost:8080/api/pre-order/san-pham-ct/${id}/stock`, {
-                    soLuong: newStock,
-                });
-                if (response.status === 200) {
-                    toast.success('Cập nhật số lượng kho thành công!');
-                    // Cập nhật lại danh sách sản phẩm
-                    getAllSanPham();
-                    // Cập nhật lại yêu cầu nhập hàng (vì một số PreOrder có thể đã được xử lý)
-                    getPendingRequests();
-                } else {
-                    toast.error(response.data || 'Có lỗi xảy ra khi cập nhật kho!');
-                }
-            } catch (error) {
-                console.error('Cập nhật kho thất bại', error);
-                toast.error(error.response?.data || 'Có lỗi xảy ra khi cập nhật kho!');
-            }
-        }
-    };
 
     const handleDetail = (id) => {
         navigate(`/admin/quan-ly-san-pham/san-pham-ct/${id}/detail`);
@@ -182,7 +115,6 @@ function Product() {
                             <th className="py-3 px-4 text-left">STT</th>
                             <th className="py-3 px-4 text-left">Tên</th>
                             <th className="py-3 px-4 text-center">Số lượng</th>
-                            <th className="py-3 px-4 text-center">Yêu cầu nhập hàng</th>
                             <th className="py-3 px-4 text-center">Trạng thái</th>
                             <th className="py-3 px-4 text-center">Hành động</th>
                         </tr>
@@ -194,7 +126,6 @@ function Product() {
                                     <td className="py-2 px-4">{startIndex + index + 1}</td>
                                     <td className="py-2 px-4">{sp.ten}</td>
                                     <td className="py-2 px-4 text-center">{sp.soLuong}</td>
-                                    <td className="py-2 px-4 text-center">{pendingRequests[sp.id] || 0}</td>
                                     <td className="py-2 px-4 text-center">
                                         <span
                                             className={`inline-block px-3 py-1 rounded-full text-xs font-medium 
@@ -211,31 +142,12 @@ function Product() {
                                         >
                                             <TbEyeEdit />
                                         </button>
-                                        <button
-                                            onClick={() => handleUpdateStock(sp.id)}
-                                            className="text-blue-500 hover:text-blue-600 transition-transform transform hover:scale-110 text-xl"
-                                            title="Cập nhật kho"
-                                        >
-                                            <svg
-                                                className="w-5 h-5"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                viewBox="0 0 24 24"
-                                            >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M3 3h18v18H3V3zm9 12v-3m0 0v-3m0 3h3m-3 0H9"
-                                                />
-                                            </svg>
-                                        </button>
                                     </td>
                                 </tr>
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="6" className="text-center py-4 text-gray-500">
+                                <td colSpan="5" className="text-center py-4 text-gray-500">
                                     Không có sản phẩm nào.
                                 </td>
                             </tr>

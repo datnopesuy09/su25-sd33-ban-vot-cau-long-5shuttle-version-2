@@ -4,7 +4,8 @@ import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { TbEyeEdit } from 'react-icons/tb';
-import { Search, Filter, Package, ChevronDown, Edit3, X, Save } from 'lucide-react';
+import { Search, Filter, Package, ChevronDown, Edit3, X, Save, PackagePlus } from 'lucide-react';
+import Swal from 'sweetalert2';
 
 function SpctDetail() {
     const { id } = useParams();
@@ -14,6 +15,7 @@ function SpctDetail() {
     const [isModalOpen, setIsModalOpen] = useState(false); // mở/tắt modal
     const [variants, setVariants] = useState([]);
     const [isLoading, setIsLoading] = useState(false); // loading state cho update
+    const [pendingRequests, setPendingRequests] = useState({}); // lưu trữ yêu cầu nhập hàng
 
     const handleOpenModal = (variant) => {
         setSelectedVariant(variant);
@@ -132,11 +134,149 @@ function SpctDetail() {
         };
 
         fetchProductDetail();
+        getPendingRequests();
     }, [id]);
 
     const handleNavigateToProduct = () => {
         navigate('/admin/quan-ly-san-pham/san-pham');
     };
+
+    // Lấy danh sách yêu cầu nhập hàng
+    const getPendingRequests = () => {
+        axios
+            .get(`http://localhost:8080/api/pre-order/pending`)
+            .then((response) => {
+                const requestsMap = {};
+                response.data.forEach(([idSanPhamCT, totalRequested]) => {
+                    requestsMap[idSanPhamCT] = totalRequested;
+                });
+                setPendingRequests(requestsMap);
+            })
+            .catch((error) => {
+                console.error('Có lỗi xảy ra khi lấy yêu cầu nhập hàng:', error);
+                toast.error('Không thể tải danh sách yêu cầu nhập hàng!');
+            });
+    };
+
+    // Xử lý cập nhật số lượng kho cho variant
+    const handleUpdateStock = async (variant) => {
+    const requestedQuantity = pendingRequests[variant.id] || 0;
+
+    // Modal với 2 options
+    const { value: result } = await Swal.fire({
+        title: `Cập nhật kho cho sản phẩm`,
+        html: `
+            <div class="text-left mb-4">
+                <p><strong>Sản phẩm:</strong> ${productDetail?.tenSanPham}</p>
+                <p><strong>Màu sắc:</strong> ${variant.color}</p>
+                <p><strong>Trọng lượng:</strong> ${variant.weight}</p>
+                <p><strong>Số lượng hiện tại:</strong> ${variant.quantity}</p>
+                <p><strong>Yêu cầu nhập hàng:</strong> ${requestedQuantity}</p>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Chọn loại cập nhật:</label>
+                <select id="update-type" class="swal2-select">
+                    <option value="add">Nhập thêm hàng (cộng dồn)</option>
+                    <option value="set">Cập nhật tổng số lượng (thay thế)</option>
+                </select>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Số lượng:</label>
+                <input id="swal-input1" class="swal2-input" type="number" placeholder="Nhập số lượng" min="0" value="0">
+            </div>
+            
+            <div id="preview" class="text-sm text-gray-600 mt-2"></div>
+        `,
+        focusConfirm: false,
+        didOpen: () => {
+            const updateTypeSelect = document.getElementById('update-type');
+            const quantityInput = document.getElementById('swal-input1');
+            const preview = document.getElementById('preview');
+            
+            const updatePreview = () => {
+                const updateType = updateTypeSelect.value;
+                const inputValue = parseInt(quantityInput.value) || 0;
+                
+                if (updateType === 'add') {
+                    const newTotal = variant.quantity + inputValue;
+                    preview.innerHTML = `<strong>Kết quả:</strong> ${variant.quantity} + ${inputValue} = <span class="text-blue-600">${newTotal}</span> sản phẩm`;
+                } else {
+                    preview.innerHTML = `<strong>Kết quả:</strong> Số lượng kho = <span class="text-blue-600">${inputValue}</span> sản phẩm`;
+                }
+            };
+            
+            updateTypeSelect.addEventListener('change', updatePreview);
+            quantityInput.addEventListener('input', updatePreview);
+            updatePreview(); // Initial preview
+        },
+        preConfirm: () => {
+            const updateType = document.getElementById('update-type').value;
+            const inputValue = parseInt(document.getElementById('swal-input1').value);
+            
+            if (isNaN(inputValue) || inputValue < 0) {
+                Swal.showValidationMessage('Vui lòng nhập số lượng hợp lệ!');
+                return false;
+            }
+            
+            let finalQuantity;
+            if (updateType === 'add') {
+                finalQuantity = variant.quantity + inputValue;
+                if (inputValue === 0) {
+                    Swal.showValidationMessage('Vui lòng nhập số lượng cần thêm!');
+                    return false;
+                }
+            } else {
+                finalQuantity = inputValue;
+            }
+            
+            return {
+                type: updateType,
+                inputValue: inputValue,
+                finalQuantity: finalQuantity
+            };
+        },
+        showCancelButton: true,
+        confirmButtonText: 'Cập nhật',
+        cancelButtonText: 'Hủy',
+        customClass: {
+            container: 'swal-wide'
+        }
+    });
+
+    if (result) {
+        try {
+            const response = await axios.patch(
+                `http://localhost:8080/api/pre-order/san-pham-ct/${variant.id}/stock`,
+                {
+                    soLuong: result.finalQuantity,
+                }
+            );
+            
+            if (response.status === 200) {
+                const successMessage = result.type === 'add' 
+                    ? `Đã thêm ${result.inputValue} sản phẩm vào kho. Tổng: ${result.finalQuantity}`
+                    : `Đã cập nhật số lượng kho thành ${result.finalQuantity} sản phẩm`;
+                    
+                toast.success(successMessage);
+
+                // Cập nhật lại danh sách variants trong state
+                setVariants((prevVariants) =>
+                    prevVariants.map((v) => (v.id === variant.id ? { ...v, quantity: result.finalQuantity } : v)),
+                );
+
+                // Cập nhật lại yêu cầu nhập hàng
+                getPendingRequests();
+            } else {
+                toast.error(response.data || 'Có lỗi xảy ra khi cập nhật kho!');
+            }
+        } catch (error) {
+            console.error('Cập nhật kho thất bại', error);
+            toast.error(error.response?.data || 'Có lỗi xảy ra khi cập nhật kho!');
+        }
+    }
+};
 
     return (
         <div className="min-h-screen bg-gray-50 p-6">
@@ -273,13 +413,16 @@ function SpctDetail() {
                                 <th className="w-16 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                                     SL
                                 </th>
+                                <th className="w-16 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                                    Yêu cầu
+                                </th>
                                 <th className="w-24 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                                     Đơn giá
                                 </th>
                                 <th className="w-20 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                                     Trạng thái
                                 </th>
-                                <th className="w-16 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                                <th className="w-20 px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                                     Thao tác
                                 </th>
                             </tr>
@@ -357,6 +500,17 @@ function SpctDetail() {
                                             </span>
                                         </td>
                                         <td className="px-2 py-3 text-center">
+                                            <span
+                                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                    pendingRequests[item.id] > 0
+                                                        ? 'bg-orange-100 text-orange-800'
+                                                        : 'bg-gray-100 text-gray-600'
+                                                }`}
+                                            >
+                                                {pendingRequests[item.id] || 0}
+                                            </span>
+                                        </td>
+                                        <td className="px-2 py-3 text-center">
                                             <div
                                                 className="text-xs font-medium text-gray-900"
                                                 title={`${item.price.toLocaleString('vi-VN')}đ`}
@@ -377,19 +531,28 @@ function SpctDetail() {
                                             </span>
                                         </td>
                                         <td className="px-2 py-3 text-center">
-                                            <button
-                                                onClick={() => handleOpenModal(item)}
-                                                className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors duration-150"
-                                                title="Chỉnh sửa"
-                                            >
-                                                <Edit3 className="w-3 h-3" />
-                                            </button>
+                                            <div className="flex items-center justify-center gap-1">
+                                                <button
+                                                    onClick={() => handleOpenModal(item)}
+                                                    className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors duration-150"
+                                                    title="Chỉnh sửa"
+                                                >
+                                                    <Edit3 className="w-3 h-3" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleUpdateStock(item)}
+                                                    className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 transition-colors duration-150"
+                                                    title="Cập nhật kho"
+                                                >
+                                                    <PackagePlus className="w-3 h-3" />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="13" className="px-6 py-12 text-center">
+                                    <td colSpan="14" className="px-6 py-12 text-center">
                                         <div className="flex flex-col items-center justify-center">
                                             <Package className="w-12 h-12 text-gray-300 mb-4" />
                                             <p className="text-gray-500 text-lg font-medium">Không có dữ liệu</p>
