@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle, ShoppingBag, Package, Clock, Star, Trophy, Zap } from 'lucide-react';
+import { useNavigate } from "react-router-dom";
 
 const SuccessOrder = ({ orderNumber = "VCL2024061201", onContinueShopping }) => {
   const handleContinueShopping = () => {
@@ -9,6 +10,7 @@ const SuccessOrder = ({ orderNumber = "VCL2024061201", onContinueShopping }) => 
       window.location.href = '/san-pham';
     }
   };
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#2f19ae] to-purple-500 to-blue-600 relative overflow-hidden">
@@ -133,7 +135,7 @@ const SuccessOrder = ({ orderNumber = "VCL2024061201", onContinueShopping }) => 
 
                 {/* Secondary Actions */}
                 <div className="space-y-3">
-                  <button className="w-full bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-6 rounded-2xl border-2 border-gray-200 hover:border-emerald-300 transition-all duration-200 shadow-md hover:shadow-lg">
+                  <button onClick={() => navigate("/profile/order")} className="w-full bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-6 rounded-2xl border-2 border-gray-200 hover:border-emerald-300 transition-all duration-200 shadow-md hover:shadow-lg">
                     📦 Theo dõi đơn hàng
                   </button>
                   

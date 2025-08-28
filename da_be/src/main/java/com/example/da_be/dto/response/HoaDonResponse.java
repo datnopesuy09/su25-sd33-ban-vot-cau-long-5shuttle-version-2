@@ -29,5 +29,7 @@ public class HoaDonResponse {
      String diaChiNguoiNhan;
      BigDecimal phiShip;
      BigDecimal tongTien;
+     Date ngayTao;
+     Date ngaySua;
      Integer trangThai;
 }

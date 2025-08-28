@@ -4,6 +4,7 @@ import com.example.da_be.dto.request.ApiResponse;
 import com.example.da_be.dto.request.PhieuTraHang.CreationPhieuTraHangOnlineRequest;
 import com.example.da_be.dto.request.PhieuTraHang.PhieuTraHangApprovalRequest;
 import com.example.da_be.dto.response.PhieuTraHangResponse;
+import com.example.da_be.dto.response.SanPhamTraResponse;
 import com.example.da_be.service.PhieuTraHangService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
@@ -54,5 +55,22 @@ public class PhieuTraHangController {
                 .result(phieuTraHangService.approveReturn(request))
                 .build();
     }
+
+//    @GetMapping("/{id}/products")
+//    public ApiResponse<List<SanPhamTraResponse>> getReturnProducts(@PathVariable Integer id) {
+//        return ApiResponse.<List<SanPhamTraResponse>>builder()
+//                .result(phieuTraHangService.getReturnProductsByPhieuTraHangId(id))
+//                .code(1000)
+//                .build();
+//    }
+
+    @GetMapping("/by-order/{orderId}")
+    public ApiResponse<PhieuTraHangResponse> getByOrderId(@PathVariable Integer orderId) {
+        return ApiResponse.<PhieuTraHangResponse>builder()
+                .result(phieuTraHangService.getByOrderId(orderId))
+                .code(1000)
+                .build();
+    }
+
 
 }

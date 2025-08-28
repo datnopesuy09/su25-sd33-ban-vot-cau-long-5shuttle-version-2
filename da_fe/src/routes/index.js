@@ -55,7 +55,6 @@ import MyOrderDetail from '../pages/admin/nhanvien/draft.jsx';
 import ReturnOrders from '../pages/admin/Order/ReturnOrders.jsx';
 import { computeAxisValue } from '@mui/x-charts/internals';
 import UpdateProduct from '../pages/admin/Product/update.jsx';
-import ModalReturn from '../pages/users/TaiKhoan/demo.jsx';
 import orderReturn from '../pages/users/TaiKhoan/orderReturn.jsx';
 
 const publicRoutes = [
@@ -117,7 +116,6 @@ const publicRoutes = [
     { path: '/admin/tra-hang', component: ReturnOrders, layout: AdminLayout },
 
     { path: '/test', component: ResponsiveAppBar, layout: null },
-     { path: '/check', component: ModalReturn, layout: null },
 
 ];
 

@@ -113,8 +113,8 @@ function OrderDetail() {
     const discountAmount = !voucher
         ? 0
         : voucher.kieuGiaTri === 0
-          ? Math.min((totalAmount * voucher.giaTri) / 100, voucher.giaTriMax || Infinity)
-          : voucher.giaTri;
+            ? Math.min((totalAmount * voucher.giaTri) / 100, voucher.giaTriMax || Infinity)
+            : voucher.giaTri;
 
     const hoaDon = billDetail[0]?.hoaDon;
     const phiShip = hoaDon?.phiShip || 0;
@@ -241,6 +241,9 @@ function OrderDetail() {
                             {dayjs(hoaDon?.ngayTao).format('DD/MM/YYYY HH:mm')}
                         </Typography>
                     </Box>
+                    {/* <Typography fontWeight={600}>
+                        Tổng thanh toán: <span style={{ color: 'red' }}>{formatCurrency(tongThanhToan)}</span>
+                    </Typography> */}
                 </Stack>
                 <Stack direction="row" spacing={1} sx={{ mt: 2 }} justify-content="end">
                     {hoaDon?.trangThai === 1 && (
@@ -261,11 +264,8 @@ function OrderDetail() {
                         Trở về
                     </Button>
                 </Stack>
-                <Typography fontWeight={600}>
-                    Tổng thanh toán: <span style={{ color: 'red' }}>{formatCurrency(tongThanhToan)}</span>
-                </Typography>
-
-                <ModalReturn open={openReturnModal} setOpen={setOpenReturnModal} setTab={() => {}} />
+                {/* 
+                <ModalReturn open={openReturnModal} setOpen={setOpenReturnModal} setTab={() => {}} /> */}
             </Box>
         </Box>
     );

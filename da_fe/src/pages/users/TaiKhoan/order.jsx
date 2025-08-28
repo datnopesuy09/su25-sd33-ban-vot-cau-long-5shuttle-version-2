@@ -42,8 +42,10 @@ const statusMap = {
 const getStatus = (status) => statusMap[status]?.label || 'Không xác định';
 const getStatusStyle = (status) => statusMap[status]?.color || 'bg-gray-100 text-gray-600';
 
-const formatCurrency = (value) =>
-  value.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+const formatCurrency = (value) => {
+  const n = Number(value ?? 0);
+  return n.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+};
 
 function UserOrder() {
   const [selectedTab, setSelectedTab] = useState('Tất cả');
@@ -106,11 +108,30 @@ function UserOrder() {
               );
               const chiTiet = detailRes.data.result;
 
+              let returnDetails = [];
+              if (bill.trangThai === 8) {
+                try {
+                  const returnRes = await axios.get(
+                    `http://localhost:8080/phieu-tra-hang/by-order/${bill.id}`,
+                    { headers }
+                  );
+                  const phieuTra = returnRes.data.result;
+
+                  returnDetails = phieuTra?.chiTietTraHang || []; // ✅ đúng field
+                  bill.tongTien = phieuTra?.soTienHoanLai || bill.tongTien; // nếu BE có số tiền hoàn
+                  bill.ngayTao = phieuTra?.ngayTao || bill.ngayTao;         // cập nhật ngày tạo từ phiếu trả
+                  bill.ngaySua = phieuTra?.ngayXuLy || bill.ngaySua;
+                } catch (err) {
+                  console.error("Không lấy được phiếu trả hàng:", err);
+                }
+              }
+
               return {
                 ...bill,
                 chiTiet,
-                // lấy ngayTao chuẩn từ hoaDon trong chi tiết
+                returnDetails, // giữ thông tin sản phẩm hoàn trả
                 ngayTao: chiTiet?.[0]?.hoaDon?.ngayTao || null,
+                ngaySua: chiTiet?.[0]?.hoaDon?.ngaySua || null,
               };
             } catch {
               return bill;
@@ -190,6 +211,53 @@ function UserOrder() {
               </Box>
               <Divider sx={{ mx: 1.5 }} />
               <Box sx={{ px: 2, pt: 1.5 }}>
+                {(item.trangThai === 8 ? item.returnDetails : item.chiTiet)
+                  ?.map((sp, idx, arr) => (
+                    <React.Fragment key={idx}>
+                      <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                        <Box>
+                          <Grid container spacing={1}>
+                            <Grid item xs={3}>
+                              <img
+                                src={sp?.sanPhamCT?.hinhAnh || 'https://via.placeholder.com/80'}
+                                alt="ảnh sản phẩm"
+                                style={{ width: '100%', borderRadius: 4 }}
+                              />
+                            </Grid>
+                            <Grid item xs={9}>
+                              <Typography noWrap fontWeight={500} mb={0.5}>
+                                {item.trangThai === 8
+                                  ? sp?.thongTinSanPhamTra?.tenSanPham
+                                  : sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                Phân loại: {item.trangThai === 8
+                                  ? `${sp?.thongTinSanPhamTra?.tenMauSac}, ${sp?.thongTinSanPhamTra?.tenTrongLuong}, ${sp?.thongTinSanPhamTra?.tenDoCung}`
+                                  : `${sp?.sanPhamCT?.mauSac?.ten}, ${sp?.sanPhamCT?.trongLuong?.ten}, ${sp?.sanPhamCT?.doCung?.ten}`}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                x{item.trangThai === 8 ? sp.soLuongTra : sp.soLuong}
+                              </Typography>
+                            </Grid>
+                          </Grid>
+                        </Box>
+                        <Box ml={0}>
+                          {(() => {
+                            const price =
+                              item.trangThai === 8
+                                ? sp?.thongTinSanPhamTra?.giaBan  
+                                : sp?.giaBan;                     
+
+                            return <Typography>{formatCurrency(price)}</Typography>;
+                          })()}
+                        </Box>
+                      </Box>
+
+                      {idx < arr.length - 1 && <Divider sx={{ my: 1 }} />}
+                    </React.Fragment>
+                  ))}
+              </Box>
+              {/* <Box sx={{ px: 2, pt: 1.5 }}>
                 {item.chiTiet?.map((sp, idx) => (
                   <React.Fragment key={idx}>
                     <Box display="flex" justifyContent="space-between" alignItems="center" spacing={1} sx={{ mb: 1 }}>
@@ -227,24 +295,40 @@ function UserOrder() {
                           <Typography>{formatCurrency(sp.giaBan)}</Typography>
                         )}
                       </Box>
-                    </Box>
+                    </Box> */}
 
-                    {/* Divider giữa các sản phẩm, không hiển thị sau sản phẩm cuối */}
-                    {idx < item.chiTiet.length - 1 && <Divider sx={{ my: 1 }} />}
+              {/* Divider giữa các sản phẩm, không hiển thị sau sản phẩm cuối */}
+              {/* {idx < item.chiTiet.length - 1 && <Divider sx={{ my: 1 }} />}
                   </React.Fragment>
-                ))}
-              </Box>
+                ))} */}
+              {/* </Box> */}
               <Divider />
               <Grid container justifyContent="space-between" sx={{ p: 1.5 }}>
                 <Grid item xs={12} md={6}>
-                  <Typography fontSize={13}>
-                    Ngày đặt: {dayjs(item.ngayTao).format('DD/MM/YYYY HH:mm')}
-                  </Typography>
+                  {item.trangThai !== 8 && (
+                    (
+                      item.trangThai === 7 ? (
+                        <Typography fontSize={13}>
+                          Thời gian hủy hàng: {dayjs(item.ngaySua).format('DD/MM/YYYY HH:mm')}
+                        </Typography>
+                      ) : (
+                        <Typography fontSize={13}>
+                          Ngày đặt: {dayjs(item.ngayTao).format('DD/MM/YYYY HH:mm')}
+                        </Typography>
+                      )
+                    )
+                  )}
                 </Grid>
                 <Grid item xs={12} md={6} textAlign={{ xs: 'left', md: 'right' }}>
-                  <Typography fontWeight={500}>
-                    Tổng tiền: <span style={{ color: 'red' }}>{formatCurrency(item.tongTien)}</span>
-                  </Typography>
+                  {item.trangThai === 8 ? (
+                    <Typography fontWeight={500}>
+                      Số tiền hoàn lại: <span style={{ color: 'red' }}>{formatCurrency(item.tongTien)}</span>
+                    </Typography>
+                  ) : (
+                    <Typography fontWeight={500}>
+                      Tổng tiền: <span style={{ color: 'red' }}>{formatCurrency(item.tongTien)}</span>
+                    </Typography>
+                  )}
                   <Button
                     size="small"
                     variant="outlined"

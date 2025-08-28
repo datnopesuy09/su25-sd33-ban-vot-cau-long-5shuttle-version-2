@@ -29,4 +29,34 @@ public interface PhieuTraHangRepository extends JpaRepository<PhieuTraHang, Inte
             "LEFT JOIN FETCH p.nhanVienXuLy nv")
     List<PhieuTraHang> findAllWithDetails();
 
+    @Query("SELECT DISTINCT p FROM PhieuTraHang p " +
+            "LEFT JOIN FETCH p.chiTietPhieuTraHang chiTiet " +
+            "LEFT JOIN FETCH chiTiet.hoaDonChiTiet hDCT " +
+            "LEFT JOIN FETCH hDCT.sanPhamCT spCT " +
+            "LEFT JOIN FETCH spCT.sanPham sp " +
+            "LEFT JOIN FETCH spCT.thuongHieu th " +
+            "LEFT JOIN FETCH spCT.mauSac ms " +
+            "LEFT JOIN FETCH spCT.chatLieu cl " +
+            "LEFT JOIN FETCH spCT.trongLuong tl " +
+            "LEFT JOIN FETCH spCT.diemCanBang dcb " +
+            "LEFT JOIN FETCH spCT.doCung dc " +
+            "WHERE p.user.id = :userId")
+    List<PhieuTraHang> findByUserIdWithDetails(Integer userId);
+
+    @Query("""
+        SELECT DISTINCT p FROM PhieuTraHang p
+        LEFT JOIN FETCH p.chiTietPhieuTraHang chiTiet
+        LEFT JOIN FETCH chiTiet.hoaDonChiTiet hDCT
+        LEFT JOIN FETCH hDCT.sanPhamCT spCT
+        LEFT JOIN FETCH spCT.sanPham sp
+        LEFT JOIN FETCH spCT.thuongHieu th
+        LEFT JOIN FETCH spCT.mauSac ms
+        LEFT JOIN FETCH spCT.chatLieu cl
+        LEFT JOIN FETCH spCT.trongLuong tl
+        LEFT JOIN FETCH spCT.diemCanBang dcb
+        LEFT JOIN FETCH spCT.doCung dc
+        WHERE p.hoaDon.id = :orderId
+    """)
+    PhieuTraHang findByHoaDonIdWithDetails(Integer orderId);
+
 }

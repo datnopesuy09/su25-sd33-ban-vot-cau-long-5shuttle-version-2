@@ -5,6 +5,7 @@ import com.example.da_be.dto.request.PhieuTraHang.PhieuTraHangApprovalRequest;
 import com.example.da_be.dto.request.PhieuTraHang.PhieuTraHangChiTietApprovalDetail;
 import com.example.da_be.dto.request.PhieuTraHang.PhieuTraHangChiTietRequest;
 import com.example.da_be.dto.response.PhieuTraHangResponse;
+import com.example.da_be.dto.response.SanPhamTraResponse;
 import com.example.da_be.email.Email;
 import com.example.da_be.email.EmailSender;
 import com.example.da_be.entity.*;
@@ -214,7 +215,34 @@ public class PhieuTraHangService {
 
     }
 
+    public List<PhieuTraHangResponse> getMyOrdersReturn() {
+        var context = SecurityContextHolder.getContext();
+        var email = context.getAuthentication().getName();
 
+        Integer idUser = userRepository.findIdByEmail(email);
 
+        List<PhieuTraHang> phieuTraHang = phieuTraHangRepository.findByUserIdWithDetails(idUser);
+        return phieuTraHang.stream()
+                .map(phieuTraHangMapper::toPhieuTraHangResponse)
+                .toList();
+    }
+
+    public PhieuTraHangResponse getByOrderId(Integer orderId) {
+        PhieuTraHang phieu = phieuTraHangRepository.findByHoaDonIdWithDetails(orderId);
+        if (phieu == null) {
+            throw new AppException(ErrorCode.RETURN_NOT_EXISTS);
+        }
+        return phieuTraHangMapper.toPhieuTraHangResponse(phieu);
+    }
+
+//
+//    public List<SanPhamTraResponse> getReturnProductsByPhieuTraHangId(Integer phieuTraHangId) {
+//        PhieuTraHang phieuTraHang = phieuTraHangRepository.findById(phieuTraHangId)
+//                .orElseThrow(() -> new AppException(ErrorCode.RETURN_NOT_EXISTS));
+//
+//        return phieuTraHang.getChiTietPhieuTraHang().stream()
+//                .map(chiTiet -> phieuTraHangMapper.mapHoaDonCTToSanPhamTra(chiTiet.getHoaDonChiTiet()))
+//                .toList();
+//    }
 
 }
