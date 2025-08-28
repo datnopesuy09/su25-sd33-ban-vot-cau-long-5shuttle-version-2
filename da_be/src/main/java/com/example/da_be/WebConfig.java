@@ -17,10 +17,11 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins(
+                .allowedOriginPatterns(
                     "http://localhost:3000",  // React default port
                     "http://localhost:5173",  // Vite default port
-                    "http://localhost:8080"   // Backend port
+                    "http://localhost:8080",  // Backend port
+                    "*" // Cho phép tất cả origins khác
                 )
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")

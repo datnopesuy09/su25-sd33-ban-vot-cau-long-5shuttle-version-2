@@ -47,6 +47,7 @@ const OrderProgress = ({
     getActionButtonStyle,
     getActionButtonText,
     handleCancelOrder,
+    handleShowHistoryModal,
 }) => {
     // State cho modal confirm thay đổi trạng thái
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -502,6 +503,7 @@ const OrderProgress = ({
                                 ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                                 : 'text-purple-600 hover:text-purple-800 hover:bg-purple-50'
                         }`}
+                        onClick={handleShowHistoryModal}
                     >
                         {currentOrderStatus === 7 ? 'Xem chi tiết hủy →' : 'Chi tiết →'}
                     </button>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import RemoveRedEyeIcon from '@mui/icons-material/RemoveRedEye';
+import PrintIcon from '@mui/icons-material/Print';
 import { X, Receipt } from 'lucide-react';
 
 function InStoreOrders() {
@@ -41,11 +42,11 @@ function InStoreOrders() {
             const response = await fetch(`http://localhost:8080/api/hoa-don/${order.id}`);
             if (!response.ok) throw new Error('Lỗi khi tải chi tiết hóa đơn');
             const orderDetails = await response.json();
-            
+
             const response2 = await fetch(`http://localhost:8080/api/hoa-don-ct/hoa-don/${order.id}`);
             if (!response2.ok) throw new Error('Lỗi khi tải chi tiết hóa đơn con');
             const orderItems = await response2.json();
-            
+
             setSelectedOrder(order);
             setOrderDetails(orderDetails);
             setOrderItems(orderItems);
@@ -70,10 +71,135 @@ function InStoreOrders() {
         }, 300);
     };
 
+    const handlePrintInvoice = async (order) => {
+        try {
+            // Lấy chi tiết hóa đơn để in
+            const response = await fetch(`http://localhost:8080/api/hoa-don/${order.id}`);
+            if (!response.ok) throw new Error('Lỗi khi tải chi tiết hóa đơn');
+            const orderDetails = await response.json();
+
+            const response2 = await fetch(`http://localhost:8080/api/hoa-don-ct/hoa-don/${order.id}`);
+            if (!response2.ok) throw new Error('Lỗi khi tải chi tiết hóa đơn con');
+            const orderItems = await response2.json();
+
+            // Tạo nội dung in hóa đơn
+            const printContent = generateInvoicePrintContent(orderDetails, orderItems);
+
+            // Mở cửa sổ in
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            printWindow.print();
+            printWindow.close();
+        } catch (error) {
+            console.error('Error printing invoice:', error);
+            alert('Có lỗi xảy ra khi in hóa đơn');
+        }
+    };
+
+    const generateInvoicePrintContent = (orderDetails, orderItems) => {
+        const currentDate = new Date().toLocaleDateString('vi-VN');
+
+        return `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>Hóa đơn ${orderDetails.ma}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    .header { text-align: center; margin-bottom: 30px; }
+                    .shop-name { font-size: 24px; font-weight: bold; color: #2563eb; }
+                    .shop-info { font-size: 14px; color: #666; margin-top: 5px; }
+                    .invoice-title { font-size: 20px; font-weight: bold; margin: 20px 0; }
+                    .info-section { margin: 20px 0; }
+                    .info-row { display: flex; justify-content: space-between; margin: 5px 0; }
+                    .table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+                    .table th, .table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    .table th { background-color: #f8f9fa; font-weight: bold; }
+                    .total-section { margin-top: 20px; text-align: right; }
+                    .total-row { font-size: 18px; font-weight: bold; margin: 10px 0; }
+                    .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+                    @media print {
+                        body { margin: 0; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="shop-name">CỬA HÀNG VỢT CẦU LÔNG 5SHUTTLE</div>
+                    <div class="shop-info">Địa chỉ: 123 Đường ABC, Quận XYZ, TP.HCM</div>
+                    <div class="shop-info">Điện thoại: 0123.456.789 | Email: info@5shuttle.com</div>
+                </div>
+                
+                <div class="invoice-title" style="text-align: center;">HÓA ĐƠN BÁN HÀNG</div>
+                
+                <div class="info-section">
+                    <div class="info-row">
+                        <span><strong>Mã hóa đơn:</strong> ${orderDetails.ma}</span>
+                        <span><strong>Ngày tạo:</strong> ${new Date(orderDetails.ngayTao).toLocaleDateString('vi-VN')}</span>
+                    </div>
+                    <div class="info-row">
+                        <span><strong>Khách hàng:</strong> ${orderDetails.tenNguoiNhan || 'Khách lẻ'}</span>
+                        <span><strong>Số điện thoại:</strong> ${orderDetails.sdtNguoiNhan || 'Không có'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span><strong>Loại hóa đơn:</strong> ${orderDetails.loaiHoaDon}</span>
+                        <span><strong>Nhân viên:</strong> ${orderDetails.taiKhoan?.ten || 'Không xác định'}</span>
+                    </div>
+                </div>
+                
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Tên sản phẩm</th>
+                            <th>Thương hiệu</th>
+                            <th>Màu sắc</th>
+                            <th>Số lượng</th>
+                            <th>Đơn giá</th>
+                            <th>Thành tiền</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${orderItems
+                            .map(
+                                (item, index) => `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td>${item.sanPhamCT?.ten || 'Không xác định'}</td>
+                                <td>${item.sanPhamCT?.thuongHieu?.ten || 'Không xác định'}</td>
+                                <td>${item.sanPhamCT?.mauSac?.ten || 'Không xác định'}</td>
+                                <td>${item.soLuong}</td>
+                                <td>${item.giaBan ? item.giaBan.toLocaleString() + ' VNĐ' : 'Không xác định'}</td>
+                                <td>${item.giaBan && item.soLuong ? (item.giaBan * item.soLuong).toLocaleString() + ' VNĐ' : 'Không xác định'}</td>
+                            </tr>
+                        `,
+                            )
+                            .join('')}
+                    </tbody>
+                </table>
+                
+                <div class="total-section">
+                    <div class="total-row">
+                        <strong>TỔNG CỘNG: ${orderDetails.tongTien ? orderDetails.tongTien.toLocaleString() + ' VNĐ' : 'Chưa xác định'}</strong>
+                    </div>
+                </div>
+                
+                <div class="footer">
+                    <p>Cảm ơn quý khách đã mua hàng tại 5Shuttle!</p>
+                    <p>In lúc: ${currentDate}</p>
+                </div>
+            </body>
+            </html>
+        `;
+    };
+
     useEffect(() => {
         loadOrders();
     }, []);
-
+    console.log('orderdetails', orderDetails);
     useEffect(() => {
         let filtered = orders;
 
@@ -236,7 +362,7 @@ function InStoreOrders() {
                                 <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-24 whitespace-nowrap">
                                     Trạng thái
                                 </th>
-                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-16 whitespace-nowrap">
+                                <th className="py-2 px-2 text-left text-xs font-semibold text-gray-600 uppercase tracking-wide w-20 whitespace-nowrap">
                                     Action
                                 </th>
                             </tr>
@@ -277,12 +403,24 @@ function InStoreOrders() {
                                             </span>
                                         </td>
                                         <td className="py-2 px-2 whitespace-nowrap">
-                                            <button
-                                                onClick={() => handleViewOrder(order)}
-                                                className="inline-flex items-center justify-center w-6 h-6 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-200"
-                                            >
-                                                <RemoveRedEyeIcon className="h-3 w-3" />
-                                            </button>
+                                            <div className="flex items-center space-x-1">
+                                                <button
+                                                    onClick={() => handleViewOrder(order)}
+                                                    className="inline-flex items-center justify-center w-6 h-6 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-200"
+                                                    title="Xem chi tiết"
+                                                >
+                                                    <RemoveRedEyeIcon className="h-3 w-3" />
+                                                </button>
+                                                {order.trangThai === 6 && (
+                                                    <button
+                                                        onClick={() => handlePrintInvoice(order)}
+                                                        className="inline-flex items-center justify-center w-6 h-6 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-full transition-all duration-200"
+                                                        title="In hóa đơn"
+                                                    >
+                                                        <PrintIcon className="h-3 w-3" />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 );
@@ -399,14 +537,18 @@ function InStoreOrders() {
                                             </div>
                                             <div>
                                                 <span className="font-medium text-gray-600">Trạng thái:</span>
-                                                <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusLabel(orderDetails.trangThai).color}`}>
+                                                <span
+                                                    className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${getStatusLabel(orderDetails.trangThai).color}`}
+                                                >
                                                     {getStatusLabel(orderDetails.trangThai).label}
                                                 </span>
                                             </div>
                                             <div className="md:col-span-2">
                                                 <span className="font-medium text-gray-600">Tổng tiền:</span>
                                                 <span className="ml-2 text-lg font-bold text-blue-600">
-                                                    {orderDetails.tongTien ? orderDetails.tongTien.toLocaleString() + ' VNĐ' : 'Chưa xác định'}
+                                                    {orderDetails.tongTien
+                                                        ? orderDetails.tongTien.toLocaleString() + ' VNĐ'
+                                                        : 'Chưa xác định'}
                                                 </span>
                                             </div>
                                         </div>
@@ -416,32 +558,60 @@ function InStoreOrders() {
                                 {/* Danh sách sản phẩm */}
                                 {orderItems && orderItems.length > 0 && (
                                     <div className="bg-white border rounded-xl">
-                                        <h3 className="text-md font-semibold text-gray-800 p-4 border-b">Sản phẩm đã mua</h3>
+                                        <h3 className="text-md font-semibold text-gray-800 p-4 border-b">
+                                            Sản phẩm đã mua
+                                        </h3>
                                         <div className="overflow-x-auto">
                                             <table className="min-w-full">
                                                 <thead className="bg-gray-50">
                                                     <tr>
-                                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">STT</th>
-                                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Hình ảnh</th>
-                                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Tên sản phẩm</th>
-                                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Thương hiệu</th>
-                                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Màu sắc</th>
-                                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Trọng lượng</th>
-                                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Số lượng</th>
-                                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Đơn giá</th>
-                                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">Thành tiền</th>
+                                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                                                            STT
+                                                        </th>
+                                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                                                            Hình ảnh
+                                                        </th>
+                                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                                                            Tên sản phẩm
+                                                        </th>
+                                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                                                            Thương hiệu
+                                                        </th>
+                                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                                                            Màu sắc
+                                                        </th>
+                                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                                                            Trọng lượng
+                                                        </th>
+                                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                                                            Số lượng
+                                                        </th>
+                                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                                                            Đơn giá
+                                                        </th>
+                                                        <th className="py-3 px-4 text-left text-xs font-semibold text-gray-600 uppercase">
+                                                            Thành tiền
+                                                        </th>
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-gray-200">
                                                     {orderItems.map((item, index) => (
                                                         <tr key={item.id} className="hover:bg-gray-50">
-                                                            <td className="py-3 px-4 text-sm text-gray-600">{index + 1}</td>
+                                                            <td className="py-3 px-4 text-sm text-gray-600">
+                                                                {index + 1}
+                                                            </td>
                                                             <td className="py-3 px-4">
                                                                 <img
-                                                                    src={item.hinhAnhUrl || 'https://via.placeholder.com/40'}
+                                                                    src={
+                                                                        item.hinhAnhUrl ||
+                                                                        'https://via.placeholder.com/40'
+                                                                    }
                                                                     alt={item.sanPhamCT?.ten || 'Sản phẩm'}
                                                                     className="w-10 h-10 object-cover rounded"
-                                                                    onError={(e) => (e.target.src = 'https://via.placeholder.com/40')}
+                                                                    onError={(e) =>
+                                                                        (e.target.src =
+                                                                            'https://via.placeholder.com/40')
+                                                                    }
                                                                 />
                                                             </td>
                                                             <td className="py-3 px-4 text-sm font-medium text-gray-900">
@@ -456,13 +626,18 @@ function InStoreOrders() {
                                                             <td className="py-3 px-4 text-sm text-gray-600">
                                                                 {item.sanPhamCT?.trongLuong?.ten || 'Không xác định'}
                                                             </td>
-                                                            <td className="py-3 px-4 text-sm text-gray-600">{item.soLuong}</td>
                                                             <td className="py-3 px-4 text-sm text-gray-600">
-                                                                {item.giaBan ? item.giaBan.toLocaleString() + ' VNĐ' : 'Không xác định'}
+                                                                {item.soLuong}
+                                                            </td>
+                                                            <td className="py-3 px-4 text-sm text-gray-600">
+                                                                {item.giaBan
+                                                                    ? item.giaBan.toLocaleString() + ' VNĐ'
+                                                                    : 'Không xác định'}
                                                             </td>
                                                             <td className="py-3 px-4 text-sm font-medium text-gray-900">
                                                                 {item.giaBan && item.soLuong
-                                                                    ? (item.giaBan * item.soLuong).toLocaleString() + ' VNĐ'
+                                                                    ? (item.giaBan * item.soLuong).toLocaleString() +
+                                                                      ' VNĐ'
                                                                     : 'Không xác định'}
                                                             </td>
                                                         </tr>
@@ -479,7 +654,9 @@ function InStoreOrders() {
                                         <div className="flex justify-between items-center">
                                             <span className="text-lg font-semibold text-gray-800">Tổng cộng:</span>
                                             <span className="text-xl font-bold text-blue-600">
-                                                {orderDetails.tongTien ? orderDetails.tongTien.toLocaleString() + ' VNĐ' : 'Chưa xác định'}
+                                                {orderDetails.tongTien
+                                                    ? orderDetails.tongTien.toLocaleString() + ' VNĐ'
+                                                    : 'Chưa xác định'}
                                             </span>
                                         </div>
                                     </div>
