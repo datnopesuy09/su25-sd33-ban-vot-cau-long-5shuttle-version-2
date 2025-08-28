@@ -1,6 +1,8 @@
 package com.example.da_be.dto.response;
 
+import com.example.da_be.enums.UserType;
 import lombok.*;
+import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDate;
 
@@ -9,15 +11,15 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @Getter
 @Setter
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class KhachHangResponse {
-    private Integer id;
-    private String ma;
-    private String hoTen;
-    private String sdt;
-    private String email;
-    private String matKhau;
-    private Integer gioiTinh;
-    private String avatar;
-    private LocalDate ngaySinh;
-    private Integer trangThai;
+    Integer id;
+    String ma;
+    String hoTen;
+    String sdt;
+    String email;
+    Integer gioiTinh;
+    LocalDate ngaySinh;
+    UserType userType;
+    Integer trangThai;
 }

@@ -136,9 +136,8 @@ public class PhieuTraHangService {
     @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_STAFF')")
     @Transactional
     public PhieuTraHangResponse approveReturn(PhieuTraHangApprovalRequest request) {
-
         var context = SecurityContextHolder.getContext();
-        var staffEmail = context.getAuthentication().getName(); // Đổi tên biến để dễ phân biệt
+        var staffEmail = context.getAuthentication().getName();
 
         User user = userRepository.findUserByEmail(staffEmail)
                 .orElseThrow(() -> new RuntimeException(ErrorCode.EMAIL_NOT_EXISTS.getMessage()));
@@ -146,6 +145,14 @@ public class PhieuTraHangService {
         PhieuTraHang phieuTraHang = phieuTraHangRepository.findById(request.getPhieuTraHangId())
                 .orElseThrow(() -> new AppException(ErrorCode.RETURN_NOT_EXISTS));
 
+        // Kiểm tra trạng thái trước khi xử lý
+        if (phieuTraHang.getTrangThai() == TrangThaiTra.APPROVED) {
+            log.info("Phiếu trả hàng {} đã được phê duyệt trước đó, bỏ qua xử lý trùng lặp",
+                    phieuTraHang.getMaPhieuTraHang());
+            return phieuTraHangMapper.toPhieuTraHangResponse(phieuTraHang);
+        }
+
+        // Cập nhật thông tin phiếu
         phieuTraHang.setNhanVienXuLy(user);
         phieuTraHang.setNgayXuLy(LocalDateTime.now());
         phieuTraHang.setGhiChuNhanVien(request.getGhiChuNhanVien());
@@ -153,18 +160,17 @@ public class PhieuTraHangService {
 
         phieuTraHangRepository.save(phieuTraHang);
 
+        // Xử lý chi tiết phiếu
         for (PhieuTraHangChiTietApprovalDetail chiTietRequest : request.getChiTietPheDuyet()) {
             HoaDonCT hoaDonCT = hoaDonCTRepository.findById(chiTietRequest.getHoaDonChiTietId())
-                    .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy chi tiết hóa đơn với ID: " + chiTietRequest.getHoaDonChiTietId()));
+                    .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy chi tiết hóa đơn với ID: " +
+                            chiTietRequest.getHoaDonChiTietId()));
 
             PhieuTraHangChiTiet phieuTraHangChiTiet = phieuTraHangChiTietRepository.findById(chiTietRequest.getPhieuTraHangChiTietId())
                     .orElseThrow(() -> new AppException(ErrorCode.RETURN_DETAIL_NOT_EXISTS));
 
-
             phieuTraHangChiTiet.setPhieuTraHang(phieuTraHang);
             phieuTraHangChiTiet.setHoaDonChiTiet(hoaDonCT);
-
-            log.info(hoaDonCT.toString());
 
             if (chiTietRequest.getSoLuongDuocPheDuyet() == null || chiTietRequest.getSoLuongDuocPheDuyet() <= 0) {
                 phieuTraHangChiTiet.setGhiChuNhanVien(chiTietRequest.getLyDoXuLy());
@@ -176,18 +182,12 @@ public class PhieuTraHangService {
                 phieuTraHangChiTiet.setTrangThai(TrangThaiTra.APPROVED);
             }
 
-            log.info(phieuTraHangChiTiet.toString());
-
             phieuTraHangChiTietRepository.save(phieuTraHangChiTiet);
-
-
-
         }
 
-        // Bắt đầu thay đổi: Làm mới đối tượng PhieuTraHang để đảm bảo dữ liệu chi tiết được cập nhật
+        // Làm mới dữ liệu
         phieuTraHang = phieuTraHangRepository.findById(request.getPhieuTraHangId())
                 .orElseThrow(() -> new AppException(ErrorCode.RETURN_NOT_EXISTS));
-        // Kết thúc thay đổi
 
         // Gửi email xác nhận cho khách hàng
         try {
@@ -206,12 +206,10 @@ public class PhieuTraHangService {
             log.info("Email xác nhận duyệt trả hàng đã được gửi tới: " + customerEmail);
         } catch (Exception e) {
             log.error("Lỗi khi gửi email xác nhận duyệt trả hàng: " + e.getMessage(), e);
-            // Bạn có thể chọn ném lại ngoại lệ hoặc xử lý khác tùy theo yêu cầu của ứng dụng
+            // Không ném ngoại lệ ở đây để đảm bảo quá trình phê duyệt vẫn hoàn tất
         }
 
-
         return phieuTraHangMapper.toPhieuTraHangResponse(phieuTraHang);
-
     }
 
 
