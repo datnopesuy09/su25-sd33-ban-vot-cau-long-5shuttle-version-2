@@ -70,7 +70,7 @@ function OrderStatus() {
 
     const fetchOrderHistory = async () => {
         if (!hoaDonId) return;
-        
+
         setLoadingHistory(true);
         try {
             const response = await axios.get(`http://localhost:8080/api/lich-su-don-hang/hoa-don/${hoaDonId}`);
@@ -1012,7 +1012,9 @@ function OrderStatus() {
                                                     </div>
                                                     <p className="text-gray-800 mb-2">{history.moTa}</p>
                                                     <div className="flex items-center space-x-4 text-sm text-gray-500">
-                                                        <span>Người thực hiện: {history.user?.hoTen || 'Hệ thống'}</span>
+                                                        <span>
+                                                            Người thực hiện: {history.user?.hoTen || 'Hệ thống'}
+                                                        </span>
                                                         <span
                                                             className={`px-2 py-1 rounded-full text-xs font-medium ${
                                                                 history.trangThai === 1
