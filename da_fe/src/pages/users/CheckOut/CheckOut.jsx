@@ -14,6 +14,8 @@ import { CartContext } from '../Cart/CartContext';
 import { Button } from '@mui/material';
 import { toast } from 'react-toastify';
 import CircularProgress from '@mui/material/CircularProgress';
+import BulkOrderNotification from '../../../components/BulkOrderNotification';
+import useBulkOrderDetection from '../../../hooks/useBulkOrderDetection';
 
 function parseJwt(token) {
     try {
@@ -83,6 +85,9 @@ const CheckOut = () => {
 
     const selectedItems = location.state?.selectedItems || [];
     const isBuyNow = location.state?.buyNow || false; // Kiểm tra có phải là mua ngay không
+
+    // Bulk order detection
+    const { shouldShowBulkWarning, bulkOrderData, resetBulkWarning } = useBulkOrderDetection(carts, totalPrice);
 
     const formatPhoneNumber = (phone) => {
         if (!phone) return '';
@@ -671,6 +676,28 @@ const CheckOut = () => {
                     setShowAddressForm(false);
                 }}
                 defaultAddress={defaultAddress}
+            />
+
+            {/* Bulk Order Notification */}
+            <BulkOrderNotification
+                show={shouldShowBulkWarning}
+                orderData={{
+                    totalQuantity: bulkOrderData.totalQuantity || 0,
+                    totalValue: totalPrice,
+                    itemCount: carts.length,
+                    reasons: bulkOrderData.reasons || [],
+                }}
+                onContactMethod={(method, data) => {
+                    console.log('Customer contacted via:', method, data);
+                    // Track interaction
+                    swal({
+                        title: 'Đã gửi yêu cầu!',
+                        text: 'Chuyên viên sẽ liên hệ với bạn trong thời gian sớm nhất.',
+                        icon: 'success',
+                        timer: 3000,
+                    });
+                }}
+                onDismiss={resetBulkWarning}
             />
         </div>
     );

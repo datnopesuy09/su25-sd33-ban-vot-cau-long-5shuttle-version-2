@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import CartItem from './CartItem';
 import CartSummary from './CartSummary';
 import { Button } from '@mui/material';
@@ -11,6 +11,8 @@ import { X, Tag } from 'lucide-react';
 
 import { ShoppingCart, ShoppingBag, AlertCircle, CheckCircle2, Loader2, Truck, Shield, Gift } from 'lucide-react';
 import { useUserAuth } from '../../../contexts/userAuthContext';
+import BulkOrderDetector from '../../../components/BulkOrderDetector';
+import useBulkOrderDetection from '../../../hooks/useBulkOrderDetection';
 
 function parseJwt(token) {
     try {
@@ -30,7 +32,6 @@ function parseJwt(token) {
     }
 }
 
-
 const Cart = () => {
     const navigate = useNavigate();
     const { user } = useUserAuth();
@@ -44,32 +45,34 @@ const Cart = () => {
 
     // const [notification, setNotification] = useState(null);
 
-
-
     const token = user?.token || localStorage.getItem('userToken');
     const idTaiKhoan = user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
 
     console.log('id user: ', idTaiKhoan);
     // Calculate shipping (free if over 1M VND)
 
-
     const [selectedItems, setSelectedItems] = useState([]);
     const isAllSelected = carts.length > 0 && selectedItems.length === carts.length;
 
+    // Bulk order detection với useMemo để tránh re-calculation
+    const selectedCartItems = useMemo(() => {
+        return carts.filter((item) => selectedItems.includes(item.id));
+    }, [carts, selectedItems]);
+
+    const { shouldShowBulkWarning, bulkOrderData, resetBulkWarning, getBulkOrderBenefits, getStaffContactInfo } =
+        useBulkOrderDetection(selectedCartItems, totalPrice);
 
     const shipping = totalPrice > 1000000 ? 0 : 30000;
     const finalTotal = totalPrice + shipping;
 
     const handleSelectItem = (cartId) => {
-        setSelectedItems((prev) =>
-            prev.includes(cartId) ? prev.filter((id) => id !== cartId) : [...prev, cartId]
-        );
+        setSelectedItems((prev) => (prev.includes(cartId) ? prev.filter((id) => id !== cartId) : [...prev, cartId]));
     };
 
     const handleSelectAll = () => {
         setSelectedItems(isAllSelected ? [] : carts.map((item) => item.id));
     };
- console.log('Selected items cart:', selectedItems);
+    console.log('Selected items cart:', selectedItems);
     useEffect(() => {
         const total = carts
             .filter((item) => selectedItems.includes(item.id))
@@ -138,7 +141,7 @@ const Cart = () => {
         setIsCheckingOut(true);
         try {
             await new Promise((resolve) => setTimeout(resolve, 1000));
-            navigate('/gio-hang/checkout', { state: { selectedItems }});
+            navigate('/gio-hang/checkout', { state: { selectedItems } });
         } catch (error) {
             console.error('Có lỗi xảy ra khi chuyển đến thanh toán', error);
             swal('Lỗi', 'Có lỗi xảy ra khi chuyển đến thanh toán', 'error');
@@ -147,9 +150,43 @@ const Cart = () => {
         }
     };
 
+    // Bulk order handlers
+    const handleContactStaff = (method, orderInfo) => {
+        console.log('Customer contacted staff via:', method, orderInfo);
+
+        // Track bulk order interaction
+        const eventData = {
+            method,
+            orderInfo: {
+                ...orderInfo,
+                timestamp: new Date().toISOString(),
+                userId: idTaiKhoan,
+            },
+        };
+
+        // Send to analytics or backend
+        try {
+            // axios.post('/api/bulk-order-interactions', eventData);
+            console.log('Bulk order interaction tracked:', eventData);
+        } catch (error) {
+            console.error('Failed to track bulk order interaction:', error);
+        }
+
+        swal({
+            title: 'Đã gửi yêu cầu!',
+            text: 'Chuyên viên sẽ liên hệ với bạn trong thời gian sớm nhất.',
+            icon: 'success',
+            timer: 3000,
+        });
+    };
+
+    const handleContinueNormal = () => {
+        resetBulkWarning();
+        console.log('Customer chose to continue with normal checkout');
+        // Chỉ đóng modal, để người dùng tự quyết định khi nào checkout
+    };
 
     if (!userId) return null;
-
 
     if (isLoading) {
         return (
@@ -234,7 +271,10 @@ const Cart = () => {
                                 </div>
                                 <div className="p-2 space-y-6">
                                     {carts.map((cart) => (
-                                        <div key={cart.id} className="p-4 border border-gray-100 rounded-xl hover:shadow-sm transition-shadow duration-200">
+                                        <div
+                                            key={cart.id}
+                                            className="p-4 border border-gray-100 rounded-xl hover:shadow-sm transition-shadow duration-200"
+                                        >
                                             <CartItem
                                                 cart={cart}
                                                 showButton={true}
@@ -256,7 +296,7 @@ const Cart = () => {
                         </div>
 
                         <CartSummary
-                            carts={carts.filter(item => selectedItems.includes(item.id))}
+                            carts={carts.filter((item) => selectedItems.includes(item.id))}
                             totalPrice={totalPrice}
                             shipping={shipping}
                             finalTotal={finalTotal}
@@ -266,6 +306,15 @@ const Cart = () => {
                         />
                     </div>
                 )}
+
+                {/* Bulk Order Detection Modal */}
+                <BulkOrderDetector
+                    cartItems={selectedCartItems}
+                    totalQuantity={bulkOrderData.totalQuantity || 0}
+                    totalValue={totalPrice}
+                    onContactStaff={handleContactStaff}
+                    onContinueNormal={handleContinueNormal}
+                />
             </div>
         </div>
     );
