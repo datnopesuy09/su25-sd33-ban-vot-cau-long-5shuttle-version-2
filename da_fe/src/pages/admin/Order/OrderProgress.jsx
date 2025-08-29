@@ -48,6 +48,8 @@ const OrderProgress = ({
     getActionButtonText,
     handleCancelOrder,
     handleShowHistoryModal,
+    handleRevertStatus,
+    canRevertStatus,
 }) => {
     // State cho modal confirm thay đổi trạng thái
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -494,6 +496,16 @@ const OrderProgress = ({
                 ) : null}
 
                 <div className="flex items-center space-x-4">
+                    {/* Button quay lại trạng thái trước */}
+                    {canRevertStatus && canRevertStatus(currentOrderStatus) && (
+                        <button
+                            className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-105 shadow-lg font-medium"
+                            onClick={handleRevertStatus}
+                        >
+                            ← Quay lại trạng thái trước
+                        </button>
+                    )}
+
                     {/* Button hủy đơn - chỉ hiện khi chưa hủy */}
                     {(currentOrderStatus === 1 || currentOrderStatus === 2 || currentOrderStatus === 3) && (
                         <button

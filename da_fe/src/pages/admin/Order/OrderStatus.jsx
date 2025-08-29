@@ -539,10 +539,106 @@ function OrderStatus() {
                 const response = await axios.get(`http://localhost:8080/api/tra-hang/hoa-don/${hoaDonId}`);
                 setReturnHistory(response.data);
             }
+
+            swal('Thành công!', 'Cập nhật trạng thái đơn hàng thành công', 'success');
         } catch (error) {
-            console.error('Error updating order status:', error);
+            console.error('Lỗi khi cập nhật trạng thái đơn hàng:', error);
             swal('Lỗi!', 'Không thể cập nhật trạng thái đơn hàng', 'error');
         }
+    };
+
+    // Function để quay lại trạng thái trước
+    const revertOrderStatus = async (description = '') => {
+        const previousStatus = getPreviousStatus(currentOrderStatus);
+
+        if (!previousStatus) {
+            swal('Lỗi!', 'Không thể quay lại trạng thái trước đó', 'error');
+            return;
+        }
+
+        console.log('revertOrderStatus called with:', { currentOrderStatus, previousStatus, description });
+
+        try {
+            const response = await fetch(`http://localhost:8080/api/hoa-don/${hoaDonId}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(previousStatus),
+            });
+
+            console.log('API response status:', response.status);
+
+            if (!response.ok) {
+                throw new Error('Không thể quay lại trạng thái trước đó');
+            }
+
+            // Cập nhật state trước
+            console.log('Setting currentOrderStatus to:', previousStatus);
+            setCurrentOrderStatus(previousStatus);
+
+            // Lưu lịch sử đơn hàng với mô tả quay lại
+            console.log('Saving order history for revert...');
+            await saveOrderHistory(
+                previousStatus,
+                description || `Quay lại trạng thái: ${getStatusLabel(previousStatus).label}`,
+            );
+
+            // Gửi thông báo đến người dùng
+            const userNotification = {
+                khachHang: {
+                    id: orderData.taiKhoan.id,
+                },
+                tieuDe: 'Cập nhật trạng thái đơn hàng',
+                noiDung: `Đơn hàng #${hoaDonId} đã được quay lại trạng thái: ${getStatusLabel(previousStatus).label}`,
+                // idRedirect: `/user/hoa-don/${hoaDonId}`,
+                kieuThongBao: 'info',
+                trangThai: 0,
+            };
+            try {
+                await axios.post('http://localhost:8080/api/thong-bao', userNotification, {
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                if (stompClient) {
+                    stompClient.send(
+                        `/app/user/${orderData.taiKhoan.id}/notifications`,
+                        {},
+                        JSON.stringify(userNotification),
+                    );
+                }
+            } catch (notificationError) {
+                console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
+                swal('Cảnh báo', 'Không thể gửi thông báo đến người dùng.', 'warning');
+            }
+
+            swal('Thành công!', 'Quay lại trạng thái trước đó thành công', 'success');
+        } catch (error) {
+            console.error('Lỗi khi quay lại trạng thái trước đó:', error);
+            swal('Lỗi!', 'Không thể quay lại trạng thái trước đó', 'error');
+        }
+    };
+
+    // Function để xác định trạng thái trước đó
+    const getPreviousStatus = (currentStatus) => {
+        switch (currentStatus) {
+            case 2:
+                return 1; // Chờ giao hàng -> Chờ xác nhận
+            case 3:
+                return 2; // Đang vận chuyển -> Chờ giao hàng
+            case 4:
+                return 3; // Đã giao hàng -> Đang vận chuyển
+            case 5:
+                return 4; // Đã thanh toán -> Đã giao hàng
+            case 6:
+                return 5; // Hoàn thành -> Đã thanh toán
+            default:
+                return null; // Không thể quay lại từ trạng thái 1, 7, 8
+        }
+    };
+
+    // Function để kiểm tra có thể quay lại trạng thái trước không
+    const canRevertStatus = (currentStatus) => {
+        return getPreviousStatus(currentStatus) !== null && currentStatus !== 7 && currentStatus !== 8;
     };
 
     const handleActionButtonClick = (newStatus = null, description = '') => {
@@ -575,6 +671,33 @@ function OrderStatus() {
                 updateOrderStatus(currentOrderStatus + 1, description);
             }
         }
+    };
+
+    // Function để xử lý khi người dùng click button quay lại trạng thái trước
+    const handleRevertStatus = () => {
+        const previousStatus = getPreviousStatus(currentOrderStatus);
+
+        if (!canRevertStatus(currentOrderStatus)) {
+            swal('Lỗi!', 'Không thể quay lại từ trạng thái hiện tại', 'error');
+            return;
+        }
+
+        swal({
+            title: 'Xác nhận quay lại trạng thái trước',
+            text: `Bạn có chắc chắn muốn quay lại trạng thái "${getStatusLabel(previousStatus).label}"?`,
+            icon: 'warning',
+            buttons: {
+                cancel: 'Hủy',
+                confirm: 'Xác nhận',
+            },
+            dangerMode: true,
+        }).then((willRevert) => {
+            if (willRevert) {
+                revertOrderStatus(
+                    `Admin quay lại trạng thái từ "${getStatusLabel(currentOrderStatus).label}" về "${getStatusLabel(previousStatus).label}"`,
+                );
+            }
+        });
     };
 
     const calculateChange = () => {
@@ -830,6 +953,8 @@ function OrderStatus() {
                     getActionButtonText={getActionButtonText}
                     handleCancelOrder={handleCancelOrder}
                     handleShowHistoryModal={handleShowHistoryModal}
+                    handleRevertStatus={handleRevertStatus}
+                    canRevertStatus={canRevertStatus}
                 />
             </div>
 
