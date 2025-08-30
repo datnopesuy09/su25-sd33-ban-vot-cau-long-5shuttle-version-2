@@ -7,7 +7,7 @@ const useBulkOrderDetection = (cartItems = [], totalValue = 0) => {
     // Cấu hình ngưỡng phát hiện bulk order
     const BULK_THRESHOLDS = {
         QUANTITY: 8, // Số lượng sản phẩm >= 8
-        VALUE: 3000000, // Giá trị đơn hàng >= 3 triệu
+        VALUE: 10000000, // Giá trị đơn hàng >= 10 triệu
         CATEGORIES: 3, // Số thương hiệu khác nhau >= 3
         EXPENSIVE_ITEM: 800000, // Có sản phẩm >= 800k
         TOTAL_ITEMS: 5, // Tổng số loại sản phẩm >= 5

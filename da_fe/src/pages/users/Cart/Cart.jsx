@@ -11,7 +11,7 @@ import { X, Tag } from 'lucide-react';
 
 import { ShoppingCart, ShoppingBag, AlertCircle, CheckCircle2, Loader2, Truck, Shield, Gift } from 'lucide-react';
 import { useUserAuth } from '../../../contexts/userAuthContext';
-import BulkOrderDetector from '../../../components/BulkOrderDetector';
+import BulkOrderDetector, { checkBulkConditions } from '../../../components/BulkOrderDetector';
 import useBulkOrderDetection from '../../../hooks/useBulkOrderDetection';
 
 function parseJwt(token) {
@@ -42,6 +42,7 @@ const Cart = () => {
     const [totalPrice, setTotalPrice] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [isCheckingOut, setIsCheckingOut] = useState(false);
+    const [showBulkModal, setShowBulkModal] = useState(false); // State để control modal
 
     // const [notification, setNotification] = useState(null);
 
@@ -138,6 +139,21 @@ const Cart = () => {
     };
 
     const handleCheckout = async () => {
+        if (selectedItems.length === 0) {
+            swal('Lưu ý', 'Vui lòng chọn ít nhất một sản phẩm để thanh toán.', 'warning');
+            return;
+        }
+
+        // Kiểm tra bulk order trước khi checkout
+        const isBulkOrder = checkBulkConditions(selectedCartItems, bulkOrderData.totalQuantity || 0, totalPrice);
+        
+        if (isBulkOrder) {
+            // Hiển thị modal bulk order
+            setShowBulkModal(true);
+            return;
+        }
+
+        // Proceed with normal checkout
         setIsCheckingOut(true);
         try {
             await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -180,10 +196,22 @@ const Cart = () => {
         });
     };
 
-    const handleContinueNormal = () => {
+    const handleContinueNormal = async () => {
+        setShowBulkModal(false);
         resetBulkWarning();
         console.log('Customer chose to continue with normal checkout');
-        // Chỉ đóng modal, để người dùng tự quyết định khi nào checkout
+        
+        // Chuyển sang trang thanh toán
+        setIsCheckingOut(true);
+        try {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            navigate('/gio-hang/checkout', { state: { selectedItems } });
+        } catch (error) {
+            console.error('Có lỗi xảy ra khi chuyển đến thanh toán', error);
+            swal('Lỗi', 'Có lỗi xảy ra khi chuyển đến thanh toán', 'error');
+        } finally {
+            setIsCheckingOut(false);
+        }
     };
 
     if (!userId) return null;
@@ -314,6 +342,7 @@ const Cart = () => {
                     totalValue={totalPrice}
                     onContactStaff={handleContactStaff}
                     onContinueNormal={handleContinueNormal}
+                    showModal={showBulkModal}
                 />
             </div>
         </div>

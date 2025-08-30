@@ -7,12 +7,13 @@ const BulkOrderDetector = ({
     totalValue = 0,
     onContactStaff = () => {},
     onContinueNormal = () => {},
+    showModal = false, // Thêm prop để manual control
 }) => {
     const [showBulkModal, setShowBulkModal] = useState(false);
     const [hasUserDismissed, setHasUserDismissed] = useState(false); // Track nếu user đã dismiss
     const [bulkThresholds, setBulkThresholds] = useState({
         quantityThreshold: 10, // Ngưỡng số lượng
-        valueThreshold: 5000000, // Ngưỡng giá trị (5 triệu VND)
+        valueThreshold: 10000000, // Ngưỡng giá trị (10 triệu VND)
         categoriesThreshold: 3, // Ngưỡng số loại sản phẩm khác nhau
     });
 
@@ -47,10 +48,9 @@ const BulkOrderDetector = ({
     }, [bulkConditions]);
 
     useEffect(() => {
-        if (shouldShowWarning && cartItems.length > 0 && !showBulkModal && !hasUserDismissed) {
-            setShowBulkModal(true);
-        }
-    }, [shouldShowWarning, cartItems.length, showBulkModal, hasUserDismissed]);
+        // Manual control - chỉ hiển thị khi showModal prop = true
+        setShowBulkModal(showModal && !hasUserDismissed);
+    }, [showModal, hasUserDismissed]);
 
     const getBulkBenefits = () => [
         {
@@ -228,7 +228,7 @@ Vui lòng liên hệ tư vấn giá tốt nhất. Cảm ơn!`;
                             }}
                             className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                         >
-                            Bỏ qua, mua bình thường
+                            Tiếp tục mua thường
                         </button>
                         <button
                             onClick={() => handleContactStaff('phone')}
@@ -245,6 +245,33 @@ Vui lòng liên hệ tư vấn giá tốt nhất. Cảm ơn!`;
                 </div>
             </div>
         </div>
+    );
+};
+
+// Utility function để check bulk conditions từ bên ngoài
+export const checkBulkConditions = (cartItems = [], totalQuantity = 0, totalValue = 0) => {
+    const bulkThresholds = {
+        quantityThreshold: 10,
+        valueThreshold: 10000000, // 10 triệu VND
+        categoriesThreshold: 3,
+    };
+
+    const uniqueCategories = new Set(cartItems.map((item) => item.sanPhamCT?.thuongHieu?.id)).size;
+
+    const bulkConditions = {
+        highQuantity: totalQuantity >= bulkThresholds.quantityThreshold,
+        highValue: totalValue >= bulkThresholds.valueThreshold,
+        multipleCategories: uniqueCategories >= bulkThresholds.categoriesThreshold,
+        hasExpensiveItems: cartItems.some((item) => {
+            const price = item.sanPhamCT?.giaKhuyenMai || item.sanPhamCT?.donGia || 0;
+            return price >= 1000000; // Sản phẩm từ 1 triệu trở lên
+        }),
+    };
+
+    return (
+        bulkConditions.highQuantity ||
+        bulkConditions.highValue ||
+        (bulkConditions.multipleCategories && bulkConditions.hasExpensiveItems)
     );
 };
 
