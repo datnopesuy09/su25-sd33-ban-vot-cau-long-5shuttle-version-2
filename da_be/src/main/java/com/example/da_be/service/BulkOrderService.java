@@ -14,6 +14,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 @Service
 @Transactional
 public class BulkOrderService {
@@ -21,6 +24,7 @@ public class BulkOrderService {
     private final BulkOrderInquiryNoteRepository noteRepository;
     private final BulkOrderQuotationRepository quotationRepository;
     private final BulkOrderInteractionRepository interactionRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public BulkOrderService(BulkOrderInquiryRepository inquiryRepository,
                             BulkOrderInquiryNoteRepository noteRepository,
@@ -43,6 +47,14 @@ public class BulkOrderService {
         inquiry.setTotalQuantity(request.orderData.totalQuantity);
         inquiry.setTotalValue(request.orderData.totalValue);
         inquiry.setItemCount(request.orderData.itemCount);
+        // Serialize cart items nếu có
+        try {
+            if(request.orderData.cartItems != null && !request.orderData.cartItems.isEmpty()){
+                inquiry.setCartItemsJson(objectMapper.writeValueAsString(request.orderData.cartItems));
+            }
+        } catch (Exception ex){
+            // bỏ qua lỗi serialize để không chặn tạo inquiry
+        }
         BulkOrderInquiry saved = inquiryRepository.save(inquiry);
         logInteraction(saved.getId(), "create_inquiry", null);
         return map(saved);
@@ -167,6 +179,14 @@ public class BulkOrderService {
             q.discountAmount = inq.getQuotation().getDiscountAmount();
             q.total = inq.getQuotation().getTotal();
             r.quotation = q;
+        }
+        // Parse cart items JSON -> list
+        if(inq.getCartItemsJson()!=null){
+            try {
+                r.cartItems = objectMapper.readValue(inq.getCartItemsJson(), new TypeReference<List<BulkOrderInquiryResponse.CartItem>>() {});
+            } catch (Exception ex){
+                // nếu lỗi parse giữ null
+            }
         }
         return r;
     }

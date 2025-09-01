@@ -82,6 +82,24 @@ const Cart = () => {
                 totalQuantity,
                 totalValue: totalPrice,
                 itemCount: selectedCartItems.length,
+                // Gửi đầy đủ thông tin biến thể để admin xem chi tiết
+                cartItems: selectedCartItems.map((ci) => {
+                    const spct = ci.sanPhamCT || {};
+                    const sanPham = spct.sanPham || {};
+                    return {
+                        // các field cũ
+                        name: spct.ten || sanPham.tenSanPham || sanPham.ten || 'Sản phẩm',
+                        quantity: ci.soLuong || 0,
+                        price: (spct.giaKhuyenMai ?? spct.donGia) || 0,
+                        // mới bổ sung để hiển thị: id variant, thương hiệu, màu, trọng lượng, hình ảnh
+                        variantId: spct.id,
+                        productId: sanPham.id,
+                        brand: spct.thuongHieu?.ten || sanPham.thuongHieu?.ten || null,
+                        color: spct.mauSac?.ten || null,
+                        weight: spct.trongLuong?.ten || null,
+                        image: ci.hinhAnhUrl || spct.hinhAnhUrls?.[0] || sanPham.hinhAnhDaiDien || null,
+                    };
+                }),
             },
             contactMethod: 'phone',
         };

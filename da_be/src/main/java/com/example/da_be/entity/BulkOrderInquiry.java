@@ -55,6 +55,10 @@ public class BulkOrderInquiry {
     @OneToOne(mappedBy = "inquiry", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private BulkOrderQuotation quotation;
 
+    // Lưu danh sách sản phẩm trong giỏ dạng JSON để đơn giản hoá (tránh tạo bảng con lúc này)
+    @Column(name = "CartItemsJson", columnDefinition = "TEXT")
+    private String cartItemsJson;
+
     public BulkOrderInquiry() {}
 
     @PrePersist
@@ -99,4 +103,6 @@ public class BulkOrderInquiry {
     public void setNotes(List<BulkOrderInquiryNote> notes) { this.notes = notes; }
     public BulkOrderQuotation getQuotation() { return quotation; }
     public void setQuotation(BulkOrderQuotation quotation) { this.quotation = quotation; }
+    public String getCartItemsJson() { return cartItemsJson; }
+    public void setCartItemsJson(String cartItemsJson) { this.cartItemsJson = cartItemsJson; }
 }

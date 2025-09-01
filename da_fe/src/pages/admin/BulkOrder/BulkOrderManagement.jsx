@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import bulkOrderAPI from '../../../services/bulkOrderAPI';
 import {
     Users,
@@ -37,6 +37,8 @@ const BulkOrderManagement = () => {
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [statusMessage, setStatusMessage] = useState(null);
+    const statusMsgTimeoutRef = React.useRef(null);
 
     // Map API inquiry shape -> UI shape expected
     const mapInquiry = (inq) => ({
@@ -51,7 +53,17 @@ const BulkOrderManagement = () => {
             totalQuantity: inq.totalQuantity || 0,
             totalValue: Number(inq.totalValue || 0),
             itemCount: inq.itemCount || 0,
-            cartItems: [], // backend chưa lưu chi tiết giỏ
+            cartItems: (inq.cartItems || []).map((ci) => ({
+                name: ci.name,
+                quantity: ci.quantity,
+                price: ci.price,
+                variantId: ci.variantId,
+                productId: ci.productId,
+                brand: ci.brand,
+                color: ci.color,
+                weight: ci.weight,
+                image: ci.image,
+            })),
         },
         contactMethod: inq.contactMethod,
         status: inq.status,
@@ -92,23 +104,7 @@ const BulkOrderManagement = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filters.status, filters.method, filters.search]);
 
-    useEffect(() => {
-        filterInquiries();
-    }, [bulkInquiries, filters]);
-
-    const updateStats = (inquiries) => {
-        const stats = {
-            total: inquiries.length,
-            pending: inquiries.filter((i) => i.status === 'pending').length,
-            contacted: inquiries.filter((i) => i.status === 'contacted').length,
-            completed: inquiries.filter((i) => i.status === 'completed').length,
-            avgOrderValue: inquiries.reduce((sum, i) => sum + i.orderData.totalValue, 0) / inquiries.length || 0,
-        };
-        setStats(stats);
-    };
-
-    const filterInquiries = () => {
-        // Hiện tại backend đã lọc status, method, search. Chỉ lọc thêm dateRange client-side.
+    const filterInquiries = useCallback(() => {
         let filtered = [...bulkInquiries];
         if (filters.dateRange !== 'all') {
             const now = new Date();
@@ -119,6 +115,21 @@ const BulkOrderManagement = () => {
             filtered = filtered.filter((i) => new Date(i.createdAt) >= from);
         }
         setFilteredInquiries(filtered);
+    }, [bulkInquiries, filters.dateRange]);
+
+    useEffect(() => {
+        filterInquiries();
+    }, [filterInquiries]);
+
+    const updateStats = (inquiries) => {
+        const stats = {
+            total: inquiries.length,
+            pending: inquiries.filter((i) => i.status === 'pending').length,
+            contacted: inquiries.filter((i) => i.status === 'contacted').length,
+            completed: inquiries.filter((i) => i.status === 'completed').length,
+            avgOrderValue: inquiries.reduce((sum, i) => sum + i.orderData.totalValue, 0) / inquiries.length || 0,
+        };
+        setStats(stats);
     };
 
     const getStatusIcon = (status) => {
@@ -170,6 +181,10 @@ const BulkOrderManagement = () => {
             setBulkInquiries((prev) => prev.map((i) => (i.id === inquiryId ? mapped : i)));
             setSelectedInquiry((prev) => (prev && prev.id === inquiryId ? mapped : prev));
             updateStats(bulkInquiries);
+            // Show success toast
+            if (statusMsgTimeoutRef.current) clearTimeout(statusMsgTimeoutRef.current);
+            setStatusMessage('Cập nhật trạng thái thành công');
+            statusMsgTimeoutRef.current = setTimeout(() => setStatusMessage(null), 3000);
         } catch {
             console.error('Update status error');
             alert('Cập nhật trạng thái thất bại');
@@ -213,6 +228,21 @@ const BulkOrderManagement = () => {
 
     return (
         <div className="p-6 bg-gray-50 min-h-screen">
+            {statusMessage && (
+                <div className="fixed top-4 right-4 z-50 animate-fade-in">
+                    <div className="bg-green-600 text-white px-4 py-2 rounded shadow-lg flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4" />
+                        <span className="text-sm font-medium">{statusMessage}</span>
+                        <button
+                            onClick={() => setStatusMessage(null)}
+                            className="ml-2 text-white/80 hover:text-white"
+                            aria-label="Close"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                </div>
+            )}
             {/* Header */}
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-gray-800 mb-2">Quản lý Đơn hàng Số lượng lớn</h1>
@@ -519,18 +549,86 @@ const BulkOrderManagement = () => {
 
                                     <div>
                                         <h5 className="font-medium mb-2">Sản phẩm trong giỏ:</h5>
-                                        <div className="space-y-2">
-                                            {selectedInquiry.orderData.cartItems.map((item, index) => (
-                                                <div
-                                                    key={index}
-                                                    className="flex justify-between items-center bg-white p-2 rounded"
-                                                >
-                                                    <span>{item.name}</span>
-                                                    <span className="text-sm text-gray-600">
-                                                        {item.quantity} x {formatCurrency(item.price)}
-                                                    </span>
+                                        <div className="space-y-3">
+                                            {selectedInquiry.orderData.cartItems &&
+                                            selectedInquiry.orderData.cartItems.length > 0 ? (
+                                                selectedInquiry.orderData.cartItems.map((item, index) => (
+                                                    <div
+                                                        key={index}
+                                                        className="flex items-center gap-3 bg-white p-3 rounded border border-gray-100"
+                                                    >
+                                                        <div className="w-14 h-14 flex-shrink-0 rounded overflow-hidden bg-gray-50 border">
+                                                            {item.image ? (
+                                                                <img
+                                                                    src={item.image}
+                                                                    alt={item.name}
+                                                                    className="w-full h-full object-contain"
+                                                                    onError={(e) => {
+                                                                        e.target.src =
+                                                                            'https://via.placeholder.com/56x56?text=No+Img';
+                                                                    }}
+                                                                />
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
+                                                                    No image
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="font-medium text-gray-800 line-clamp-2">
+                                                                {item.name}
+                                                            </p>
+                                                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 mt-1">
+                                                                {item.brand && (
+                                                                    <span>
+                                                                        Hãng:{' '}
+                                                                        <span className="font-semibold">
+                                                                            {item.brand}
+                                                                        </span>
+                                                                    </span>
+                                                                )}
+                                                                {item.color && (
+                                                                    <span>
+                                                                        Màu:{' '}
+                                                                        <span className="font-semibold">
+                                                                            {item.color}
+                                                                        </span>
+                                                                    </span>
+                                                                )}
+                                                                {item.weight && (
+                                                                    <span>
+                                                                        Trọng lượng:{' '}
+                                                                        <span className="font-semibold">
+                                                                            {item.weight}
+                                                                        </span>
+                                                                    </span>
+                                                                )}
+                                                                {item.variantId && (
+                                                                    <span>
+                                                                        Variant ID:{' '}
+                                                                        <span className="font-mono">
+                                                                            {item.variantId}
+                                                                        </span>
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-right text-sm">
+                                                            <div className="font-semibold text-gray-800">
+                                                                {item.quantity} x {formatCurrency(item.price)}
+                                                            </div>
+                                                            <div className="text-green-600 font-bold">
+                                                                {formatCurrency(item.quantity * item.price)}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="text-sm text-gray-500 italic">
+                                                    Không có dữ liệu sản phẩm (yêu cầu được tạo trước khi lưu chi tiết
+                                                    giỏ hàng).
                                                 </div>
-                                            ))}
+                                            )}
                                         </div>
                                     </div>
                                 </div>

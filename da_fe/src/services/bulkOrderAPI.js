@@ -8,7 +8,7 @@ const bulkOrderAPI = {
         try {
             const response = await axios.post(`${API_BASE_URL}/bulk-orders/inquiries`, {
                 customerInfo: inquiryData.customerInfo,
-                orderData: inquiryData.orderData,
+                orderData: inquiryData.orderData, // bao gồm cả cartItems nếu có
                 contactMethod: inquiryData.contactMethod,
                 createdAt: new Date().toISOString(),
                 status: 'pending',
@@ -31,17 +31,15 @@ const bulkOrderAPI = {
             if (filters.method && filters.method !== 'all') {
                 params.append('contactMethod', filters.method);
             }
-            if (filters.dateRange && filters.dateRange !== 'all') {
-                params.append('dateRange', filters.dateRange);
-            }
+            // dateRange & assignedStaff chỉ lọc client-side, không gửi backend (tránh 400 nếu backend validate)
             if (filters.search) {
                 params.append('search', filters.search);
             }
-            if (filters.assignedStaff) {
-                params.append('assignedStaff', filters.assignedStaff);
-            }
-
-            const response = await axios.get(`${API_BASE_URL}/bulk-orders/inquiries?${params}`);
+            const query = params.toString();
+            const url = query
+                ? `${API_BASE_URL}/bulk-orders/inquiries?${query}`
+                : `${API_BASE_URL}/bulk-orders/inquiries`;
+            const response = await axios.get(url);
             return response.data.result;
         } catch (error) {
             console.error('Error fetching bulk order inquiries:', error);
