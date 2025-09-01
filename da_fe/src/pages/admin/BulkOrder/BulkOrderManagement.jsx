@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import bulkOrderAPI from '../../../services/bulkOrderAPI';
 import {
     Users,
     Phone,
@@ -34,63 +35,62 @@ const BulkOrderManagement = () => {
         avgOrderValue: 0,
     });
 
-    // Mock data - thay thế bằng API call thực tế
-    const mockInquiries = [
-        {
-            id: 1,
-            customerInfo: {
-                name: 'Nguyễn Văn A',
-                phone: '0123456789',
-                email: 'customer1@email.com',
-                note: 'Muốn mua số lượng lớn cho câu lạc bộ',
-            },
-            orderData: {
-                totalQuantity: 15,
-                totalValue: 4500000,
-                itemCount: 8,
-                cartItems: [
-                    { name: 'Vợt cầu lông Yonex', quantity: 5, price: 450000 },
-                    { name: 'Quả cầu lông', quantity: 10, price: 25000 },
-                ],
-            },
-            contactMethod: 'phone',
-            status: 'pending', // pending, contacted, completed, cancelled
-            assignedStaff: null,
-            createdAt: '2025-01-20T10:30:00',
-            updatedAt: '2025-01-20T10:30:00',
-            notes: [],
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    // Map API inquiry shape -> UI shape expected
+    const mapInquiry = (inq) => ({
+        id: inq.id,
+        customerInfo: {
+            name: inq.customerName,
+            phone: inq.customerPhone,
+            email: inq.customerEmail,
+            note: inq.customerNote,
         },
-        {
-            id: 2,
-            customerInfo: {
-                name: 'Trần Thị B',
-                phone: '0987654321',
-                email: 'customer2@email.com',
-                note: 'Cần tư vấn combo sản phẩm cho doanh nghiệp',
-            },
-            orderData: {
-                totalQuantity: 25,
-                totalValue: 8200000,
-                itemCount: 12,
-                cartItems: [
-                    { name: 'Vợt cầu lông Yonex Pro', quantity: 8, price: 650000 },
-                    { name: 'Giày cầu lông', quantity: 6, price: 1200000 },
-                ],
-            },
-            contactMethod: 'zalo',
-            status: 'contacted',
-            assignedStaff: 'Nhân viên A',
-            createdAt: '2025-01-19T14:20:00',
-            updatedAt: '2025-01-20T09:15:00',
-            notes: [{ text: 'Đã liên hệ, khách quan tâm combo', time: '2025-01-20T09:15:00', staff: 'Nhân viên A' }],
+        orderData: {
+            totalQuantity: inq.totalQuantity || 0,
+            totalValue: Number(inq.totalValue || 0),
+            itemCount: inq.itemCount || 0,
+            cartItems: [], // backend chưa lưu chi tiết giỏ
         },
-    ];
+        contactMethod: inq.contactMethod,
+        status: inq.status,
+        assignedStaff: inq.assignedStaff,
+        createdAt: inq.createdAt,
+        updatedAt: inq.updatedAt,
+        notes: (inq.notes || []).map((n) => ({
+            id: n.id,
+            text: n.text,
+            staff: n.staffName,
+            time: n.createdAt,
+        })),
+        quotation: inq.quotation || null,
+    });
+
+    const fetchInquiries = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await bulkOrderAPI.getAllInquiries({
+                status: filters.status,
+                method: filters.method,
+                search: filters.search,
+            });
+            const mapped = Array.isArray(data) ? data.map(mapInquiry) : [];
+            setBulkInquiries(mapped);
+            updateStats(mapped);
+        } catch (e) {
+            console.error(e);
+            setError('Không tải được danh sách');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        // Fetch bulk inquiries from API
-        setBulkInquiries(mockInquiries);
-        updateStats(mockInquiries);
-    }, []);
+        fetchInquiries();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filters.status, filters.method, filters.search]);
 
     useEffect(() => {
         filterInquiries();
@@ -108,45 +108,16 @@ const BulkOrderManagement = () => {
     };
 
     const filterInquiries = () => {
+        // Hiện tại backend đã lọc status, method, search. Chỉ lọc thêm dateRange client-side.
         let filtered = [...bulkInquiries];
-
-        if (filters.status !== 'all') {
-            filtered = filtered.filter((inquiry) => inquiry.status === filters.status);
-        }
-
-        if (filters.method !== 'all') {
-            filtered = filtered.filter((inquiry) => inquiry.contactMethod === filters.method);
-        }
-
-        if (filters.search) {
-            filtered = filtered.filter(
-                (inquiry) =>
-                    inquiry.customerInfo.name.toLowerCase().includes(filters.search.toLowerCase()) ||
-                    inquiry.customerInfo.phone.includes(filters.search) ||
-                    inquiry.customerInfo.email.toLowerCase().includes(filters.search.toLowerCase()),
-            );
-        }
-
-        // Date range filter
         if (filters.dateRange !== 'all') {
             const now = new Date();
-            const filterDate = new Date();
-
-            switch (filters.dateRange) {
-                case 'today':
-                    filterDate.setHours(0, 0, 0, 0);
-                    break;
-                case 'week':
-                    filterDate.setDate(now.getDate() - 7);
-                    break;
-                case 'month':
-                    filterDate.setMonth(now.getMonth() - 1);
-                    break;
-            }
-
-            filtered = filtered.filter((inquiry) => new Date(inquiry.createdAt) >= filterDate);
+            const from = new Date();
+            if (filters.dateRange === 'today') from.setHours(0, 0, 0, 0);
+            if (filters.dateRange === 'week') from.setDate(now.getDate() - 7);
+            if (filters.dateRange === 'month') from.setMonth(now.getMonth() - 1);
+            filtered = filtered.filter((i) => new Date(i.createdAt) >= from);
         }
-
         setFilteredInquiries(filtered);
     };
 
@@ -188,24 +159,45 @@ const BulkOrderManagement = () => {
         }
     };
 
-    const handleStatusUpdate = (inquiryId, newStatus) => {
-        setBulkInquiries((prev) =>
-            prev.map((inquiry) =>
-                inquiry.id === inquiryId
-                    ? { ...inquiry, status: newStatus, updatedAt: new Date().toISOString() }
-                    : inquiry,
-            ),
-        );
+    const handleStatusUpdate = async (inquiryId, newStatus) => {
+        try {
+            const updated = await bulkOrderAPI.updateInquiryStatus(
+                inquiryId,
+                newStatus,
+                selectedInquiry?.assignedStaff || null,
+            );
+            const mapped = mapInquiry(updated);
+            setBulkInquiries((prev) => prev.map((i) => (i.id === inquiryId ? mapped : i)));
+            setSelectedInquiry((prev) => (prev && prev.id === inquiryId ? mapped : prev));
+            updateStats(bulkInquiries);
+        } catch {
+            console.error('Update status error');
+            alert('Cập nhật trạng thái thất bại');
+        }
     };
 
-    const handleAssignStaff = (inquiryId, staffName) => {
-        setBulkInquiries((prev) =>
-            prev.map((inquiry) =>
-                inquiry.id === inquiryId
-                    ? { ...inquiry, assignedStaff: staffName, updatedAt: new Date().toISOString() }
-                    : inquiry,
-            ),
-        );
+    const handleAssignStaff = async (inquiryId, staffName) => {
+        try {
+            const updated = await bulkOrderAPI.updateInquiryStatus(
+                inquiryId,
+                selectedInquiry?.status || 'pending',
+                staffName,
+            );
+            const mapped = mapInquiry(updated);
+            setBulkInquiries((prev) => prev.map((i) => (i.id === inquiryId ? mapped : i)));
+            setSelectedInquiry((prev) => (prev && prev.id === inquiryId ? mapped : prev));
+        } catch {
+            console.error('Assign staff error');
+            alert('Gán nhân viên thất bại');
+        }
+    };
+
+    const handleExport = async () => {
+        try {
+            await bulkOrderAPI.exportToExcel({ status: filters.status, method: filters.method });
+        } catch {
+            alert('Xuất Excel thất bại');
+        }
     };
 
     const formatCurrency = (amount) => {
@@ -331,13 +323,20 @@ const BulkOrderManagement = () => {
                     </div>
 
                     <div className="flex items-end">
-                        <button className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center justify-center gap-2">
+                        <button
+                            onClick={handleExport}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md flex items-center justify-center gap-2"
+                        >
                             <Download className="w-4 h-4" />
                             Xuất Excel
                         </button>
                     </div>
                 </div>
             </div>
+
+            {/* Loading / Error */}
+            {loading && <div className="p-6 text-center text-gray-600">Đang tải...</div>}
+            {error && !loading && <div className="p-6 text-center text-red-600">{error}</div>}
 
             {/* Inquiries Table */}
             <div className="bg-white rounded-lg shadow-sm border overflow-hidden">

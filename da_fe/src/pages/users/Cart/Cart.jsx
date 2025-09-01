@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import React, { useState, useEffect, useContext, useMemo, useRef } from 'react';
 import CartItem from './CartItem';
 import CartSummary from './CartSummary';
 import { Button } from '@mui/material';
@@ -11,8 +11,9 @@ import { X, Tag } from 'lucide-react';
 
 import { ShoppingCart, ShoppingBag, AlertCircle, CheckCircle2, Loader2, Truck, Shield, Gift } from 'lucide-react';
 import { useUserAuth } from '../../../contexts/userAuthContext';
-import BulkOrderDetector, { checkBulkConditions } from '../../../components/BulkOrderDetector';
+import BulkOrderDetector from '../../../components/BulkOrderDetector';
 import useBulkOrderDetection from '../../../hooks/useBulkOrderDetection';
+import bulkOrderAPI from '../../../services/bulkOrderAPI';
 
 function parseJwt(token) {
     try {
@@ -27,7 +28,7 @@ function parseJwt(token) {
                 .join(''),
         );
         return JSON.parse(jsonPayload);
-    } catch (e) {
+    } catch {
         return {};
     }
 }
@@ -60,8 +61,46 @@ const Cart = () => {
         return carts.filter((item) => selectedItems.includes(item.id));
     }, [carts, selectedItems]);
 
-    const { shouldShowBulkWarning, bulkOrderData, resetBulkWarning, getBulkOrderBenefits, getStaffContactInfo } =
-        useBulkOrderDetection(selectedCartItems, totalPrice);
+    const { shouldShowBulkWarning, bulkOrderData, resetBulkWarning } = useBulkOrderDetection(
+        selectedCartItems,
+        totalPrice,
+    );
+
+    const bulkInquiryIdRef = useRef(null);
+    const creatingInquiryRef = useRef(false);
+
+    const buildInquiryPayload = () => {
+        const totalQuantity = selectedCartItems.reduce((sum, it) => sum + (it.soLuong || 0), 0);
+        return {
+            customerInfo: {
+                name: user?.hoTen || user?.name || 'Khách hàng',
+                phone: user?.sdt || 'N/A',
+                email: user?.email || 'unknown@example.com',
+                note: 'Tự động tạo từ giỏ hàng',
+            },
+            orderData: {
+                totalQuantity,
+                totalValue: totalPrice,
+                itemCount: selectedCartItems.length,
+            },
+            contactMethod: 'phone',
+        };
+    };
+
+    const ensureBulkInquiry = async () => {
+        if (bulkInquiryIdRef.current || creatingInquiryRef.current) return bulkInquiryIdRef.current;
+        creatingInquiryRef.current = true;
+        try {
+            const created = await bulkOrderAPI.createBulkOrderInquiry(buildInquiryPayload());
+            bulkInquiryIdRef.current = created.id || created?.result?.id;
+            return bulkInquiryIdRef.current;
+        } catch (err) {
+            console.error('Tạo bulk inquiry thất bại', err);
+            return null;
+        } finally {
+            creatingInquiryRef.current = false;
+        }
+    };
 
     const shipping = totalPrice > 1000000 ? 0 : 30000;
     const finalTotal = totalPrice + shipping;
@@ -88,6 +127,7 @@ const Cart = () => {
         if (userId) {
             fetchCart(userId);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userId]);
 
     const fetchCart = async (userId) => {
@@ -145,10 +185,8 @@ const Cart = () => {
         }
 
         // Kiểm tra bulk order trước khi checkout
-        const isBulkOrder = checkBulkConditions(selectedCartItems, bulkOrderData.totalQuantity || 0, totalPrice);
-        
-        if (isBulkOrder) {
-            // Hiển thị modal bulk order
+        if (shouldShowBulkWarning) {
+            await ensureBulkInquiry();
             setShowBulkModal(true);
             return;
         }
@@ -167,27 +205,20 @@ const Cart = () => {
     };
 
     // Bulk order handlers
-    const handleContactStaff = (method, orderInfo) => {
-        console.log('Customer contacted staff via:', method, orderInfo);
-
-        // Track bulk order interaction
-        const eventData = {
-            method,
-            orderInfo: {
-                ...orderInfo,
-                timestamp: new Date().toISOString(),
-                userId: idTaiKhoan,
-            },
-        };
-
-        // Send to analytics or backend
-        try {
-            // axios.post('/api/bulk-order-interactions', eventData);
-            console.log('Bulk order interaction tracked:', eventData);
-        } catch (error) {
-            console.error('Failed to track bulk order interaction:', error);
+    const handleContactStaff = async (method) => {
+        const id = await ensureBulkInquiry();
+        if (id) {
+            try {
+                await bulkOrderAPI.updateInquiryStatus(id, 'contacted');
+                await bulkOrderAPI.trackInteraction({
+                    inquiryId: id,
+                    type: 'contact_method',
+                    method,
+                });
+            } catch (e) {
+                console.error('Track interaction fail', e);
+            }
         }
-
         swal({
             title: 'Đã gửi yêu cầu!',
             text: 'Chuyên viên sẽ liên hệ với bạn trong thời gian sớm nhất.',
@@ -199,8 +230,12 @@ const Cart = () => {
     const handleContinueNormal = async () => {
         setShowBulkModal(false);
         resetBulkWarning();
+        // ghi nhận user bỏ qua tư vấn bulk
+        if (bulkInquiryIdRef.current) {
+            bulkOrderAPI.trackInteraction({ inquiryId: bulkInquiryIdRef.current, type: 'continue_normal' });
+        }
         console.log('Customer chose to continue with normal checkout');
-        
+
         // Chuyển sang trang thanh toán
         setIsCheckingOut(true);
         try {

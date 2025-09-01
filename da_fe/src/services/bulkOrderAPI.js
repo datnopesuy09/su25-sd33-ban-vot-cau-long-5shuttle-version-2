@@ -13,7 +13,7 @@ const bulkOrderAPI = {
                 createdAt: new Date().toISOString(),
                 status: 'pending',
             });
-            return response.data;
+            return response.data.result;
         } catch (error) {
             console.error('Error creating bulk order inquiry:', error);
             throw error;
@@ -42,7 +42,7 @@ const bulkOrderAPI = {
             }
 
             const response = await axios.get(`${API_BASE_URL}/bulk-orders/inquiries?${params}`);
-            return response.data;
+            return response.data.result;
         } catch (error) {
             console.error('Error fetching bulk order inquiries:', error);
             throw error;
@@ -53,7 +53,7 @@ const bulkOrderAPI = {
     getInquiryById: async (id) => {
         try {
             const response = await axios.get(`${API_BASE_URL}/bulk-orders/inquiries/${id}`);
-            return response.data;
+            return response.data.result;
         } catch (error) {
             console.error('Error fetching bulk order inquiry:', error);
             throw error;
@@ -68,7 +68,7 @@ const bulkOrderAPI = {
                 assignedStaff,
                 updatedAt: new Date().toISOString(),
             });
-            return response.data;
+            return response.data.result;
         } catch (error) {
             console.error('Error updating inquiry status:', error);
             throw error;
@@ -83,7 +83,7 @@ const bulkOrderAPI = {
                 staffName,
                 timestamp: new Date().toISOString(),
             });
-            return response.data;
+            return response.data.result;
         } catch (error) {
             console.error('Error adding inquiry note:', error);
             throw error;
@@ -94,7 +94,7 @@ const bulkOrderAPI = {
     getStatistics: async (dateRange = 'month') => {
         try {
             const response = await axios.get(`${API_BASE_URL}/bulk-orders/statistics?range=${dateRange}`);
-            return response.data;
+            return response.data.result;
         } catch (error) {
             console.error('Error fetching statistics:', error);
             throw error;
@@ -143,7 +143,7 @@ const bulkOrderAPI = {
                 customMessage,
                 sentAt: new Date().toISOString(),
             });
-            return response.data;
+            return response.data.result;
         } catch (error) {
             console.error('Error sending follow-up email:', error);
             throw error;
@@ -157,7 +157,7 @@ const bulkOrderAPI = {
                 ...quotationData,
                 createdAt: new Date().toISOString(),
             });
-            return response.data;
+            return response.data.result;
         } catch (error) {
             console.error('Error creating quotation:', error);
             throw error;
@@ -171,7 +171,7 @@ const bulkOrderAPI = {
                 ...orderDetails,
                 convertedAt: new Date().toISOString(),
             });
-            return response.data;
+            return response.data.result;
         } catch (error) {
             console.error('Error converting to order:', error);
             throw error;
@@ -182,7 +182,7 @@ const bulkOrderAPI = {
     getInquiryHistory: async (inquiryId) => {
         try {
             const response = await axios.get(`${API_BASE_URL}/bulk-orders/inquiries/${inquiryId}/history`);
-            return response.data;
+            return response.data.result;
         } catch (error) {
             console.error('Error fetching inquiry history:', error);
             throw error;

@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import swal from 'sweetalert';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -16,6 +16,7 @@ import { toast } from 'react-toastify';
 import CircularProgress from '@mui/material/CircularProgress';
 import BulkOrderNotification from '../../../components/BulkOrderNotification';
 import useBulkOrderDetection from '../../../hooks/useBulkOrderDetection';
+import bulkOrderAPI from '../../../services/bulkOrderAPI';
 
 function parseJwt(token) {
     try {
@@ -30,7 +31,7 @@ function parseJwt(token) {
                 .join(''),
         );
         return JSON.parse(jsonPayload);
-    } catch (e) {
+    } catch {
         return {};
     }
 }
@@ -88,6 +89,41 @@ const CheckOut = () => {
 
     // Bulk order detection
     const { shouldShowBulkWarning, bulkOrderData, resetBulkWarning } = useBulkOrderDetection(carts, totalPrice);
+    const [bulkInquiryId, setBulkInquiryId] = useState(null);
+    const creatingRef = useRef(false);
+
+    const buildBulkInquiryPayload = () => ({
+        customerInfo: {
+            name: user?.hoTen || user?.name || 'Khách hàng',
+            phone: user?.sdt || 'N/A',
+            email: user?.email || 'unknown@example.com',
+            note: 'Tự động tạo từ trang thanh toán',
+        },
+        orderData: {
+            totalQuantity: bulkOrderData.totalQuantity || carts.reduce((s, i) => s + (i.soLuong || 0), 0),
+            totalValue: totalPrice,
+            itemCount: carts.length,
+        },
+        contactMethod: 'phone',
+    });
+
+    useEffect(() => {
+        const createIfNeeded = async () => {
+            if (shouldShowBulkWarning && !bulkInquiryId && !creatingRef.current) {
+                creatingRef.current = true;
+                try {
+                    const created = await bulkOrderAPI.createBulkOrderInquiry(buildBulkInquiryPayload());
+                    setBulkInquiryId(created.id || created?.result?.id);
+                } catch (err) {
+                    console.error('Không tạo được bulk inquiry', err);
+                } finally {
+                    creatingRef.current = false;
+                }
+            }
+        };
+        createIfNeeded();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [shouldShowBulkWarning, totalPrice]);
 
     const formatPhoneNumber = (phone) => {
         if (!phone) return '';
@@ -102,6 +138,7 @@ const CheckOut = () => {
             fetchDefaultAddress();
             fetchUserAddresses();
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [idTaiKhoan]);
 
     const fetchCart = async () => {
@@ -687,9 +724,19 @@ const CheckOut = () => {
                     itemCount: carts.length,
                     reasons: bulkOrderData.reasons || [],
                 }}
-                onContactMethod={(method, data) => {
-                    console.log('Customer contacted via:', method, data);
-                    // Track interaction
+                onContactMethod={async (method) => {
+                    if (bulkInquiryId) {
+                        try {
+                            await bulkOrderAPI.updateInquiryStatus(bulkInquiryId, 'contacted');
+                            await bulkOrderAPI.trackInteraction({
+                                inquiryId: bulkInquiryId,
+                                type: 'contact_method',
+                                method,
+                            });
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    }
                     swal({
                         title: 'Đã gửi yêu cầu!',
                         text: 'Chuyên viên sẽ liên hệ với bạn trong thời gian sớm nhất.',
@@ -697,7 +744,11 @@ const CheckOut = () => {
                         timer: 3000,
                     });
                 }}
-                onDismiss={resetBulkWarning}
+                onDismiss={() => {
+                    if (bulkInquiryId)
+                        bulkOrderAPI.trackInteraction({ inquiryId: bulkInquiryId, type: 'dismiss_notification' });
+                    resetBulkWarning();
+                }}
             />
         </div>
     );
