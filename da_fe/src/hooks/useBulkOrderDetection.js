@@ -158,9 +158,9 @@ const useBulkOrderDetection = (cartItems = [], totalValue = 0) => {
 
     const getStaffContactInfo = () => ({
         name: 'Chuyên viên tư vấn 5Shuttle',
-        phone: '0123456789',
-        email: 'sales@5shuttle.com',
-        zalo: '0123456789',
+        phone: '0347111832',
+        email: 'phamhungg2709@gmail.com',
+        zalo: '0347111832',
         address: 'Cửa hàng 5Shuttle - Địa chỉ cửa hàng',
     });
 

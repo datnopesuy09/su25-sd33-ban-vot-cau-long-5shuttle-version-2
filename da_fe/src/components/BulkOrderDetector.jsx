@@ -19,9 +19,9 @@ const BulkOrderDetector = ({
 
     const [staffInfo, setStaffInfo] = useState({
         name: 'Chuyên viên tư vấn',
-        phone: '0123456789',
-        email: 'sales@5shuttle.com',
-        zalo: '0123456789',
+        phone: '0347111832',
+        email: 'phamhungg2709@gmail.com',
+        zalo: '0347111832',
     });
 
     // Kiểm tra điều kiện bulk order với useMemo để tránh re-calculation
