@@ -3,14 +3,17 @@ import { CheckCircle, Clock, Package, Truck, CreditCard, XCircle, RotateCcw, Ale
 import { Plus, Minus, ShoppingCart, Star, Heart } from 'lucide-react';
 import { Calculator, Percent, Receipt } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { X, Banknote, User, Calendar, FileText, ShieldCheck } from 'lucide-react';
+import { X, Banknote, User, Calendar, FileText, ShieldCheck, AlertTriangle } from 'lucide-react';
 import PaymentModal from './PaymentModal';
 import OrderInfo from './OrderInfor';
 import OrderProgress from './OrderProgress';
 import ProductList from './ProductList';
 import PaymentDetails from './PaymentDetai';
 import KhoHangManagement from '../../../components/KhoHangManagement';
+import DeliveryIncidentModal from '../../../components/admin/DeliveryIncidentModal';
+import DeliveryIncidentList from '../../../components/admin/DeliveryIncidentList';
 import swal from 'sweetalert';
+import { toast } from 'react-toastify';
 import axios from 'axios';
 import ProductModal from '../Sale/ProductModal';
 import SockJS from 'sockjs-client';
@@ -49,6 +52,8 @@ function OrderStatus() {
     const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [orderHistory, setOrderHistory] = useState([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
+    const [showIncidentModal, setShowIncidentModal] = useState(false);
+    const [incidentRefreshTrigger, setIncidentRefreshTrigger] = useState(0);
 
     const fetchPreOrders = async () => {
         try {
@@ -56,7 +61,7 @@ function OrderStatus() {
             setPreOrders(response.data);
         } catch (error) {
             console.error('Lỗi khi lấy danh sách đặt trước:', error);
-            swal('Lỗi!', 'Không thể lấy danh sách đặt trước', 'error');
+            toast.error('Không thể lấy danh sách đặt trước!');
         }
     };
 
@@ -66,7 +71,7 @@ function OrderStatus() {
             setOrderDetailDatas(response.data);
         } catch (error) {
             console.error('Lỗi khi lấy chi tiết hóa đơn:', error);
-            swal('Lỗi!', 'Không thể lấy chi tiết hóa đơn', 'error');
+            toast.error('Không thể lấy chi tiết hóa đơn!');
         }
     };
 
@@ -79,7 +84,7 @@ function OrderStatus() {
             setOrderHistory(response.data);
         } catch (error) {
             console.error('Lỗi khi lấy lịch sử đơn hàng:', error);
-            swal('Lỗi!', 'Không thể lấy lịch sử đơn hàng', 'error');
+            toast.error('Không thể lấy lịch sử đơn hàng!');
         } finally {
             setLoadingHistory(false);
         }
@@ -93,6 +98,20 @@ function OrderStatus() {
     const handleCloseHistoryModal = () => {
         setShowHistoryModal(false);
         setOrderHistory([]);
+    };
+
+    const handleOpenIncidentModal = () => {
+        setShowIncidentModal(true);
+    };
+
+    const handleCloseIncidentModal = () => {
+        setShowIncidentModal(false);
+    };
+
+    const handleIncidentReported = (newIncident) => {
+        // Refresh incidents list by triggering re-fetch
+        console.log('New incident reported:', newIncident);
+        setIncidentRefreshTrigger((prev) => prev + 1);
     };
 
     // Hàm để lưu lịch sử đơn hàng khi thay đổi trạng thái
@@ -125,7 +144,7 @@ function OrderStatus() {
                     setReturnHistory(response.data);
                 } catch (error) {
                     console.error('Lỗi khi lấy lịch sử trả hàng:', error);
-                    swal('Lỗi!', 'Không thể lấy lịch sử trả hàng', 'error');
+                    toast.error('Không thể lấy lịch sử trả hàng!');
                 }
             };
             fetchReturnHistory();
@@ -137,7 +156,7 @@ function OrderStatus() {
             client.connect({}, () => {
                 client.subscribe(`/user/${orderData.taiKhoan?.id}/queue/notifications`, (message) => {
                     const notification = JSON.parse(message.body);
-                    swal('Thông báo', notification.noiDung, 'info');
+                    toast.info(notification.noiDung);
                     fetchPreOrders();
                     fetchBillDetails(hoaDonId);
                 });
@@ -182,7 +201,7 @@ function OrderStatus() {
 
     const handleConfirmAddProduct = async (selectedProduct, quantity) => {
         if (!selectedProduct || !orderData.id) {
-            swal('Lỗi', 'Vui lòng chọn sản phẩm và hóa đơn', 'error');
+            toast.error('Vui lòng chọn sản phẩm và hóa đơn!');
             return;
         }
 
@@ -203,7 +222,7 @@ function OrderStatus() {
                     });
                     fetchPreOrders();
                 } else {
-                    swal('Thành công!', 'Thêm sản phẩm vào hóa đơn thành công', 'success');
+                    toast.success('Thêm sản phẩm vào hóa đơn thành công!');
                 }
                 setShowProductModal(false);
                 fetchBillDetails(orderData.id);
@@ -219,7 +238,7 @@ function OrderStatus() {
                 });
                 fetchPreOrders();
             } else {
-                swal('Lỗi', error.response?.data || 'Không thể thêm sản phẩm', 'error');
+                toast.error(error.response?.data || 'Không thể thêm sản phẩm!');
             }
         }
     };
@@ -252,7 +271,7 @@ function OrderStatus() {
             setOrderDetailDatas(updatedOrderDetails);
         } catch (error) {
             console.error('Error updating quantity:', error);
-            swal('Lỗi!', 'Không thể cập nhật số lượng', 'error');
+            toast.error('Không thể cập nhật số lượng!');
         }
     };
 
@@ -284,7 +303,7 @@ function OrderStatus() {
 
     const handleConfirmImport = async () => {
         if (importQuantity <= 0) {
-            swal('Lỗi', 'Số lượng nhập hàng phải lớn hơn 0', 'error');
+            toast.error('Số lượng nhập hàng phải lớn hơn 0!');
             return;
         }
         try {
@@ -316,15 +335,15 @@ function OrderStatus() {
                 }
             } catch (notificationError) {
                 console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
-                swal('Cảnh báo', 'Không thể gửi thông báo đến người dùng.', 'warning');
+                toast.warning('Không thể gửi thông báo đến người dùng.');
             }
-            swal('Thành công', 'Nhập hàng thành công!', 'success');
+            toast.success('Nhập hàng thành công!');
             fetchBillDetails(hoaDonId);
             fetchPreOrders();
             handleCloseImportModal();
         } catch (error) {
             console.error('Lỗi khi nhập hàng:', error);
-            swal('Lỗi', error.response?.data || 'Không thể nhập hàng', 'error');
+            toast.error(error.response?.data || 'Không thể nhập hàng!');
         }
     };
 
@@ -342,11 +361,11 @@ function OrderStatus() {
                 // Cập nhật orderData với thông tin mới
                 Object.assign(orderData, deliveryInfo);
 
-                swal('Thành công', 'Cập nhật thông tin người nhận thành công!', 'success');
+                toast.success('Cập nhật thông tin người nhận thành công!');
             }
         } catch (error) {
             console.error('Lỗi khi cập nhật thông tin giao hàng:', error);
-            swal('Lỗi', error.response?.data || 'Không thể cập nhật thông tin giao hàng', 'error');
+            toast.error(error.response?.data || 'Không thể cập nhật thông tin giao hàng!');
             throw error; // Re-throw để OrderInfo có thể handle
         }
     };
@@ -532,7 +551,7 @@ function OrderStatus() {
                 }
             } catch (notificationError) {
                 console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
-                swal('Cảnh báo', 'Không thể gửi thông báo đến người dùng.', 'warning');
+                toast.warning('Không thể gửi thông báo đến người dùng.');
             }
 
             if (newStatus === 8) {
@@ -540,10 +559,10 @@ function OrderStatus() {
                 setReturnHistory(response.data);
             }
 
-            swal('Thành công!', 'Cập nhật trạng thái đơn hàng thành công', 'success');
+            toast.success('Cập nhật trạng thái đơn hàng thành công!');
         } catch (error) {
             console.error('Lỗi khi cập nhật trạng thái đơn hàng:', error);
-            swal('Lỗi!', 'Không thể cập nhật trạng thái đơn hàng', 'error');
+            toast.error('Không thể cập nhật trạng thái đơn hàng!');
         }
     };
 
@@ -552,7 +571,7 @@ function OrderStatus() {
         const previousStatus = getPreviousStatus(currentOrderStatus);
 
         if (!previousStatus) {
-            swal('Lỗi!', 'Không thể quay lại trạng thái trước đó', 'error');
+            toast.error('Không thể quay lại trạng thái trước đó!');
             return;
         }
 
@@ -608,13 +627,13 @@ function OrderStatus() {
                 }
             } catch (notificationError) {
                 console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
-                swal('Cảnh báo', 'Không thể gửi thông báo đến người dùng.', 'warning');
+                toast.warning('Không thể gửi thông báo đến người dùng.');
             }
 
-            swal('Thành công!', 'Quay lại trạng thái trước đó thành công', 'success');
+            toast.success('Quay lại trạng thái trước đó thành công!');
         } catch (error) {
             console.error('Lỗi khi quay lại trạng thái trước đó:', error);
-            swal('Lỗi!', 'Không thể quay lại trạng thái trước đó', 'error');
+            toast.error('Không thể quay lại trạng thái trước đó!');
         }
     };
 
@@ -678,7 +697,7 @@ function OrderStatus() {
         const previousStatus = getPreviousStatus(currentOrderStatus);
 
         if (!canRevertStatus(currentOrderStatus)) {
-            swal('Lỗi!', 'Không thể quay lại từ trạng thái hiện tại', 'error');
+            toast.error('Không thể quay lại từ trạng thái hiện tại!');
             return;
         }
 
@@ -709,6 +728,7 @@ function OrderStatus() {
             const newPayment = {
                 hoaDon: { id: hoaDonId },
                 taiKhoan: { id: orderData.taiKhoan?.id || 1 },
+                nhanVienXacNhan: { id: admin?.id, hoTen: admin?.hoTen }, // Thêm thông tin nhân viên xác nhận
                 ma: `PT-${Date.now()}`,
                 tongTien: total,
                 phuongThucThanhToan: paymentMethod,
@@ -736,10 +756,10 @@ function OrderStatus() {
             setIsModalOpen(false);
             const savedPayment = await response.json();
             setCheckOuts((prev) => [...prev, savedPayment]);
-            swal('Thành công!', 'Lưu thanh toán thành công', 'success');
+            toast.success('Lưu thanh toán thành công!');
         } catch (error) {
             console.error('Error saving payment:', error);
-            swal('Lỗi!', 'Không thể thêm thanh toán', 'error');
+            toast.error('Không thể thêm thanh toán!');
         }
     };
 
@@ -831,10 +851,10 @@ function OrderStatus() {
     const handleCancelOrder = async (reason = 'Đơn hàng đã được hủy') => {
         try {
             await updateOrderStatus(7, reason);
-            swal('Thành công!', 'Đơn hàng đã được hủy!', 'success');
+            toast.success('Đơn hàng đã được hủy!');
         } catch (error) {
             console.error('Error canceling order:', error);
-            swal('Lỗi!', 'Không thể hủy đơn hàng', 'error');
+            toast.error('Không thể hủy đơn hàng!');
         }
     };
 
@@ -880,12 +900,12 @@ function OrderStatus() {
                     }
                 } catch (notificationError) {
                     console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
-                    swal('Cảnh báo', 'Không thể gửi thông báo đến người dùng.', 'warning');
+                    toast.warning('Không thể gửi thông báo đến người dùng.');
                 }
-                swal('Thành công!', 'Yêu cầu trả hàng đã được duyệt', 'success');
+                toast.success('Yêu cầu trả hàng đã được duyệt!');
             } catch (error) {
                 console.error('Lỗi khi duyệt yêu cầu trả hàng:', error);
-                swal('Lỗi!', error.response?.data?.message || 'Không thể duyệt yêu cầu trả hàng', 'error');
+                toast.error(error.response?.data?.message || 'Không thể duyệt yêu cầu trả hàng!');
             }
         }
     };
@@ -928,12 +948,12 @@ function OrderStatus() {
                     }
                 } catch (notificationError) {
                     console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
-                    swal('Cảnh báo', 'Không thể gửi thông báo đến người dùng.', 'warning');
+                    toast.warning('Không thể gửi thông báo đến người dùng.');
                 }
-                swal('Thành công!', 'Yêu cầu trả hàng đã bị từ chối', 'success');
+                toast.success('Yêu cầu trả hàng đã bị từ chối!');
             } catch (error) {
                 console.error('Lỗi khi từ chối yêu cầu trả hàng:', error);
-                swal('Lỗi!', error.response?.data?.message || 'Không thể từ chối yêu cầu trả hàng', 'error');
+                toast.error(error.response?.data?.message || 'Không thể từ chối yêu cầu trả hàng!');
             }
         }
     };
@@ -1097,6 +1117,35 @@ function OrderStatus() {
                     </div>
                 )}
             </div>
+
+            {/* Sự cố vận chuyển - chỉ hiển thị khi đơn hàng đang vận chuyển hoặc có sự cố */}
+            {(currentOrderStatus === 3 || currentOrderStatus === 4) && (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 max-w-5xl mx-auto mt-8">
+                    <div className="p-6 border-b border-gray-200">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                                <AlertTriangle className="w-6 h-6 mr-2 text-red-600" />
+                                Quản lý sự cố vận chuyển
+                            </h2>
+                            <button
+                                onClick={handleOpenIncidentModal}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2"
+                            >
+                                <AlertTriangle className="w-4 h-4" />
+                                <span>Báo cáo sự cố</span>
+                            </button>
+                        </div>
+                        <p className="text-gray-600 mt-2">
+                            Ghi nhận và quản lý các sự cố xảy ra trong quá trình vận chuyển đơn hàng
+                        </p>
+                    </div>
+
+                    <div className="p-6">
+                        <DeliveryIncidentList hoaDonId={hoaDonId} refreshTrigger={incidentRefreshTrigger} />
+                    </div>
+                </div>
+            )}
+
             {showProductModal && (
                 <ProductModal
                     showProductModal={showProductModal}
@@ -1371,6 +1420,16 @@ function OrderStatus() {
                     </div>
                 </div>
             )}
+
+            {/* Delivery Incident Modal */}
+            <DeliveryIncidentModal
+                isOpen={showIncidentModal}
+                onClose={handleCloseIncidentModal}
+                orderData={orderData}
+                hoaDonId={hoaDonId}
+                onIncidentReported={handleIncidentReported}
+                stompClient={stompClient}
+            />
         </>
     );
 }

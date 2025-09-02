@@ -481,10 +481,13 @@ const OrderProgress = ({
                             // Xác định trạng thái tiếp theo dựa trên logic nghiệp vụ
                             let nextStatus = currentOrderStatus + 1;
                             if (currentOrderStatus === 4) {
-                                // Trạng thái 4 cần thanh toán trước khi chuyển sang 5
+                                // Trạng thái 4 (Đã giao hàng) -> 5 (Đã thanh toán): Mở modal thanh toán trực tiếp
                                 nextStatus = 5;
+                                handleActionButtonClick(nextStatus, '');
+                            } else {
+                                // Các trạng thái khác: Hiển thị modal xác nhận trước
+                                handlePrepareStatusChange(nextStatus);
                             }
-                            handlePrepareStatusChange(nextStatus);
                         }}
                     >
                         {getActionButtonText(currentOrderStatus)}

@@ -16,17 +16,19 @@ public class WebConfig implements WebMvcConfigurer {
     // Cấu hình CORS
     @Override
     public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**")
-                .allowedOriginPatterns(
-                    "http://localhost:3000",  // React default port
-                    "http://localhost:5173",  // Vite default port
-                    "http://localhost:8080",  // Backend port
-                    "*" // Cho phép tất cả origins khác
-                )
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-                .allowedHeaders("*")
-                .allowCredentials(true)
-                .maxAge(3600);
+    // NOTE: Khi allowCredentials(true) thì KHÔNG được dùng wildcard '*' trong allowedOrigins/allowedOriginPatterns
+    // vì header 'Access-Control-Allow-Origin' không thể set '*'. Điều này gây ra IllegalArgumentException 400.
+    // Chỉ liệt kê rõ các origin frontend hợp lệ. Nếu cần mở rộng động, dùng cấu hình qua application.properties.
+    registry.addMapping("/**")
+        .allowedOriginPatterns(
+            "http://localhost:3000",  // React default port
+            "http://localhost:5173"   // Vite default port
+            // Không thêm '*' ở đây khi allowCredentials = true
+        )
+        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+        .allowedHeaders("*")
+        .allowCredentials(true)
+        .maxAge(3600);
     }
 
     // Cấu hình serve static files

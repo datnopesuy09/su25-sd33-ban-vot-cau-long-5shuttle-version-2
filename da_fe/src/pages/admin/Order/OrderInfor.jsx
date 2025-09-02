@@ -299,7 +299,19 @@ const OrderInfo = ({
 
                     <button
                         onClick={handleOpenModal}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center gap-2"
+                        disabled={currentOrderStatus >= 3}
+                        title={
+                            currentOrderStatus >= 3
+                                ? 'Không thể cập nhật sau khi đơn đã chuyển sang trạng thái Đang vận chuyển'
+                                : ''
+                        }
+                        className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200 flex items-center gap-2
+                            ${
+                                currentOrderStatus >= 3
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                            }
+                        `}
                     >
                         <Edit3 className="w-4 h-4" />
                         Cập nhật
@@ -497,14 +509,24 @@ const OrderInfo = ({
                                                 {getStatus(ck.trangThai).label}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-gray-500 text-sm italic">Không có ghi chú</td>
+                                        <td className="px-6 py-4 text-gray-600 text-sm">
+                                            {ck.ghiChu ? (
+                                                <div className="max-w-xs">
+                                                    <span className="text-gray-700">{ck.ghiChu}</span>
+                                                </div>
+                                            ) : (
+                                                <span className="text-gray-400 italic">Không có ghi chú</span>
+                                            )}
+                                        </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-2">
                                                 <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                                                     <User className="w-4 h-4 text-blue-600" />
                                                 </div>
                                                 <span className="text-gray-700 font-medium text-sm">
-                                                    {ck.taiKhoan.hoTen}
+                                                    {ck.nhanVienXacNhan?.hoTen ||
+                                                        ck.taiKhoan?.hoTen ||
+                                                        'Không xác định'}
                                                 </span>
                                             </div>
                                         </td>
