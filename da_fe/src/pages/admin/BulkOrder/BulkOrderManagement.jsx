@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import bulkOrderAPI from '../../../services/bulkOrderAPI';
+import { useAdminAuth } from '../../../contexts/adminAuthContext';
 import {
     Users,
     Phone,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 
 const BulkOrderManagement = () => {
+    const { admin } = useAdminAuth(); // Lấy thông tin admin hiện tại
     const [bulkInquiries, setBulkInquiries] = useState([]);
     const [filteredInquiries, setFilteredInquiries] = useState([]);
     const [selectedInquiry, setSelectedInquiry] = useState(null);
@@ -172,11 +174,9 @@ const BulkOrderManagement = () => {
 
     const handleStatusUpdate = async (inquiryId, newStatus) => {
         try {
-            const updated = await bulkOrderAPI.updateInquiryStatus(
-                inquiryId,
-                newStatus,
-                selectedInquiry?.assignedStaff || null,
-            );
+            // Sử dụng tên admin hiện tại khi cập nhật trạng thái
+            const staffName = admin?.hoTen || 'Admin';
+            const updated = await bulkOrderAPI.updateInquiryStatus(inquiryId, newStatus, staffName);
             const mapped = mapInquiry(updated);
             setBulkInquiries((prev) => prev.map((i) => (i.id === inquiryId ? mapped : i)));
             setSelectedInquiry((prev) => (prev && prev.id === inquiryId ? mapped : prev));
@@ -193,10 +193,12 @@ const BulkOrderManagement = () => {
 
     const handleAssignStaff = async (inquiryId, staffName) => {
         try {
+            // Nếu không có staffName được truyền vào, sử dụng tên admin hiện tại
+            const assignedStaff = staffName || admin?.hoTen || 'Admin';
             const updated = await bulkOrderAPI.updateInquiryStatus(
                 inquiryId,
                 selectedInquiry?.status || 'pending',
-                staffName,
+                assignedStaff,
             );
             const mapped = mapInquiry(updated);
             setBulkInquiries((prev) => prev.map((i) => (i.id === inquiryId ? mapped : i)));
@@ -648,13 +650,24 @@ const BulkOrderManagement = () => {
                                         <option value="completed">Hoàn thành</option>
                                         <option value="cancelled">Đã hủy</option>
                                     </select>
-                                    <input
-                                        type="text"
-                                        placeholder="Nhân viên phụ trách"
-                                        value={selectedInquiry.assignedStaff || ''}
-                                        onChange={(e) => handleAssignStaff(selectedInquiry.id, e.target.value)}
-                                        className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
-                                    />
+                                    <div className="flex-1 flex gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder={`Nhân viên phụ trách (${admin?.hoTen || 'Admin'})`}
+                                            value={selectedInquiry.assignedStaff || ''}
+                                            onChange={(e) => handleAssignStaff(selectedInquiry.id, e.target.value)}
+                                            className="flex-1 p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                                        />
+                                        <button
+                                            onClick={() =>
+                                                handleAssignStaff(selectedInquiry.id, admin?.hoTen || 'Admin')
+                                            }
+                                            className="px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 text-sm rounded-md border border-blue-300 transition-colors"
+                                            title="Gán cho tôi"
+                                        >
+                                            Gán tôi
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
