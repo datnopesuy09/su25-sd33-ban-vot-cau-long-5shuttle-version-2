@@ -12,6 +12,10 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class DiaChiUpdateRequest {
 
+    Integer idKhachHang;
+
+    Integer id;
+
     String ten;
 
     String sdt;
@@ -24,5 +28,5 @@ public class DiaChiUpdateRequest {
 
     String diaChiCuThe;
 
-    Integer loai;
+    Boolean isMacDinh;
 }

@@ -1,7 +1,11 @@
 package com.example.da_be.controller;
 
 import com.example.da_be.dto.request.ApiResponse;
+import com.example.da_be.dto.request.DiaChi.DiaChiCreationRequest;
+import com.example.da_be.dto.request.DiaChi.DiaChiUpdateRequest;
 import com.example.da_be.dto.request.KhachHang.KhachHangCreationRequest;
+import com.example.da_be.dto.request.KhachHang.KhachHangUpdateRequest;
+import com.example.da_be.dto.response.DiaChiResponse;
 import com.example.da_be.dto.response.KhachHangResponse;
 import com.example.da_be.entity.User;
 import com.example.da_be.repository.KhachHangRepository;
@@ -33,5 +37,46 @@ public class KhachHangController {
                 .build();
     }
 
+    @PostMapping
+    public ApiResponse<KhachHangResponse> addKhachHang(@RequestBody KhachHangCreationRequest request){
+        return ApiResponse.<KhachHangResponse>builder()
+                .result(khachHangSevice.createKhachHang(request))
+                .code(1000)
+                .build();
+    }
+
+    @GetMapping("/{khachHangId}")
+    public ApiResponse<KhachHangResponse> getKhachHangByEmail(@PathVariable("khachHangId") Integer khachHangId){
+        return ApiResponse.<KhachHangResponse>builder()
+                .result(khachHangSevice.getKhachHangById(khachHangId))
+                .code(1000)
+                .build();
+    }
+
+    @PutMapping("/{khachHangId}")
+    public ApiResponse<KhachHangResponse> updateKhachHang(@RequestBody KhachHangUpdateRequest request,
+            @PathVariable("khachHangId") Integer khachHangId){
+        return ApiResponse.<KhachHangResponse>builder()
+                .result(khachHangSevice.updateKhachHang(request, khachHangId))
+                .code(1000)
+                .build();
+    }
+
+    @PostMapping("/add-address")
+    public ApiResponse<DiaChiResponse> addAddress(@RequestBody DiaChiCreationRequest request){
+        return ApiResponse.<DiaChiResponse>builder()
+                .result(khachHangSevice.createDiaChi(request, request.getIdKhachHang()))
+                .code(1000)
+                .build();
+    }
+
+    @PutMapping("/update-address")
+    public ApiResponse<DiaChiResponse> updateAddress(@RequestBody DiaChiUpdateRequest request){
+
+        return ApiResponse.<DiaChiResponse>builder()
+                .result(khachHangSevice.updateCustomerAddress(request, request.getId(), request.getIdKhachHang()))
+                .build();
+
+    }
 
 }

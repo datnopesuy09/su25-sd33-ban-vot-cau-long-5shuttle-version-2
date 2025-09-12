@@ -12,7 +12,6 @@ function AddCustomer() {
     const [selectedDistrict, setSelectedDistrict] = useState('');
     const [selectedWard, setSelectedWard] = useState('');
     const [previewImage, setPreviewImage] = useState(null);
-
     const [errors, setErrors] = useState({});
 
     const [formData, setFormData] = useState({
@@ -20,28 +19,23 @@ function AddCustomer() {
         sdt: '',
         email: '',
         gioiTinh: 0,
-        vaiTro: 'Customer',
-        avatar: null,
         ngaySinh: '',
-        trangThai: 1,
+        userType: 'CA_NHAN',
     });
 
     const [diaChiData, setDiaChiData] = useState({
         ten: '',
         sdt: '',
         diaChiCuThe: '',
-        idTinh: '',
-        idHuyen: '',
-        idXa: '',
+        tinh: '',
+        huyen: '',
+        xa: '',
         loai: 0,
-        idTaiKhoan: '',
     });
-
 
     const checkMail = async (email) => {
         try {
             const response = await axios.get(`http://localhost:8080/auth/check-mail?email=${email}`);
-
             return !!(response.data?.email === email);
         } catch (error) {
             console.error('Error checking email: ', error);
@@ -119,6 +113,13 @@ function AddCustomer() {
             errors.gioiTinh = '';
         }
 
+        if (!data.userType) {
+            errors.userType = '*Bạn chưa chọn loại khách hàng';
+            check++;
+        } else {
+            errors.userType = '';
+        }
+
         return { errors, check };
     };
 
@@ -127,17 +128,17 @@ function AddCustomer() {
         let check = 0;
 
         if (!selectedProvince) {
-            errors.idTinh = '*Bạn chưa chọn tỉnh/ thành phố';
+            errors.tinh = '*Bạn chưa chọn tỉnh/ thành phố';
             check++;
         }
 
         if (!selectedDistrict) {
-            errors.idHuyen = '*Bạn chưa chọn quận/ huyện';
+            errors.huyen = '*Bạn chưa chọn quận/ huyện';
             check++;
         }
 
-        if (!address.idXa) {
-            errors.idXa = '*Bạn chưa chọn xã/ phường';
+        if (!address.xa) {
+            errors.xa = '*Bạn chưa chọn xã/ phường';
             check++;
         }
 
@@ -146,6 +147,7 @@ function AddCustomer() {
             check++;
         } else if (address.diaChiCuThe.length > 255) {
             errors.diaChiCuThe = '*Địa chỉ cụ thể không dài quá 255 ký tự';
+            check++;
         }
 
         return { errors, check };
@@ -162,7 +164,7 @@ function AddCustomer() {
                 if (response.data && Array.isArray(response.data.data)) {
                     setProvinces(response.data.data);
                 } else {
-                    console.log('Dữ liệu tỉnh không hợp lê: ', response.data);
+                    console.log('Dữ liệu tỉnh không hợp lệ: ', response.data);
                 }
             })
             .catch((error) => {
@@ -185,7 +187,7 @@ function AddCustomer() {
                     if (response.data && Array.isArray(response.data.data)) {
                         setDistricts(response.data.data);
                     } else {
-                        console.log('Dữ liệu huyện không hợp lê: ', response.data);
+                        console.log('Dữ liệu huyện không hợp lệ: ', response.data);
                     }
                 })
                 .catch((error) => {
@@ -211,7 +213,7 @@ function AddCustomer() {
                     if (response.data && Array.isArray(response.data.data)) {
                         setWards(response.data.data);
                     } else {
-                        console.log('Dữ liệu tỉnh không hợp lê: ', response.data);
+                        console.log('Dữ liệu xã không hợp lệ: ', response.data);
                     }
                 })
                 .catch((error) => {
@@ -233,19 +235,19 @@ function AddCustomer() {
     const handleProvinceChange = (e) => {
         const value = e.target.value;
         setSelectedProvince(value);
-        setErrors({ ...errors, idTinh: '' });
+        setErrors({ ...errors, tinh: '' });
     };
 
     const handleDistrictChange = (e) => {
         const value = e.target.value;
         setSelectedDistrict(value);
-        setErrors({ ...errors, idHuyen: '' });
+        setErrors({ ...errors, huyen: '' });
     };
 
     const handleWardChange = (e) => {
         const value = e.target.value;
         setSelectedWard(value);
-        setErrors({ ...errors, idXa: '' });
+        setErrors({ ...errors, xa: '' });
     };
 
     const handleGenderChange = (value) => {
@@ -273,21 +275,17 @@ function AddCustomer() {
             sdt: '',
             email: '',
             gioiTinh: 0,
-            vaiTro: 'User ',
-            avatar: null,
             ngaySinh: '',
-            cccd: '',
-            trangThai: 1,
+            userType: 'CA_NHAN',
         });
         setDiaChiData({
             ten: '',
             sdt: '',
             diaChiCuThe: '',
-            idTinh: '',
-            idHuyen: '',
-            idXa: '',
-            loai: '',
-            idTaiKhoan: '',
+            tinh: '',
+            huyen: '',
+            xa: '',
+            loai: 0,
         });
         setSelectedProvince('');
         setSelectedDistrict('');
@@ -302,9 +300,9 @@ function AddCustomer() {
         const { errors: personalErrors, check: personalCheck } = await validateData(formData);
         const { errors: addressErrors, check: addressCheck } = validateAddress({
             ...diaChiData,
-            idTinh: diaChiData.idTinh,
-            idHuyen: diaChiData.idHuyen,
-            idXa: selectedWard,
+            tinh: selectedProvince,
+            huyen: selectedDistrict,
+            xa: selectedWard,
         });
 
         const combinedErrors = { ...personalErrors, ...addressErrors };
@@ -318,18 +316,35 @@ function AddCustomer() {
 
         setErrors({});
 
+        const Province = provinces.find((prov) => prov.ProvinceID === parseInt(selectedProvince));
+        const District = districts.find((dist) => dist.DistrictID === parseInt(selectedDistrict));
+        const Ward = wards.find((w) => w.WardCode === selectedWard);
+
+        if (!Province || !District || !Ward) {
+            swal('Lỗi!', 'Vui lòng chọn đầy đủ thông tin địa chỉ!', 'error');
+            return;
+        }
+
         const customerData = {
             hoTen: formData.hoTen,
-            sdt: formData.sdt,
             email: formData.email,
-            gioiTinh: formData.gioiTinh,
+            sdt: formData.sdt,
             ngaySinh: formData.ngaySinh,
-            details: formData.details,
-            status: 1,  
+            gioiTinh: formData.gioiTinh,
+            userType: formData.userType,
+            diaChi: {
+                ten: diaChiData.ten || formData.hoTen,
+                sdt: diaChiData.sdt || formData.sdt,
+                tinh: Province.ProvinceName,
+                huyen: District.DistrictName,
+                xa: Ward.WardName,
+                diaChiCuThe: diaChiData.diaChiCuThe,
+                loai: diaChiData.loai,
+            },
         };
 
         try {
-            const customerResponse = await fetch('http://localhost:8080/api/customers/add', {
+            const customerResponse = await fetch('http://localhost:8080/khach-hang', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(customerData),
@@ -342,43 +357,7 @@ function AddCustomer() {
 
             if (!customerResponse.ok) {
                 const errText = await customerResponse.text();
-                throw new Error(errText || 'Failed to create user account');
-            }
-
-            const createdCustomer = await customerResponse.json();
-            const idTaiKhoan = createdCustomer.id;
-
-            const Province = provinces.find(prov => prov.ProvinceID === parseInt(selectedProvince));
-            const District = districts.find(dist => dist.DistrictID === parseInt(selectedDistrict));
-            const Ward = wards.find(w => w.WardCode === selectedWard);
-
-            if (!Province || !District || !Ward) {
-                swal('Lỗi!', 'Vui lòng chọn đầy đủ thông tin địa chỉ!', 'error');
-                return;
-            }
-
-            const addressToSend = {
-                ten: diaChiData.ten,
-                sdt: formData.sdt,
-                idTinh: Province.ProvinceName,
-                idHuyen: District.DistrictName,
-                idXa: Ward.WardName,
-                loai: 0,
-                diaChiCuThe: diaChiData.diaChiCuThe,
-                idTaiKhoan: idTaiKhoan,  
-            };
-
-            console.log('Đối tượng địa chỉ gửi backend:', addressToSend);
-
-            const addressResponse = await fetch('http://localhost:8080/api/dia-chi/create', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(addressToSend),
-            });
-
-            if (!addressResponse.ok) {
-                const errText = await addressResponse.text();
-                throw new Error(errText || 'Failed to create address');
+                throw new Error(errText || 'Failed to create customer');
             }
 
             resetForm();
@@ -392,7 +371,6 @@ function AddCustomer() {
             }).then(() => {
                 navigate('/admin/tai-khoan/khach-hang');
             });
-
         } catch (error) {
             console.error('Error:', error);
             swal({
@@ -403,8 +381,6 @@ function AddCustomer() {
             });
         }
     };
-
-
 
     const handleNavigateToSale = () => {
         navigate('/admin/tai-khoan/khach-hang');
@@ -423,28 +399,13 @@ function AddCustomer() {
                     <div className="w-1/4 pr-4">
                         <h2 className="text-xl font-semibold text-gray-800 mb-5">Thông tin khách hàng</h2>
                         <hr />
-                        {/* Ảnh đại diện */}
-                        {/* <div className="flex justify-center items-center mt-4">
-                            <label className="cursor-pointer">
-                                <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-                                <div className="w-32 h-32 border-2 border-dashed border-gray-400 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 overflow-hidden">
-                                    {previewImage ? (
-                                        <img src={previewImage} alt="Preview" className="w-full h-full object-cover" />
-                                    ) : (
-                                        'Chọn ảnh'
-                                    )}
-                                </div>
-                            </label>
-                        </div> */}
-                        {/* Họ và tên */}
                         <div className="col-span-2 mt-4">
                             <label className="block text-sm font-medium text-gray-700">Họ Và Tên</label>
                             <input
                                 type="text"
                                 name="hoTen"
                                 placeholder="Nhập họ và tên"
-                                className={`w-full p-3 border-2 border-gray-300 rounded outline-blue-500 ${errors.hoTen ? 'border-red-500 hover:border-red-600 outline-red-500' : ''
-                                    }`}
+                                className={`w-full p-3 border-2 border-gray-300 rounded outline-blue-500 ${errors.hoTen ? 'border-red-500 hover:border-red-600 outline-red-500' : ''}`}
                                 onChange={(e) => {
                                     handleInputChange(e);
                                     setErrors({ ...errors, hoTen: '' });
@@ -464,9 +425,8 @@ function AddCustomer() {
                                     <input
                                         type="radio"
                                         name="gender"
-                                        checked
-                                        className={`mr-2 ${errors.gioiTinh ? 'border-red-500 hover:border-red-600' : ''
-                                            }`}
+                                        checked={formData.gioiTinh === 0}
+                                        className={`mr-2 ${errors.gioiTinh ? 'border-red-500 hover:border-red-600' : ''}`}
                                         onChange={() => {
                                             handleGenderChange(0);
                                             setErrors({ ...errors, gioiTinh: '' });
@@ -478,9 +438,8 @@ function AddCustomer() {
                                     <input
                                         type="radio"
                                         name="gender"
-                                        checked
-                                        className={`mr-2 ${errors.gioiTinh ? 'border-red-500 hover:border-red-600' : ''
-                                            }`}
+                                        checked={formData.gioiTinh === 1}
+                                        className={`mr-2 ${errors.gioiTinh ? 'border-red-500 hover:border-red-600' : ''}`}
                                         onChange={() => {
                                             handleGenderChange(1);
                                             setErrors({ ...errors, gioiTinh: '' });
@@ -492,6 +451,29 @@ function AddCustomer() {
                             {errors.gioiTinh && (
                                 <p className="text-sm" style={{ color: 'red' }}>
                                     {errors.gioiTinh}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="mt-4">
+                            <label className="block text-sm font-medium text-gray-700">Loại khách hàng</label>
+                            <select
+                                name="userType"
+                                value={formData.userType}
+                                onChange={(e) => {
+                                    handleInputChange(e);
+                                    setErrors({ ...errors, userType: '' });
+                                }}
+                                className={`w-full p-3 border-2 border-gray-300 rounded outline-blue-500 ${errors.userType ? 'border-red-500 hover:border-red-600 outline-red-500' : ''}`}
+                            >
+                                <option value="">Chọn loại khách hàng</option>
+                                <option value="CA_NHAN">Cá Nhân</option>
+                                <option value="DOANH_NGHIEP">Doanh Nghiệp</option>
+                                <option value="VIP">VIP</option>
+                            </select>
+                            {errors.userType && (
+                                <p className="text-sm" style={{ color: 'red' }}>
+                                    {errors.userType}
                                 </p>
                             )}
                         </div>
@@ -507,8 +489,7 @@ function AddCustomer() {
                                     type="email"
                                     name="email"
                                     placeholder="Nhập email"
-                                    className={`w-full p-3 border-2 border-gray-300 rounded outline-blue-500 ${errors.email ? 'border-red-500 hover:border-red-600 outline-red-500' : ''
-                                        }`}
+                                    className={`w-full p-3 border-2 border-gray-300 rounded outline-blue-500 ${errors.email ? 'border-red-500 hover:border-red-600 outline-red-500' : ''}`}
                                     onChange={(e) => {
                                         handleInputChange(e);
                                         setErrors({ ...errors, email: '' });
@@ -527,11 +508,11 @@ function AddCustomer() {
                                     type="text"
                                     name="sdt"
                                     placeholder="Nhập số điện thoại"
-                                    className={`w-full p-3 border-2 border-gray-300 rounded outline-blue-500 ${errors.sdt ? 'border-red-500 hover:border-red-600 outline-red-500' : ''
-                                        }`}
+                                    className={`w-full p-3 border-2 border-gray-300 rounded outline-blue-500 ${errors.sdt ? 'border-red-500 hover:border-red-600 outline-red-500' : ''}`}
                                     onChange={(e) => {
                                         handleInputChange(e);
                                         setErrors({ ...errors, sdt: '' });
+                                        setDiaChiData((prev) => ({ ...prev, sdt: e.target.value }));
                                     }}
                                 />
                                 {errors.sdt && (
@@ -547,8 +528,7 @@ function AddCustomer() {
                                 <label className="block text-sm font-medium text-gray-700">Tỉnh/Thành phố</label>
                                 <select
                                     onChange={handleProvinceChange}
-                                    className={`w-full p-3 border-2 border-gray-300 rounded outline-blue-500 ${errors.idTinh ? 'border-red-500 hover:border-red-600 outline-red-500' : ''
-                                        }`}
+                                    className={`w-full p-3 border-2 border-gray-300 rounded outline-blue-500 ${errors.tinh ? 'border-red-500 hover:border-red-600 outline-red-500' : ''}`}
                                 >
                                     <option value="">Chọn tỉnh/thành phố</option>
                                     {provinces.map((province) => (
@@ -557,9 +537,9 @@ function AddCustomer() {
                                         </option>
                                     ))}
                                 </select>
-                                {errors.idTinh && (
+                                {errors.tinh && (
                                     <p className="text-sm" style={{ color: 'red' }}>
-                                        {errors.idTinh}
+                                        {errors.tinh}
                                     </p>
                                 )}
                             </div>
@@ -567,12 +547,8 @@ function AddCustomer() {
                             <div>
                                 <label className="block text-sm font-medium text-gray-700">Quận/Huyện</label>
                                 <select
-                                    onChange={(e) => {
-                                        setSelectedDistrict(e.target.value);
-                                        setErrors({ ...errors, idHuyen: '' });
-                                    }}
-                                    className={`w-full p-3 border-2 border-gray-300 rounded outline-blue-500 ${errors.idHuyen ? 'border-red-500 hover:border-red-600 outline-red-500' : ''
-                                        }`}
+                                    onChange={handleDistrictChange}
+                                    className={`w-full p-3 border-2 border-gray-300 rounded outline-blue-500 ${errors.huyen ? 'border-red-500 hover:border-red-600 outline-red-500' : ''}`}
                                     disabled={!selectedProvince}
                                 >
                                     <option value="">Chọn quận/huyện</option>
@@ -582,9 +558,9 @@ function AddCustomer() {
                                         </option>
                                     ))}
                                 </select>
-                                {errors.idHuyen && (
+                                {errors.huyen && (
                                     <p className="text-sm" style={{ color: 'red' }}>
-                                        {errors.idHuyen}
+                                        {errors.huyen}
                                     </p>
                                 )}
                             </div>
@@ -593,11 +569,10 @@ function AddCustomer() {
                                 <label className="block text-sm font-medium text-gray-700">Xã/Phường/Thị trấn</label>
                                 <select
                                     onChange={(e) => {
-                                        setSelectedWard(e.target.value);
-                                        setErrors({ ...errors, idXa: '' });
+                                        handleWardChange(e);
+                                        setDiaChiData((prev) => ({ ...prev, xa: e.target.value }));
                                     }}
-                                    className={`w-full p-3 border-2 border-gray-300 rounded outline-blue-500 ${errors.idXa ? 'border-red-500 hover:border-red-600 outline-red-500' : ''
-                                        }`}
+                                    className={`w-full p-3 border-2 border-gray-300 rounded outline-blue-500 ${errors.xa ? 'border-red-500 hover:border-red-600 outline-red-500' : ''}`}
                                     disabled={!selectedDistrict}
                                 >
                                     <option value="">Chọn xã/phường</option>
@@ -607,9 +582,9 @@ function AddCustomer() {
                                         </option>
                                     ))}
                                 </select>
-                                {errors.idXa && (
+                                {errors.xa && (
                                     <p className="text-sm" style={{ color: 'red' }}>
-                                        {errors.idXa}
+                                        {errors.xa}
                                     </p>
                                 )}
                             </div>
@@ -621,8 +596,7 @@ function AddCustomer() {
                                 <input
                                     type="date"
                                     name="ngaySinh"
-                                    className={`w-full p-3 border-2 border-gray-300 rounded outline-blue-500 ${errors.ngaySinh ? 'border-red-600 hover:border-red-600 outline-red-500' : ''
-                                        }`}
+                                    className={`w-full p-3 border-2 border-gray-300 rounded outline-blue-500 ${errors.ngaySinh ? 'border-red-600 hover:border-red-600 outline-red-500' : ''}`}
                                     onChange={(e) => {
                                         handleInputChange(e);
                                         setErrors({ ...errors, ngaySinh: '' });
@@ -640,8 +614,7 @@ function AddCustomer() {
                                 <input
                                     type="text"
                                     placeholder="Nhập địa chỉ cụ thể"
-                                    className={`w-full p-3 border-2 border-gray-300 rounded outline-blue-500 ${errors.diaChiCuThe ? 'border-red-500 hover:border-red-600 outline-red-500' : ''
-                                        }`}
+                                    className={`w-full p-3 border-2 border-gray-300 rounded outline-blue-500 ${errors.diaChiCuThe ? 'border-red-500 hover:border-red-600 outline-red-500' : ''}`}
                                     onChange={(e) => {
                                         setDiaChiData((prev) => ({ ...prev, diaChiCuThe: e.target.value }));
                                         setErrors({ ...errors, diaChiCuThe: '' });
@@ -654,10 +627,21 @@ function AddCustomer() {
                                 )}
                             </div>
                         </div>
+
+                        <div className="mt-4">
+                            <label className="block text-sm font-medium text-gray-700">Tên người nhận</label>
+                            <input
+                                type="text"
+                                placeholder="Nhập tên người nhận"
+                                className={`w-full p-3 border-2 border-gray-300 rounded outline-blue-500`}
+                                onChange={(e) => {
+                                    setDiaChiData((prev) => ({ ...prev, ten: e.target.value }));
+                                }}
+                            />
+                        </div>
                     </div>
                 </div>
 
-                {/* Nút Thêm Nhân Viên */}
                 <div className="mt-8 flex justify-end">
                     <button
                         onClick={handleAddUser}

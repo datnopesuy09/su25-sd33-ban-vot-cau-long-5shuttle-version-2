@@ -11,6 +11,9 @@ import lombok.experimental.FieldDefaults;
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class DiaChiCreationRequest {
+
+    Integer idKhachHang;
+
     String ten;
 
     String sdt;

@@ -54,7 +54,7 @@ import AdminInfo from '../pages/admin/ad-info.jsx';
 import MyOrderDetail from '../pages/admin/nhanvien/draft.jsx';
 import ReturnOrders from '../pages/admin/Order/ReturnOrders.jsx';
 import { computeAxisValue } from '@mui/x-charts/internals';
-import UpdateProduct from '../pages/admin/Product/update.jsx';
+//import UpdateProduct from '../pages/admin/Product/update.jsx';
 import orderReturn from '../pages/users/TaiKhoan/orderReturn.jsx';
 import SpctDetail from '../pages/admin/Product/SpctDetail.jsx';
 
@@ -78,7 +78,7 @@ const publicRoutes = [
     { path: '/san-pham', component: Product },
     { path: '/admin/quan-ly-san-pham/san-pham-ct', component: ProductAdmin, layout: AdminLayout },
     { path: '/admin/quan-ly-san-pham/san-pham-ct/add', component: AddProduct, layout: AdminLayout },
-    { path: '/admin/quan-ly-san-pham/san-pham-ct/:id/update', component: UpdateProduct, layout: AdminLayout },
+
     { path: '/admin/quan-ly-san-pham/san-pham-ct/:id/detail', component: SpctDetail, layout: AdminLayout },
     { path: '/gio-hang', component: Cart },
     { path: '/xac-nhan-don-hang', component: SuccessOrder },

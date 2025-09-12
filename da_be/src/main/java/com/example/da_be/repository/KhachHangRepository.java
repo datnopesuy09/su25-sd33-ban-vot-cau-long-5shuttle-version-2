@@ -21,5 +21,7 @@ public interface KhachHangRepository extends JpaRepository<User, Integer> {
 
     List<User> findByRoles(Set<Role> roles);
 
+    Optional<User> findUserByEmail(String email);
+
 
 }
