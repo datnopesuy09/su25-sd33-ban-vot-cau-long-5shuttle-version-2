@@ -112,6 +112,7 @@ CREATE TABLE User
     NgaySinh   DATE               NULL,
     GioiTinh   INT                NULL,
     Avatar     VARCHAR(255)       NULL,
+    UserType VARCHAR(255)       NULL,
     CCCD       VARCHAR(255)       NULL,
     TrangThai  INT                NULL,
     CONSTRAINT pk_user PRIMARY KEY (Id)
@@ -305,22 +306,6 @@ CREATE TABLE PhieuTraHangCT (
     FOREIGN KEY (IdHoaDonCT) REFERENCES HoaDonCT(Id)
 );
 
-CREATE TABLE User
-(
-    Id         INT AUTO_INCREMENT NOT NULL,
-    Ma         VARCHAR(255)       NULL,
-    HoTen      VARCHAR(255)       NULL,
-    Email      VARCHAR(255)       NULL,
-    MatKhau    VARCHAR(255)       NULL,
-    Sdt        VARCHAR(255)       NULL,
-    NgaySinh   DATE               NULL,
-    GioiTinh   INT                NULL,
-    Avatar     VARCHAR(255)       NULL,
-    CCCD       VARCHAR(255)       NULL,
-    TrangThai  INT                NULL,
-    CONSTRAINT pk_user PRIMARY KEY (Id)
-   
-);
 
 CREATE TABLE `Role`
 (

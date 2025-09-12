@@ -1,0 +1,416 @@
+-- Merged full schema (auto-merged from 5Shuttle.sql + generated entities)
+-- Drop/create DB and all tables so the script can be executed in one run on MySQL
+
+DROP DATABASE IF EXISTS `5SHUTTLE`;
+CREATE DATABASE `5SHUTTLE` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE `5SHUTTLE`;
+
+-- Basic lookup tables
+CREATE TABLE IF NOT EXISTS ThuongHieu (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  Ten NVARCHAR(255),
+  TrangThai INT
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS MauSac (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  Ten NVARCHAR(255),
+  TrangThai INT
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS ChatLieu (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  Ten NVARCHAR(255),
+  TrangThai INT
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS TrongLuong (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  Ten NVARCHAR(255),
+  TrangThai INT
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS DiemCanBang (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  Ten NVARCHAR(255),
+  TrangThai INT
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS DoCung (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  Ten NVARCHAR(255),
+  TrangThai INT
+) ENGINE=InnoDB;
+
+-- Promotions / vouchers
+CREATE TABLE IF NOT EXISTS KhuyenMai (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  Ten NVARCHAR(255),
+  TG_BatDau DATETIME,
+  TG_KetThuc DATETIME,
+  GiaTri INT,
+  Loai BOOLEAN,
+  TrangThai INT
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS PhieuGiamGia (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  Ma NVARCHAR(255),
+  Ten NVARCHAR(255),
+  GiaTri INT,
+  GiaTriMax INT,
+  DieuKienNhoNhat INT,
+  Kieu INT,
+  KieuGiaTri INT,
+  SoLuong INT,
+  NgayBatDau DATETIME,
+  NgayKetThuc DATETIME,
+  TrangThai INT
+) ENGINE=InnoDB;
+
+-- Core product tables
+CREATE TABLE IF NOT EXISTS SanPham (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  Ma NVARCHAR(255),
+  Ten NVARCHAR(255),
+  TrangThai INT
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS SanPhamCT (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  IdSanPham INT,
+  IdThuongHieu INT,
+  IdMauSac INT,
+  IdChatLieu INT,
+  IdTrongLuong INT,
+  IdDiemCanBang INT,
+  IdDoCung INT,
+  Ma NVARCHAR(255),
+  SoLuong INT,
+  DonGia DECIMAL(10,2),
+  MoTa NVARCHAR(1000),
+  TrangThai INT,
+  FOREIGN KEY (IdSanPham) REFERENCES SanPham(Id) ON DELETE SET NULL,
+  FOREIGN KEY (IdThuongHieu) REFERENCES ThuongHieu(Id) ON DELETE SET NULL,
+  FOREIGN KEY (IdMauSac) REFERENCES MauSac(Id) ON DELETE SET NULL,
+  FOREIGN KEY (IdChatLieu) REFERENCES ChatLieu(Id) ON DELETE SET NULL,
+  FOREIGN KEY (IdTrongLuong) REFERENCES TrongLuong(Id) ON DELETE SET NULL,
+  FOREIGN KEY (IdDiemCanBang) REFERENCES DiemCanBang(Id) ON DELETE SET NULL,
+  FOREIGN KEY (IdDoCung) REFERENCES DoCung(Id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS HinhAnh (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  IdSanPhamCT INT,
+  `Link` NVARCHAR(1000),
+  TrangThai INT,
+  FOREIGN KEY (IdSanPhamCT) REFERENCES SanPhamCT(Id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Users, roles, permissions
+CREATE TABLE IF NOT EXISTS `User` (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  Ma VARCHAR(255),
+  HoTen VARCHAR(255),
+  Email VARCHAR(255),
+  MatKhau VARCHAR(255),
+  Sdt VARCHAR(255),
+  NgaySinh DATE,
+  GioiTinh INT,
+  Avatar VARCHAR(512),
+  UserType VARCHAR(255),
+  CCCD VARCHAR(255),
+  TrangThai INT
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS Role (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  Name VARCHAR(255),
+  `Description` VARCHAR(255)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS Permission (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  Name VARCHAR(255),
+  `Description` VARCHAR(255)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS User_Roles (
+  IdUser INT NOT NULL,
+  IdRole INT NOT NULL,
+  PRIMARY KEY (IdUser, IdRole),
+  FOREIGN KEY (IdUser) REFERENCES `User`(Id) ON DELETE CASCADE,
+  FOREIGN KEY (IdRole) REFERENCES Role(Id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS Role_Permissions (
+  IdRole INT NOT NULL,
+  IdPermission INT NOT NULL,
+  PRIMARY KEY (IdRole, IdPermission),
+  FOREIGN KEY (IdRole) REFERENCES Role(Id) ON DELETE CASCADE,
+  FOREIGN KEY (IdPermission) REFERENCES Permission(Id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Addresses
+CREATE TABLE IF NOT EXISTS DiaChi (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  IdUser INT,
+  Ten NVARCHAR(255),
+  Sdt VARCHAR(255),
+  Tinh NVARCHAR(255),
+  Huyen NVARCHAR(255),
+  Xa NVARCHAR(255),
+  DiaChiCuThe NVARCHAR(1000),
+  LoaiDiaChi NVARCHAR(255),
+  FOREIGN KEY (IdUser) REFERENCES `User`(Id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- Cart / orders / payments
+CREATE TABLE IF NOT EXISTS GioHang (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  IdSanPhamCT INT,
+  IdUser INT,
+  SoLuong INT,
+  NgayTao DATETIME,
+  NgaySua DATETIME,
+  FOREIGN KEY (IdSanPhamCT) REFERENCES SanPhamCT(Id) ON DELETE CASCADE,
+  FOREIGN KEY (IdUser) REFERENCES `User`(Id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS HoaDon (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  IdUser INT,
+  IdVoucher INT,
+  Ma NVARCHAR(255),
+  SoLuong INT,
+  LoaiHoaDon NVARCHAR(255),
+  PhuongThucThanhToan NVARCHAR(255),
+  TenNguoiNhan NVARCHAR(255),
+  SdtNguoiNhan NVARCHAR(255),
+  EmailNguoiNhan NVARCHAR(255),
+  DiaChiNguoiNhan NVARCHAR(1000),
+  PhiShip DECIMAL(10,2),
+  TongTien DECIMAL(18,2),
+  NgayTao DATETIME,
+  NgaySua DATETIME,
+  TrangThai INT,
+  FOREIGN KEY (IdUser) REFERENCES `User`(Id) ON DELETE SET NULL,
+  FOREIGN KEY (IdVoucher) REFERENCES PhieuGiamGia(Id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS HoaDonCT (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  IdSanPhamCT INT,
+  IdHoaDon INT,
+  SoLuong INT,
+  GiaBan DECIMAL(10,2),
+  TrangThai INT,
+  FOREIGN KEY (IdSanPhamCT) REFERENCES SanPhamCT(Id) ON DELETE SET NULL,
+  FOREIGN KEY (IdHoaDon) REFERENCES HoaDon(Id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS ThanhToan (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  IdUser INT,
+  IdHoaDon INT,
+  Ma NVARCHAR(255),
+  TongTien DECIMAL(18,2),
+  NgayTao DATETIME,
+  PhuongThucThanhToan NVARCHAR(255),
+  TrangThai INT,
+  FOREIGN KEY (IdUser) REFERENCES `User`(Id) ON DELETE SET NULL,
+  FOREIGN KEY (IdHoaDon) REFERENCES HoaDon(Id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- Vouchers / customer voucher mapping
+CREATE TABLE IF NOT EXISTS KhachHang_Voucher (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  IdKhachHang INT,
+  IdVoucher INT,
+  FOREIGN KEY (IdKhachHang) REFERENCES `User`(Id) ON DELETE CASCADE,
+  FOREIGN KEY (IdVoucher) REFERENCES PhieuGiamGia(Id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- History / returns
+CREATE TABLE IF NOT EXISTS LichSuDonHang (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  IdUser INT,
+  IdHoaDon INT,
+  MoTa NVARCHAR(2000),
+  TrangThaiHoaDon NVARCHAR(255),
+  NgayTao DATETIME,
+  NgaySua DATETIME,
+  TrangThai INT,
+  FOREIGN KEY (IdUser) REFERENCES `User`(Id) ON DELETE SET NULL,
+  FOREIGN KEY (IdHoaDon) REFERENCES HoaDon(Id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS TraHang (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  hoa_don_ct_id INT NOT NULL,
+  so_luong INT NOT NULL,
+  ly_do NVARCHAR(1000),
+  ngay_tao DATETIME NOT NULL,
+  trang_thai INT NOT NULL DEFAULT 0,
+  FOREIGN KEY (hoa_don_ct_id) REFERENCES HoaDonCT(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS PhieuTraHang (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  IdUser INT NOT NULL,
+  IdHoaDon INT NOT NULL,
+  Ma NVARCHAR(100) NOT NULL,
+  NgayTao DATETIME,
+  NgayXuLy DATETIME,
+  HinhThucTra NVARCHAR(50),
+  TrangThai ENUM('PENDING','APPROVED','REJECTED','REFUNDED') DEFAULT 'PENDING',
+  IdNhanVienXuLy INT NULL,
+  GhiChuKhachHang NVARCHAR(255),
+  GhiChuNhanVien NVARCHAR(255),
+  FOREIGN KEY (IdUser) REFERENCES `User`(Id) ON DELETE CASCADE,
+  FOREIGN KEY (IdHoaDon) REFERENCES HoaDon(Id) ON DELETE CASCADE,
+  FOREIGN KEY (IdNhanVienXuLy) REFERENCES `User`(Id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS PhieuTraHangCT (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  IdPhieuTraHang INT NOT NULL,
+  IdHoaDonCT INT NOT NULL,
+  Ma NVARCHAR(100) NOT NULL,
+  SoLuongTra INT NOT NULL,
+  SoLuongPheDuyet INT NULL,
+  LyDoTraHang NVARCHAR(500),
+  GhiChuNhanVien NVARCHAR(255),
+  TrangThai ENUM('PENDING','APPROVED','REJECTED') DEFAULT 'PENDING',
+  FOREIGN KEY (IdPhieuTraHang) REFERENCES PhieuTraHang(Id) ON DELETE CASCADE,
+  FOREIGN KEY (IdHoaDonCT) REFERENCES HoaDonCT(Id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- PreOrder / back-in-stock / misc
+CREATE TABLE IF NOT EXISTS PreOrder (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  id_hoa_don INT NULL,
+  id_tai_khoan INT NULL,
+  Email VARCHAR(255) NULL,
+  Phone VARCHAR(255) NULL,
+  id_san_pham_ct INT NULL,
+  so_luong INT NULL,
+  RequestedQuantity INT NOT NULL DEFAULT 1,
+  ngay_tao DATETIME NULL,
+  requested_quantity INT NOT NULL DEFAULT 1,
+  trang_thai INT DEFAULT 0,
+  FOREIGN KEY (id_hoa_don) REFERENCES HoaDon(id) ON DELETE SET NULL,
+  FOREIGN KEY (id_tai_khoan) REFERENCES `User`(Id) ON DELETE SET NULL,
+  FOREIGN KEY (id_san_pham_ct) REFERENCES SanPhamCT(Id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS BackInStockRequest (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  IdSanPhamCT INT NOT NULL,
+  IdUser INT NULL,
+  Email VARCHAR(255) NULL,
+  Phone VARCHAR(255) NULL,
+  RequestedQuantity INT NOT NULL DEFAULT 1,
+  RequestDate DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  Status INT NOT NULL DEFAULT 0,
+  TrangThai INT NULL,
+  FOREIGN KEY (IdSanPhamCT) REFERENCES SanPhamCT(Id) ON DELETE CASCADE,
+  FOREIGN KEY (IdUser) REFERENCES `User`(Id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- Bulk order tables
+CREATE TABLE IF NOT EXISTS BulkOrderInquiry (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  CustomerName VARCHAR(255),
+  CustomerPhone VARCHAR(100),
+  CustomerEmail VARCHAR(255),
+  CustomerNote VARCHAR(1000),
+  ContactMethod VARCHAR(50),
+  Status VARCHAR(50),
+  AssignedStaff VARCHAR(255),
+  TotalQuantity INT,
+  TotalValue DECIMAL(18,2),
+  ItemCount INT,
+  CreatedAt DATETIME,
+  UpdatedAt DATETIME,
+  CartItemsJson TEXT
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS BulkOrderInquiryNote (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  InquiryId BIGINT,
+  StaffName VARCHAR(255),
+  `Text` VARCHAR(2000),
+  CreatedAt DATETIME,
+  FOREIGN KEY (InquiryId) REFERENCES BulkOrderInquiry(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS BulkOrderQuotation (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  InquiryId BIGINT,
+  DiscountPercent INT,
+  SubTotal DECIMAL(18,2),
+  DiscountAmount DECIMAL(18,2),
+  Total DECIMAL(18,2),
+  CreatedAt DATETIME,
+  FOREIGN KEY (InquiryId) REFERENCES BulkOrderInquiry(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS BulkOrderInteraction (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  InquiryId BIGINT,
+  `Type` VARCHAR(255),
+  `Metadata` VARCHAR(2000),
+  CreatedAt DATETIME
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS ThongBao (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  IdKhachHang INT NULL,
+  Email VARCHAR(255) NULL,
+  TieuDe NVARCHAR(255),
+  NoiDung NVARCHAR(255),
+  IdRedirect NVARCHAR(255),
+  KieuThongBao NVARCHAR(255),
+  TrangThai INT,
+  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (IdKhachHang) REFERENCES `User`(Id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+-- Notification / shipping issues
+CREATE TABLE IF NOT EXISTS SuCoVanChuyen (
+  Id INT AUTO_INCREMENT PRIMARY KEY,
+  IdHoaDon INT NOT NULL,
+  LoaiSuCo VARCHAR(50) NOT NULL,
+  MoTa TEXT NOT NULL,
+  DiaDiem VARCHAR(255),
+  NgayXayRa DATETIME NOT NULL,
+  NguoiBaoCao INT NOT NULL,
+  TrangThai INT NOT NULL DEFAULT 0,
+  GhiChu TEXT,
+  HinhAnh TEXT,
+  NgayTao DATETIME,
+  NgayCapNhat DATETIME,
+  FOREIGN KEY (IdHoaDon) REFERENCES HoaDon(Id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- Lich su hoan kho (from 5Shuttle)
+CREATE TABLE IF NOT EXISTS lich_su_hoan_kho (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  hoa_don_id INT NOT NULL,
+  san_pham_ct_id INT NOT NULL,
+  so_luong_hoan INT NOT NULL,
+  loai_hoan_kho ENUM('AUTO','MANUAL','FORCE') NOT NULL,
+  ly_do TEXT,
+  nguoi_thuc_hien VARCHAR(100),
+  thoi_gian TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (hoa_don_id) REFERENCES HoaDon(id),
+  INDEX idx_hoa_don_id (hoa_don_id),
+  INDEX idx_san_pham_ct_id (san_pham_ct_id)
+) ENGINE=InnoDB;
+
+-- Seed basic roles and sample data (lightweight)
+INSERT INTO Role (Name, `Description`) VALUES ('ADMIN','Admin'),('STAFF','Staff'),('USER','Default user');
+
+-- End of merged schema
