@@ -5,14 +5,41 @@ import { toast } from 'react-toastify';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import dayjs from 'dayjs';
+import {
+    Package,
+    Search,
+    Clock,
+    Truck,
+    CheckCircle,
+    XCircle,
+    RotateCcw,
+    Eye,
+    Calendar,
+    DollarSign,
+    Tag,
+    ShoppingBag,
+    AlertCircle,
+    PackageCheck,
+    ChevronLeft,
+    ChevronRight,
+    ChevronsLeft,
+    ChevronsRight,
+} from 'lucide-react';
+import './order-styles.css';
 
 import { useUserAuth } from '../../../contexts/userAuthContext';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
-import { red } from '@mui/material/colors';
-import { redPalette } from '@mui/x-charts';
 
-const tabs = ['Tất cả', 'Chờ xác nhận', 'Chờ giao hàng', 'Đang vận chuyển', 'Hoàn thành', 'Đã hủy', 'Trả hàng'];
+const tabs = [
+    { key: 'Tất cả', label: 'Tất cả', icon: <Package className="w-4 h-4" />, count: 0 },
+    { key: 'Chờ xác nhận', label: 'Chờ xác nhận', icon: <Clock className="w-4 h-4" />, count: 0 },
+    { key: 'Chờ giao hàng', label: 'Chờ giao hàng', icon: <ShoppingBag className="w-4 h-4" />, count: 0 },
+    { key: 'Đang vận chuyển', label: 'Đang vận chuyển', icon: <Truck className="w-4 h-4" />, count: 0 },
+    { key: 'Hoàn thành', label: 'Hoàn thành', icon: <CheckCircle className="w-4 h-4" />, count: 0 },
+    { key: 'Đã hủy', label: 'Đã hủy', icon: <XCircle className="w-4 h-4" />, count: 0 },
+    { key: 'Trả hàng', label: 'Trả hàng', icon: <RotateCcw className="w-4 h-4" />, count: 0 },
+];
 
 const tabStatusMap = {
     'Tất cả': null,
@@ -25,19 +52,60 @@ const tabStatusMap = {
 };
 
 const statusMap = {
-    1: { label: 'Chờ xác nhận', color: 'bg-yellow-100 text-yellow-800' },
-    2: { label: 'Chờ giao hàng', color: 'bg-blue-100 text-blue-800' },
-    3: { label: 'Đang vận chuyển', color: 'bg-purple-100 text-purple-800' },
-    4: { label: 'Đã giao hàng', color: 'bg-gray-200 text-green-800' },
-    // 5: { label: 'Đã thanh toán', color: 'bg-teal-100 text-teal-800' },
-    6: { label: 'Hoàn thành', color: 'bg-pink-100 text-gray-800' },
-    7: { label: 'Đã hủy', color: 'bg-red-200 text-red-800' },
-    8: { label: 'Trả hàng', color: 'bg-red-400 text-white' },
-    9: { label: 'Chờ nhập hàng', color: 'bg-orange-200 text-orange-800' },
+    1: {
+        label: 'Chờ xác nhận',
+        color: 'bg-amber-50 text-amber-700 border-amber-200',
+        icon: <Clock className="w-3 h-3" />,
+        dotColor: 'bg-amber-400',
+    },
+    2: {
+        label: 'Chờ giao hàng',
+        color: 'bg-blue-50 text-blue-700 border-blue-200',
+        icon: <ShoppingBag className="w-3 h-3" />,
+        dotColor: 'bg-blue-400',
+    },
+    3: {
+        label: 'Đang vận chuyển',
+        color: 'bg-purple-50 text-purple-700 border-purple-200',
+        icon: <Truck className="w-3 h-3" />,
+        dotColor: 'bg-purple-400',
+    },
+    4: {
+        label: 'Đã giao hàng',
+        color: 'bg-green-50 text-green-700 border-green-200',
+        icon: <PackageCheck className="w-3 h-3" />,
+        dotColor: 'bg-green-400',
+    },
+    6: {
+        label: 'Hoàn thành',
+        color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        icon: <CheckCircle className="w-3 h-3" />,
+        dotColor: 'bg-emerald-400',
+    },
+    7: {
+        label: 'Đã hủy',
+        color: 'bg-red-50 text-red-700 border-red-200',
+        icon: <XCircle className="w-3 h-3" />,
+        dotColor: 'bg-red-400',
+    },
+    8: {
+        label: 'Trả hàng',
+        color: 'bg-orange-50 text-orange-700 border-orange-200',
+        icon: <RotateCcw className="w-3 h-3" />,
+        dotColor: 'bg-orange-400',
+    },
+    9: {
+        label: 'Chờ nhập hàng',
+        color: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+        icon: <AlertCircle className="w-3 h-3" />,
+        dotColor: 'bg-yellow-400',
+    },
 };
 
 const getStatus = (status) => statusMap[status]?.label || 'Không xác định';
-const getStatusStyle = (status) => statusMap[status]?.color || 'bg-gray-100 text-gray-600';
+const getStatusStyle = (status) => statusMap[status]?.color || 'bg-gray-50 text-gray-600 border-gray-200';
+const getStatusIcon = (status) => statusMap[status]?.icon || <AlertCircle className="w-3 h-3" />;
+const getStatusDot = (status) => statusMap[status]?.dotColor || 'bg-gray-400';
 
 const formatCurrency = (value) => {
     const n = Number(value ?? 0);
@@ -49,6 +117,28 @@ function UserOrder() {
     const [listHoaDon, setListHoaDon] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const { isLoggedIn } = useUserAuth();
+
+    // Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(5); // Số đơn hàng mỗi trang
+    const [isChangingPage, setIsChangingPage] = useState(false);
+    const itemsPerPageOptions = [5, 10, 15, 20];
+
+    // Tính số lượng đơn hàng cho mỗi tab
+    const getOrderCounts = () => {
+        const counts = {};
+        tabs.forEach((tab) => {
+            const validStatuses = tabStatusMap[tab.key];
+            if (!validStatuses) {
+                counts[tab.key] = listHoaDon.filter((bill) => bill.trangThai !== 5).length;
+            } else {
+                counts[tab.key] = listHoaDon.filter((bill) => validStatuses.includes(bill.trangThai)).length;
+            }
+        });
+        return counts;
+    };
+
+    const orderCounts = getOrderCounts();
 
     useEffect(() => {
         const socket = new SockJS('http://localhost:8080/ws');
@@ -80,6 +170,17 @@ function UserOrder() {
         const matchSearch = bill.ma.toLowerCase().includes(searchTerm.toLowerCase());
         return matchTab && matchSearch;
     });
+
+    // Pagination calculations
+    const totalPages = Math.ceil(filteredBills.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentBills = filteredBills.slice(startIndex, endIndex);
+
+    // Reset current page when tab changes, search changes, or items per page changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [selectedTab, searchTerm, itemsPerPage]);
 
     useEffect(() => {
         const fetchOrders = async () => {
@@ -141,215 +242,369 @@ function UserOrder() {
         if (isLoggedIn) fetchOrders();
     }, [isLoggedIn]);
 
+    // Pagination Component
+    const Pagination = () => {
+        if (totalPages <= 1) return null;
+
+        const getPageNumbers = () => {
+            const pages = [];
+            const maxVisiblePages = 5;
+
+            if (totalPages <= maxVisiblePages) {
+                for (let i = 1; i <= totalPages; i++) {
+                    pages.push(i);
+                }
+            } else {
+                const start = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                const end = Math.min(totalPages, start + maxVisiblePages - 1);
+
+                for (let i = start; i <= end; i++) {
+                    pages.push(i);
+                }
+            }
+
+            return pages;
+        };
+
+        return (
+            <div className="pagination-container">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-6 py-4">
+                    {/* Info */}
+                    <div className="flex flex-wrap items-center gap-4">
+                        <div className="text-sm text-gray-600">
+                            Hiển thị <span className="font-semibold text-gray-800">{startIndex + 1}</span> đến{' '}
+                            <span className="font-semibold text-gray-800">
+                                {Math.min(endIndex, filteredBills.length)}
+                            </span>{' '}
+                            trong <span className="font-semibold text-blue-600">{filteredBills.length}</span> đơn hàng
+                        </div>
+
+                        {/* Items per page selector */}
+                        <div className="flex items-center gap-2 text-sm">
+                            <span className="text-gray-600 hidden sm:inline">Hiển thị:</span>
+                            <select
+                                value={itemsPerPage}
+                                onChange={(e) => {
+                                    setIsChangingPage(true);
+                                    setItemsPerPage(Number(e.target.value));
+                                    setTimeout(() => setIsChangingPage(false), 300);
+                                }}
+                                className="border border-gray-200 rounded-lg px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                            >
+                                {itemsPerPageOptions.map((option) => (
+                                    <option key={option} value={option}>
+                                        {option}
+                                    </option>
+                                ))}
+                            </select>
+                            <span className="text-gray-600 hidden sm:inline">mỗi trang</span>
+                        </div>
+
+                        {filteredBills.length > itemsPerPage && (
+                            <div className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
+                                Trang {currentPage}/{totalPages}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Pagination Controls */}
+                    <div className="flex items-center justify-center w-full sm:w-auto">
+                        <div className="flex items-center space-x-1">
+                            {/* First Page */}
+                            <button
+                                onClick={() => {
+                                    setIsChangingPage(true);
+                                    setCurrentPage(1);
+                                    setTimeout(() => setIsChangingPage(false), 300);
+                                }}
+                                disabled={currentPage === 1 || isChangingPage}
+                                className="pagination-button hidden sm:flex"
+                                title="Trang đầu"
+                            >
+                                <ChevronsLeft className="w-4 h-4" />
+                            </button>
+
+                            {/* Previous Page */}
+                            <button
+                                onClick={() => {
+                                    setIsChangingPage(true);
+                                    setCurrentPage(currentPage - 1);
+                                    setTimeout(() => setIsChangingPage(false), 300);
+                                }}
+                                disabled={currentPage === 1 || isChangingPage}
+                                className="pagination-button"
+                                title="Trang trước"
+                            >
+                                <ChevronLeft className="w-4 h-4" />
+                            </button>
+
+                            {/* Page Numbers */}
+                            <div className="flex space-x-1 mx-2">
+                                {getPageNumbers().map((page) => (
+                                    <button
+                                        key={page}
+                                        onClick={() => {
+                                            setIsChangingPage(true);
+                                            setCurrentPage(page);
+                                            setTimeout(() => setIsChangingPage(false), 300);
+                                        }}
+                                        disabled={isChangingPage}
+                                        className={`pagination-button px-3 ${currentPage === page ? 'active' : ''}`}
+                                        title={`Trang ${page}`}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Next Page */}
+                            <button
+                                onClick={() => {
+                                    setIsChangingPage(true);
+                                    setCurrentPage(currentPage + 1);
+                                    setTimeout(() => setIsChangingPage(false), 300);
+                                }}
+                                disabled={currentPage === totalPages || isChangingPage}
+                                className="pagination-button"
+                                title="Trang sau"
+                            >
+                                <ChevronRight className="w-4 h-4" />
+                            </button>
+
+                            {/* Last Page */}
+                            <button
+                                onClick={() => {
+                                    setIsChangingPage(true);
+                                    setCurrentPage(totalPages);
+                                    setTimeout(() => setIsChangingPage(false), 300);
+                                }}
+                                disabled={currentPage === totalPages || isChangingPage}
+                                className="pagination-button hidden sm:flex"
+                                title="Trang cuối"
+                            >
+                                <ChevronsRight className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     return (
-        <Box>
-            {/* Tabs */}
-            <Tabs
-                value={tabs.indexOf(selectedTab)}
-                onChange={(e, newValue) => setSelectedTab(tabs[newValue])}
-                sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}
-            >
-                {tabs.map((tab) => (
-                    <Tab
-                        key={tab}
-                        label={tab}
-                        sx={{
-                            fontSize: '14px',
-                            textTransform: 'none',
-                            color: selectedTab === tab ? 'primary.main' : 'text.primary',
+        <div className="space-y-6">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="bg-blue-100 rounded-xl p-3">
+                        <Package className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-800">Đơn mua của tôi</h1>
+                        <p className="text-gray-600">Theo dõi đơn hàng và lịch sử mua hàng</p>
+                    </div>
+                </div>
+
+                {/* Search */}
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Search className="w-5 h-5 text-gray-400" />
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Tìm theo mã đơn hàng..."
+                        className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            const specialCharsRegex = /[!@#\$%\^&*\(\),.?":{}|<>[\]]/;
+                            if (specialCharsRegex.test(value)) {
+                                toast.warning('Không được chứa ký tự đặc biệt');
+                                return;
+                            }
+                            setSearchTerm(value);
                         }}
                     />
-                ))}
-            </Tabs>
+                </div>
+            </div>
 
-            {/* Search */}
-            <TextField
-                placeholder="Tìm theo mã đơn hàng"
-                fullWidth
-                size="small"
-                variant="outlined"
-                InputProps={{
-                    startAdornment: (
-                        <InputAdornment position="start">
-                            <SearchIcon color="action" />
-                        </InputAdornment>
-                    ),
-                }}
-                onChange={(e) => {
-                    const value = e.target.value;
-                    const specialCharsRegex = /[!@#\$%\^&*\(\),.?":{}|<>[\]]/;
-                    if (specialCharsRegex.test(value)) {
-                        toast.warning('Không được chứa ký tự đặc biệt');
-                        return;
-                    }
-                    setSearchTerm(value);
-                }}
-                sx={{ mb: 2 }}
-            />
+            {/* Tabs */}
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <div className="flex overflow-x-auto scrollbar-hide">
+                    {tabs.map((tab) => (
+                        <button
+                            key={tab.key}
+                            onClick={() => setSelectedTab(tab.key)}
+                            className={`flex items-center gap-2 px-6 py-4 text-sm font-medium transition-all whitespace-nowrap border-b-2 ${
+                                selectedTab === tab.key
+                                    ? 'border-blue-500 text-blue-600 bg-blue-50'
+                                    : 'border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                            }`}
+                        >
+                            {tab.icon}
+                            <span>{tab.label}</span>
+                            {orderCounts[tab.key] > 0 && (
+                                <span className="ml-1 px-2 py-0.5 text-xs bg-blue-100 text-blue-600 rounded-full">
+                                    {orderCounts[tab.key]}
+                                </span>
+                            )}
+                        </button>
+                    ))}
+                </div>
+            </div>
 
-            {/* Danh sách đơn */}
-            <Box>
-                {filteredBills.length > 0 ? (
-                    filteredBills.map((item) => (
-                        <Paper key={item.id} variant="outlined" sx={{ mb: 1 }}>
-                            <Box sx={{ p: 1.5 }} display="flex" justifyContent="space-between" alignItems="center">
-                                <Typography fontWeight={600} fontSize={14}>
-                                    {item.ma}
-                                </Typography>
-                                <Box
-                                    className={`px-2 py-1 text-sm rounded ${getStatusStyle(item.trangThai)}`}
-                                    sx={{ textTransform: 'uppercase' }}
-                                >
-                                    {getStatus(item.trangThai)}
-                                </Box>
-                            </Box>
-                            <Divider sx={{ mx: 1.5 }} />
-                            <Box sx={{ px: 2, pt: 1.5 }}>
-                                {(item.trangThai === 8 ? item.returnDetails : item.chiTiet)?.map((sp, idx, arr) => (
-                                    <React.Fragment key={idx}>
-                                        <Box
-                                            display="flex"
-                                            justifyContent="space-between"
-                                            alignItems="center"
-                                            sx={{ mb: 1 }}
-                                        >
-                                            <Box>
-                                                <Grid container spacing={1}>
-                                                    <Grid item xs={3}>
-                                                        <img
-                                                            src={
-                                                                sp?.sanPhamCT?.hinhAnh ||
-                                                                'https://via.placeholder.com/80'
-                                                            }
-                                                            alt="ảnh sản phẩm"
-                                                            style={{ width: '100%', borderRadius: 4 }}
-                                                        />
-                                                    </Grid>
-                                                    <Grid item xs={9}>
-                                                        <Typography noWrap fontWeight={500} mb={0.5}>
-                                                            {item.trangThai === 8
-                                                                ? sp?.thongTinSanPhamTra?.tenSanPham
-                                                                : sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'}
-                                                        </Typography>
-                                                        <Typography variant="body2" color="text.secondary">
-                                                            Phân loại:{' '}
-                                                            {item.trangThai === 8
-                                                                ? `${sp?.thongTinSanPhamTra?.tenMauSac}, ${sp?.thongTinSanPhamTra?.tenTrongLuong}, ${sp?.thongTinSanPhamTra?.tenDoCung}`
-                                                                : `${sp?.sanPhamCT?.mauSac?.ten}, ${sp?.sanPhamCT?.trongLuong?.ten}, ${sp?.sanPhamCT?.doCung?.ten}`}
-                                                        </Typography>
-                                                        <Typography variant="body2" color="text.secondary">
-                                                            x{item.trangThai === 8 ? sp.soLuongTra : sp.soLuong}
-                                                        </Typography>
-                                                    </Grid>
-                                                </Grid>
-                                            </Box>
-                                            <Box ml={0}>
-                                                {(() => {
-                                                    const price =
-                                                        item.trangThai === 8
-                                                            ? sp?.thongTinSanPhamTra?.giaBan
-                                                            : sp?.giaBan;
-
-                                                    return <Typography>{formatCurrency(price)}</Typography>;
-                                                })()}
-                                            </Box>
-                                        </Box>
-
-                                        {idx < arr.length - 1 && <Divider sx={{ my: 1 }} />}
-                                    </React.Fragment>
-                                ))}
-                            </Box>
-                            {/* <Box sx={{ px: 2, pt: 1.5 }}>
-                {item.chiTiet?.map((sp, idx) => (
-                  <React.Fragment key={idx}>
-                    <Box display="flex" justifyContent="space-between" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                      <Box>
-                        <Grid container spacing={1}>
-                          <Grid item sx={3}>
-                            <img
-                              src={sp?.sanPhamCT?.hinhAnh || 'https://via.placeholder.com/80'}
-                              alt="ảnh sản phẩm"
-                              style={{ width: '100%', borderRadius: 4 }}
-                            />
-                          </Grid>
-                          <Grid item sx={9}>
-                            <Typography noWrap fontWeight={500} mb={0.5}>
-                              {sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              Phân loại: {sp?.sanPhamCT?.mauSac?.ten}, {sp?.sanPhamCT?.trongLuong?.ten}, {sp?.sanPhamCT?.doCung?.ten}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              x{sp.soLuong}
-                            </Typography>
-                          </Grid>
-                        </Grid>
-                      </Box>
-                      <Box ml={0}>
-                        {sp?.sanPhamCT?.giaKhuyenMai ? (
-                          <>
-                            <Typography sx={{ textDecoration: 'line-through', fontSize: 13, color: '#888' }}>
-                              {formatCurrency(sp.giaBan)}
-                            </Typography>
-                            <Typography color="error">{formatCurrency(sp?.sanPhamCT?.giaKhuyenMai)}</Typography>
-                          </>
-                        ) : (
-                          <Typography>{formatCurrency(sp.giaBan)}</Typography>
-                        )}
-                      </Box>
-                    </Box> */}
-
-                            {/* Divider giữa các sản phẩm, không hiển thị sau sản phẩm cuối */}
-                            {/* {idx < item.chiTiet.length - 1 && <Divider sx={{ my: 1 }} />}
-                  </React.Fragment>
-                ))} */}
-                            {/* </Box> */}
-                            <Divider />
-                            <Grid container justifyContent="space-between" sx={{ p: 1.5 }}>
-                                <Grid item xs={12} md={6}>
-                                    {item.trangThai !== 8 &&
-                                        (item.trangThai === 7 ? (
-                                            <Typography fontSize={13}>
-                                                Thời gian hủy hàng: {dayjs(item.ngaySua).format('DD/MM/YYYY HH:mm')}
-                                            </Typography>
-                                        ) : (
-                                            <Typography fontSize={13}>
-                                                Ngày đặt: {dayjs(item.ngayTao).format('DD/MM/YYYY HH:mm')}
-                                            </Typography>
-                                        ))}
-                                </Grid>
-                                <Grid item xs={12} md={6} textAlign={{ xs: 'left', md: 'right' }}>
-                                    {item.trangThai === 8 ? (
-                                        <Typography fontWeight={500}>
-                                            Số tiền hoàn lại:{' '}
-                                            <span style={{ color: 'red' }}>{formatCurrency(item.tongTien)}</span>
-                                        </Typography>
-                                    ) : (
-                                        <Typography fontWeight={500}>
-                                            Tổng tiền:{' '}
-                                            <span style={{ color: 'red' }}>{formatCurrency(item.tongTien)}</span>
-                                        </Typography>
-                                    )}
-                                    <Button
-                                        size="small"
-                                        variant="outlined"
-                                        component={Link}
-                                        to={`/profile/order-detail/${item.id}`}
-                                        sx={{ mt: 1, textTransform: 'none' }}
-                                    >
-                                        Xem chi tiết
-                                    </Button>
-                                </Grid>
-                            </Grid>
-                        </Paper>
-                    ))
-                ) : (
-                    <Box textAlign="center" mt={4}>
-                        <Typography color="text.secondary">Chưa có đơn hàng nào</Typography>
-                    </Box>
+            {/* Orders List */}
+            <div className="space-y-4 relative">
+                {/* Loading overlay */}
+                {isChangingPage && (
+                    <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex items-center justify-center rounded-2xl">
+                        <div className="flex items-center gap-2 text-blue-600">
+                            <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                            <span className="text-sm font-medium">Đang tải...</span>
+                        </div>
+                    </div>
                 )}
-            </Box>
-        </Box>
+
+                {currentBills.length > 0 ? (
+                    <>
+                        {currentBills.map((item) => (
+                            <div
+                                key={item.id}
+                                className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+                            >
+                                {/* Order Header */}
+                                <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-100">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div
+                                                className={`w-3 h-3 rounded-full ${getStatusDot(item.trangThai)}`}
+                                            ></div>
+                                            <div>
+                                                <h3 className="font-semibold text-gray-800 text-lg">{item.ma}</h3>
+                                                <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                                                    <Calendar className="w-3 h-3" />
+                                                    {item.trangThai === 7
+                                                        ? `Hủy lúc: ${dayjs(item.ngaySua).format('DD/MM/YYYY HH:mm')}`
+                                                        : `Đặt lúc: ${dayjs(item.ngayTao).format('DD/MM/YYYY HH:mm')}`}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div
+                                            className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border ${getStatusStyle(item.trangThai)}`}
+                                        >
+                                            {getStatusIcon(item.trangThai)}
+                                            {getStatus(item.trangThai)}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Products */}
+                                <div className="p-6">
+                                    <div className="space-y-4">
+                                        {(item.trangThai === 8 ? item.returnDetails : item.chiTiet)?.map((sp, idx) => (
+                                            <div
+                                                key={idx}
+                                                className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                                            >
+                                                {/* Product Image */}
+                                                <div className="flex-shrink-0">
+                                                    <img
+                                                        src={sp?.sanPhamCT?.hinhAnh || 'https://via.placeholder.com/80'}
+                                                        alt="Sản phẩm"
+                                                        className="w-20 h-20 object-cover rounded-xl border border-gray-200"
+                                                    />
+                                                </div>
+
+                                                {/* Product Info */}
+                                                <div className="flex-grow min-w-0">
+                                                    <h4 className="font-medium text-gray-800 text-base line-clamp-2 mb-2">
+                                                        {item.trangThai === 8
+                                                            ? sp?.thongTinSanPhamTra?.tenSanPham
+                                                            : sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'}
+                                                    </h4>
+
+                                                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                                                        <div className="flex items-center gap-1">
+                                                            <Tag className="w-3 h-3" />
+                                                            <span>
+                                                                {item.trangThai === 8
+                                                                    ? `${sp?.thongTinSanPhamTra?.tenMauSac}, ${sp?.thongTinSanPhamTra?.tenTrongLuong}, ${sp?.thongTinSanPhamTra?.tenDoCung}`
+                                                                    : `${sp?.sanPhamCT?.mauSac?.ten}, ${sp?.sanPhamCT?.trongLuong?.ten}, ${sp?.sanPhamCT?.doCung?.ten}`}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <Package className="w-3 h-3" />
+                                                            <span>
+                                                                x{item.trangThai === 8 ? sp.soLuongTra : sp.soLuong}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Price */}
+                                                <div className="text-right">
+                                                    <div className="text-lg font-semibold text-gray-800">
+                                                        {formatCurrency(
+                                                            item.trangThai === 8
+                                                                ? sp?.thongTinSanPhamTra?.giaBan
+                                                                : sp?.giaBan,
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Order Footer */}
+                                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                                            <DollarSign className="w-4 h-4" />
+                                            <span>{item.trangThai === 8 ? 'Số tiền hoàn lại:' : 'Tổng tiền:'}</span>
+                                        </div>
+
+                                        <div className="flex items-center gap-4">
+                                            <div className="text-right">
+                                                <div className="text-xl font-bold text-red-600">
+                                                    {formatCurrency(item.tongTien)}
+                                                </div>
+                                            </div>
+
+                                            <Link
+                                                to={`/profile/order-detail/${item.id}`}
+                                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                                Xem chi tiết
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+
+                        {/* Pagination */}
+                        {filteredBills.length > 0 && <Pagination />}
+                    </>
+                ) : (
+                    <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+                        <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Package className="w-10 h-10 text-gray-400" />
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-800 mb-2">Chưa có đơn hàng nào</h3>
+                        <p className="text-gray-600 mb-6">Bạn chưa có đơn hàng nào trong danh mục này</p>
+                        <Link
+                            to="/san-pham"
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors"
+                        >
+                            <ShoppingBag className="w-5 h-5" />
+                            Mua sắm ngay
+                        </Link>
+                    </div>
+                )}
+            </div>
+        </div>
     );
 }
 

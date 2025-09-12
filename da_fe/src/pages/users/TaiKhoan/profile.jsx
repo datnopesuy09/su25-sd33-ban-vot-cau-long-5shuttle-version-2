@@ -13,108 +13,151 @@ import {
   Paper,
 } from '@mui/material';
 import {
-  ExpandLess,
-  ExpandMore,
-  Edit,
-  LocationOn,
-  VpnKey,
-  LocalOffer,
-  ReceiptLong,
-  Badge,
-  Person
-} from '@mui/icons-material';
+  ChevronDown,
+  ChevronUp,
+  Edit3,
+  MapPin,
+  KeyRound,
+  Tag,
+  Receipt,
+  UserCheck,
+  User,
+  Home
+} from 'lucide-react';
 import { useUserAuth } from '../../../contexts/userAuthContext';
+import './profile-styles.css';
 
 function Profile() {
   const [open, setOpen] = useState(true);
   const { user } = useUserAuth();
 
   return (
-    <Box sx={{ my: 1}}>
-      <Box sx={{ mb: 1, px: 1, display: 'flex', alignItems: 'center' }}>
-        <Link to="/" style={{ textDecoration: 'none', color: '#000', fontWeight: 600 }}>
-          Trang chủ
-        </Link>
-        <Typography sx={{ mx: 1 }}>/</Typography>
-        <Typography color="text.secondary">Tài khoản của tôi</Typography>
-      </Box>
+    <div className="w-full profile-container">
+      {/* Breadcrumb */}
+      <div className="mb-6 px-4">
+        <nav className="flex items-center space-x-2 text-sm">
+          <Link 
+            to="/" 
+            className="text-gray-600 hover:text-blue-600 font-medium transition-colors"
+          >
+            <Home className="w-4 h-4 inline mr-1" />
+            Trang chủ
+          </Link>
+          <span className="text-gray-400">/</span>
+          <span className="text-gray-800 font-medium">Tài khoản của tôi</span>
+        </nav>
+      </div>
 
       {/* Main Grid */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 4fr', gap: 3 }}>
-        {/* Sidebar */}
-        <Paper sx={{ p: 2, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.75 }}>
-            <Avatar
-              src={user?.avatar}
-              alt={user?.hoTen}
-              sx={{ width: 54, height: 54, mr: 2 }}
-            />
-            <Box>
-              <Typography fontWeight="bold">{user?.hoTen}</Typography>
-              <Link to="/profile/user" style={{ fontSize: 14, display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-                <Edit fontSize="small" sx={{ mr: 0.5 }} /> Sửa hồ sơ
-              </Link>
-            </Box>
-          </Box>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">{/* Sidebar */}
+        <div className="lg:col-span-1">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden profile-sidebar">{/* User Info Header */}
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 border-b border-gray-100">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <img
+                    src={user?.avatar || '/default-avatar.png'}
+                    alt={user?.hoTen}
+                    className="w-16 h-16 rounded-full object-cover border-3 border-white shadow-md user-avatar"
+                  />
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white online-status"></div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-bold text-gray-800 text-lg">{user?.hoTen}</h3>
+                  <Link 
+                    to="/profile/user" 
+                    className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 mt-1 transition-colors"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                    Sửa hồ sơ
+                  </Link>
+                </div>
+              </div>
+            </div>
 
-          <Divider sx={{ mb: 2 }} />
+            {/* Navigation Menu */}
+            <div className="p-6 space-y-2">
+              {/* Account Section */}
+              <div>
+                <button
+                  onClick={() => setOpen(!open)}
+                  className="w-full flex items-center justify-between p-3 text-left hover:bg-gray-50 rounded-lg transition-colors group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-blue-100 group-hover:bg-blue-200 transition-colors">
+                      <User className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <span className="font-medium text-gray-800">Tài khoản của tôi</span>
+                  </div>
+                  {open ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                </button>
+                
+                {open && (
+                  <div className="ml-6 mt-2 space-y-1">
+                    <Link
+                      to="/profile/user"
+                      className="flex items-center gap-3 p-3 hover:bg-blue-50 rounded-lg transition-colors group"
+                    >
+                      <UserCheck className="w-4 h-4 text-gray-500 group-hover:text-blue-600" />
+                      <span className="text-gray-700 group-hover:text-blue-700">Hồ sơ</span>
+                    </Link>
+                    <Link
+                      to="/profile/address"
+                      className="flex items-center gap-3 p-3 hover:bg-blue-50 rounded-lg transition-colors group"
+                    >
+                      <MapPin className="w-4 h-4 text-gray-500 group-hover:text-blue-600" />
+                      <span className="text-gray-700 group-hover:text-blue-700">Địa chỉ</span>
+                    </Link>
+                  </div>
+                )}
+              </div>
 
-          {/* Tài khoản của tôi */}
-          <List disablePadding>
-            <ListItemButton onClick={() => setOpen(!open)}>
-              <ListItemIcon>
-                <Person />
-              </ListItemIcon>
-              <ListItemText primary="Tài khoản của tôi" />
-              {open ? <ExpandLess /> : <ExpandMore />}
-            </ListItemButton>
-            <Collapse in={open} timeout="auto" unmountOnExit>
-              <List component="div" disablePadding>
-                <ListItemButton component={Link} to="/profile/user" sx={{ pl: 4 }}>
-                  <ListItemIcon>
-                    <Badge />
-                  </ListItemIcon>
-                  <ListItemText primary="Hồ sơ" />
-                </ListItemButton>
-                <ListItemButton component={Link} to="/profile/address" sx={{ pl: 4 }}>
-                  <ListItemIcon>
-                    <LocationOn />
-                  </ListItemIcon>
-                  <ListItemText primary="Địa chỉ" />
-                </ListItemButton>
-              </List>
-            </Collapse>
+              {/* Divider */}
+              <div className="border-t border-gray-200 my-4"></div>
 
-            <Divider sx={{ my: 2 }} />
-
-            {/* Các mục khác */}
-            <ListItemButton component={Link} to="/profile/order">
-              <ListItemIcon>
-                <ReceiptLong />
-              </ListItemIcon>
-              <ListItemText primary="Đơn mua" />
-            </ListItemButton>
-            <ListItemButton component={Link} to="/profile/my-voucher">
-              <ListItemIcon>
-                <LocalOffer />
-              </ListItemIcon>
-              <ListItemText primary="Phiếu giảm giá" />
-            </ListItemButton>
-            <ListItemButton component={Link} to="/profile/change-password">
-              <ListItemIcon>
-                <VpnKey />
-              </ListItemIcon>
-              <ListItemText primary="Đổi mật khẩu" />
-            </ListItemButton>
-          </List>
-        </Paper>
-
-        {/* Nội dung bên phải */}
-        <Paper sx={{ px: 3, py: 2, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}>
-          <Outlet />
-        </Paper>
-      </Box>
-    </Box>
+              {/* Other Menu Items */}
+              <div className="space-y-1">
+                <Link
+                  to="/profile/order"
+                  className="flex items-center gap-3 p-3 hover:bg-blue-50 rounded-lg transition-colors group nav-item menu-item glow-on-hover"
+                >
+                  <div className="p-2 rounded-lg bg-green-100 group-hover:bg-green-200 transition-colors icon-wrapper">
+                    <Receipt className="w-4 h-4 text-green-600" />
+                  </div>
+                  <span className="font-medium text-gray-800 group-hover:text-green-700">Đơn mua</span>
+                </Link>
+                
+                <Link
+                  to="/profile/my-voucher"
+                  className="flex items-center gap-3 p-3 hover:bg-blue-50 rounded-lg transition-colors group nav-item menu-item glow-on-hover"
+                >
+                  <div className="p-2 rounded-lg bg-orange-100 group-hover:bg-orange-200 transition-colors icon-wrapper">
+                    <Tag className="w-4 h-4 text-orange-600" />
+                  </div>
+                  <span className="font-medium text-gray-800 group-hover:text-orange-700">Phiếu giảm giá</span>
+                </Link>
+                
+                <Link
+                  to="/profile/change-password"
+                  className="flex items-center gap-3 p-3 hover:bg-blue-50 rounded-lg transition-colors group nav-item menu-item glow-on-hover"
+                >
+                  <div className="p-2 rounded-lg bg-purple-100 group-hover:bg-purple-200 transition-colors icon-wrapper">
+                    <KeyRound className="w-4 h-4 text-purple-600" />
+                  </div>
+                  <span className="font-medium text-gray-800 group-hover:text-purple-700">Đổi mật khẩu</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Content Area */}
+        <div className="lg:col-span-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 profile-content">
+            <Outlet />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

@@ -48,6 +48,8 @@ const OrderProgress = ({
     getActionButtonText,
     handleCancelOrder,
     handleShowHistoryModal,
+    handleRevertStatus,
+    canRevertStatus,
 }) => {
     // State cho modal confirm thay đổi trạng thái
     const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -475,7 +477,18 @@ const OrderProgress = ({
                     <button
                         className={`px-6 py-3 rounded-xl transition-all duration-300 transform hover:scale-105 font-medium ${getActionButtonStyle(currentOrderStatus)}`}
                         disabled={currentOrderStatus === 6}
-                        onClick={() => handlePrepareStatusChange(currentOrderStatus)}
+                        onClick={() => {
+                            // Xác định trạng thái tiếp theo dựa trên logic nghiệp vụ
+                            let nextStatus = currentOrderStatus + 1;
+                            if (currentOrderStatus === 4) {
+                                // Trạng thái 4 (Đã giao hàng) -> 5 (Đã thanh toán): Mở modal thanh toán trực tiếp
+                                nextStatus = 5;
+                                handleActionButtonClick(nextStatus, '');
+                            } else {
+                                // Các trạng thái khác: Hiển thị modal xác nhận trước
+                                handlePrepareStatusChange(nextStatus);
+                            }
+                        }}
                     >
                         {getActionButtonText(currentOrderStatus)}
                     </button>
@@ -486,6 +499,16 @@ const OrderProgress = ({
                 ) : null}
 
                 <div className="flex items-center space-x-4">
+                    {/* Button quay lại trạng thái trước */}
+                    {canRevertStatus && canRevertStatus(currentOrderStatus) && (
+                        <button
+                            className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-105 shadow-lg font-medium"
+                            onClick={handleRevertStatus}
+                        >
+                            ← Quay lại trạng thái trước
+                        </button>
+                    )}
+
                     {/* Button hủy đơn - chỉ hiện khi chưa hủy */}
                     {(currentOrderStatus === 1 || currentOrderStatus === 2 || currentOrderStatus === 3) && (
                         <button

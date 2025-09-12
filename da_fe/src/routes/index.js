@@ -59,6 +59,7 @@ import UpdateProduct from '../pages/admin/Product/update.jsx';
 import SpctDetail from '../pages/admin/Product/SpctDetail.jsx';
 import InStoreOrders from '../pages/admin/Sale/InStoreOrders.jsx';
 import OrderReturn from '../pages/users/TaiKhoan/orderReturn.jsx';
+import BulkOrderManagement from '../pages/admin/BulkOrder/BulkOrderManagement.jsx';
 // Public routes
 const publicRoutes = [
     { path: '/', component: Home },
@@ -97,6 +98,7 @@ const publicRoutes = [
     { path: '/admin/giam-gia/dot-giam-gia/:id/detail', component: UpdateDotGiamGia, layout: AdminLayout },
 
     { path: '/admin/tai-khoan/nhan-vien', component: ListStaff, layout: AdminLayout },
+    { path: '/admin/quan-ly-dat-si', component: BulkOrderManagement, layout: AdminLayout },
     { path: '/admin/tai-khoan/nhan-vien/add', component: AddStaff, layout: AdminLayout },
     { path: '/admin/tai-khoan/nhan-vien/edit/:id', component: EditStaff, layout: AdminLayout },
     { path: '/admin/login', component: AdLogin, layout: null },

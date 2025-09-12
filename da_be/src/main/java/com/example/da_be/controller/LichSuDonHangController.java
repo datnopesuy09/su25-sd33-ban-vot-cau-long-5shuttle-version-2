@@ -176,4 +176,39 @@ public class LichSuDonHangController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
+    // API thêm lịch sử đơn hàng khi thay đổi trạng thái
+    @PostMapping("/add-status-change")
+    public ResponseEntity<LichSuDonHang> addStatusChangeLichSuDonHang(
+            @RequestParam Integer hoaDonId,
+            @RequestParam Integer userId,
+            @RequestParam String moTa,
+            @RequestParam String trangThaiHoaDon,
+            @RequestParam(defaultValue = "1") Integer trangThai) {
+        try {
+            LichSuDonHang lichSuDonHang = new LichSuDonHang();
+            
+            // Set các giá trị cơ bản
+            lichSuDonHang.setMoTa(moTa);
+            lichSuDonHang.setTrangThaiHoaDon(trangThaiHoaDon);
+            lichSuDonHang.setNgayTao(new Date());
+            lichSuDonHang.setTrangThai(trangThai);
+            
+            // Lấy User và HoaDon từ database
+            try {
+                User user = userService.getUserById(userId);
+                HoaDon hoaDon = hoaDonService.getHoaDonById(hoaDonId.intValue());
+                
+                lichSuDonHang.setUser(user);
+                lichSuDonHang.setHoaDon(hoaDon);
+            } catch (Exception e) {
+                return ResponseEntity.badRequest().build();
+            }
+            
+            LichSuDonHang savedLichSu = lichSuDonHangService.createLichSuDonHang(lichSuDonHang);
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedLichSu);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 }

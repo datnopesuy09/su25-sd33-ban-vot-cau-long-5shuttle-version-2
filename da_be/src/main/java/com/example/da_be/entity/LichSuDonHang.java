@@ -22,6 +22,9 @@ public class LichSuDonHang {
     @Column(name = "MoTa")
     private String moTa;
 
+    @Column(name = "TrangThaiHoaDon")
+    private String trangThaiHoaDon;
+
     @Column(name = "NgayTao")
     @Temporal(TemporalType.TIMESTAMP)
     private Date ngayTao;
@@ -78,5 +81,13 @@ public class LichSuDonHang {
 
     public void setTrangThai(Integer trangThai) {
         this.trangThai = trangThai;
+    }
+
+    public String getTrangThaiHoaDon() {
+        return trangThaiHoaDon;
+    }
+
+    public void setTrangThaiHoaDon(String trangThaiHoaDon) {
+        this.trangThaiHoaDon = trangThaiHoaDon;
     }
 }

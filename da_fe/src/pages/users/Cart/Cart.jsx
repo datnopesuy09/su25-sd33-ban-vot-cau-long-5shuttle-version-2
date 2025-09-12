@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo, useRef } from 'react';
 import CartItem from './CartItem';
 import CartSummary from './CartSummary';
 import { Button } from '@mui/material';
@@ -11,6 +11,9 @@ import { X, Tag } from 'lucide-react';
 
 import { ShoppingCart, ShoppingBag, AlertCircle, CheckCircle2, Loader2, Truck, Shield, Gift } from 'lucide-react';
 import { useUserAuth } from '../../../contexts/userAuthContext';
+import BulkOrderDetector from '../../../components/BulkOrderDetector';
+import useBulkOrderDetection from '../../../hooks/useBulkOrderDetection';
+import bulkOrderAPI from '../../../services/bulkOrderAPI';
 
 function parseJwt(token) {
     try {
@@ -25,11 +28,10 @@ function parseJwt(token) {
                 .join(''),
         );
         return JSON.parse(jsonPayload);
-    } catch (e) {
+    } catch {
         return {};
     }
 }
-
 
 const Cart = () => {
     const navigate = useNavigate();
@@ -41,10 +43,9 @@ const Cart = () => {
     const [totalPrice, setTotalPrice] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [isCheckingOut, setIsCheckingOut] = useState(false);
+    const [showBulkModal, setShowBulkModal] = useState(false); // State để control modal
 
     // const [notification, setNotification] = useState(null);
-
-
 
     const token = user?.token || localStorage.getItem('userToken');
     const idTaiKhoan = user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
@@ -52,24 +53,84 @@ const Cart = () => {
     console.log('id user: ', idTaiKhoan);
     // Calculate shipping (free if over 1M VND)
 
-
     const [selectedItems, setSelectedItems] = useState([]);
     const isAllSelected = carts.length > 0 && selectedItems.length === carts.length;
 
+    // Bulk order detection với useMemo để tránh re-calculation
+    const selectedCartItems = useMemo(() => {
+        return carts.filter((item) => selectedItems.includes(item.id));
+    }, [carts, selectedItems]);
+
+    const { shouldShowBulkWarning, bulkOrderData, resetBulkWarning } = useBulkOrderDetection(
+        selectedCartItems,
+        totalPrice,
+    );
+
+    const bulkInquiryIdRef = useRef(null);
+    const creatingInquiryRef = useRef(false);
+
+    const buildInquiryPayload = () => {
+        const totalQuantity = selectedCartItems.reduce((sum, it) => sum + (it.soLuong || 0), 0);
+        return {
+            customerInfo: {
+                name: user?.hoTen || user?.name || 'Khách hàng',
+                phone: user?.sdt || 'N/A',
+                email: user?.email || 'unknown@example.com',
+                note: 'Tự động tạo từ giỏ hàng',
+            },
+            orderData: {
+                totalQuantity,
+                totalValue: totalPrice,
+                itemCount: selectedCartItems.length,
+                // Gửi đầy đủ thông tin biến thể để admin xem chi tiết
+                cartItems: selectedCartItems.map((ci) => {
+                    const spct = ci.sanPhamCT || {};
+                    const sanPham = spct.sanPham || {};
+                    return {
+                        // các field cũ
+                        name: spct.ten || sanPham.tenSanPham || sanPham.ten || 'Sản phẩm',
+                        quantity: ci.soLuong || 0,
+                        price: (spct.giaKhuyenMai ?? spct.donGia) || 0,
+                        // mới bổ sung để hiển thị: id variant, thương hiệu, màu, trọng lượng, hình ảnh
+                        variantId: spct.id,
+                        productId: sanPham.id,
+                        brand: spct.thuongHieu?.ten || sanPham.thuongHieu?.ten || null,
+                        color: spct.mauSac?.ten || null,
+                        weight: spct.trongLuong?.ten || null,
+                        image: ci.hinhAnhUrl || spct.hinhAnhUrls?.[0] || sanPham.hinhAnhDaiDien || null,
+                    };
+                }),
+            },
+            contactMethod: 'phone',
+        };
+    };
+
+    const ensureBulkInquiry = async () => {
+        if (bulkInquiryIdRef.current || creatingInquiryRef.current) return bulkInquiryIdRef.current;
+        creatingInquiryRef.current = true;
+        try {
+            const created = await bulkOrderAPI.createBulkOrderInquiry(buildInquiryPayload());
+            bulkInquiryIdRef.current = created.id || created?.result?.id;
+            return bulkInquiryIdRef.current;
+        } catch (err) {
+            console.error('Tạo bulk inquiry thất bại', err);
+            return null;
+        } finally {
+            creatingInquiryRef.current = false;
+        }
+    };
 
     const shipping = totalPrice > 1000000 ? 0 : 30000;
     const finalTotal = totalPrice + shipping;
 
     const handleSelectItem = (cartId) => {
-        setSelectedItems((prev) =>
-            prev.includes(cartId) ? prev.filter((id) => id !== cartId) : [...prev, cartId]
-        );
+        setSelectedItems((prev) => (prev.includes(cartId) ? prev.filter((id) => id !== cartId) : [...prev, cartId]));
     };
 
     const handleSelectAll = () => {
         setSelectedItems(isAllSelected ? [] : carts.map((item) => item.id));
     };
- console.log('Selected items cart:', selectedItems);
+    console.log('Selected items cart:', selectedItems);
     useEffect(() => {
         const total = carts
             .filter((item) => selectedItems.includes(item.id))
@@ -84,6 +145,7 @@ const Cart = () => {
         if (userId) {
             fetchCart(userId);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userId]);
 
     const fetchCart = async (userId) => {
@@ -135,10 +197,23 @@ const Cart = () => {
     };
 
     const handleCheckout = async () => {
+        if (selectedItems.length === 0) {
+            swal('Lưu ý', 'Vui lòng chọn ít nhất một sản phẩm để thanh toán.', 'warning');
+            return;
+        }
+
+        // Kiểm tra bulk order trước khi checkout
+        if (shouldShowBulkWarning) {
+            await ensureBulkInquiry();
+            setShowBulkModal(true);
+            return;
+        }
+
+        // Proceed with normal checkout
         setIsCheckingOut(true);
         try {
             await new Promise((resolve) => setTimeout(resolve, 1000));
-            navigate('/gio-hang/checkout', { state: { selectedItems }});
+            navigate('/gio-hang/checkout', { state: { selectedItems } });
         } catch (error) {
             console.error('Có lỗi xảy ra khi chuyển đến thanh toán', error);
             swal('Lỗi', 'Có lỗi xảy ra khi chuyển đến thanh toán', 'error');
@@ -147,9 +222,52 @@ const Cart = () => {
         }
     };
 
+    // Bulk order handlers
+    const handleContactStaff = async (method) => {
+        const id = await ensureBulkInquiry();
+        if (id) {
+            try {
+                await bulkOrderAPI.updateInquiryStatus(id, 'contacted');
+                await bulkOrderAPI.trackInteraction({
+                    inquiryId: id,
+                    type: 'contact_method',
+                    method,
+                });
+            } catch (e) {
+                console.error('Track interaction fail', e);
+            }
+        }
+        swal({
+            title: 'Đã gửi yêu cầu!',
+            text: 'Chuyên viên sẽ liên hệ với bạn trong thời gian sớm nhất.',
+            icon: 'success',
+            timer: 3000,
+        });
+    };
+
+    const handleContinueNormal = async () => {
+        setShowBulkModal(false);
+        resetBulkWarning();
+        // ghi nhận user bỏ qua tư vấn bulk
+        if (bulkInquiryIdRef.current) {
+            bulkOrderAPI.trackInteraction({ inquiryId: bulkInquiryIdRef.current, type: 'continue_normal' });
+        }
+        console.log('Customer chose to continue with normal checkout');
+
+        // Chuyển sang trang thanh toán
+        setIsCheckingOut(true);
+        try {
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            navigate('/gio-hang/checkout', { state: { selectedItems } });
+        } catch (error) {
+            console.error('Có lỗi xảy ra khi chuyển đến thanh toán', error);
+            swal('Lỗi', 'Có lỗi xảy ra khi chuyển đến thanh toán', 'error');
+        } finally {
+            setIsCheckingOut(false);
+        }
+    };
 
     if (!userId) return null;
-
 
     if (isLoading) {
         return (
@@ -234,7 +352,10 @@ const Cart = () => {
                                 </div>
                                 <div className="p-2 space-y-6">
                                     {carts.map((cart) => (
-                                        <div key={cart.id} className="p-4 border border-gray-100 rounded-xl hover:shadow-sm transition-shadow duration-200">
+                                        <div
+                                            key={cart.id}
+                                            className="p-4 border border-gray-100 rounded-xl hover:shadow-sm transition-shadow duration-200"
+                                        >
                                             <CartItem
                                                 cart={cart}
                                                 showButton={true}
@@ -256,7 +377,7 @@ const Cart = () => {
                         </div>
 
                         <CartSummary
-                            carts={carts.filter(item => selectedItems.includes(item.id))}
+                            carts={carts.filter((item) => selectedItems.includes(item.id))}
                             totalPrice={totalPrice}
                             shipping={shipping}
                             finalTotal={finalTotal}
@@ -266,6 +387,16 @@ const Cart = () => {
                         />
                     </div>
                 )}
+
+                {/* Bulk Order Detection Modal */}
+                <BulkOrderDetector
+                    cartItems={selectedCartItems}
+                    totalQuantity={bulkOrderData.totalQuantity || 0}
+                    totalValue={totalPrice}
+                    onContactStaff={handleContactStaff}
+                    onContinueNormal={handleContinueNormal}
+                    showModal={showBulkModal}
+                />
             </div>
         </div>
     );

@@ -3,21 +3,26 @@ import { CheckCircle, Clock, Package, Truck, CreditCard, XCircle, RotateCcw, Ale
 import { Plus, Minus, ShoppingCart, Star, Heart } from 'lucide-react';
 import { Calculator, Percent, Receipt } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
-import { X, Banknote } from 'lucide-react';
+import { X, Banknote, User, Calendar, FileText, ShieldCheck, AlertTriangle } from 'lucide-react';
 import PaymentModal from './PaymentModal';
 import OrderInfo from './OrderInfor';
 import OrderProgress from './OrderProgress';
 import ProductList from './ProductList';
 import PaymentDetails from './PaymentDetai';
 import KhoHangManagement from '../../../components/KhoHangManagement';
+import DeliveryIncidentModal from '../../../components/admin/DeliveryIncidentModal';
+import DeliveryIncidentList from '../../../components/admin/DeliveryIncidentList';
 import swal from 'sweetalert';
+import { toast } from 'react-toastify';
 import axios from 'axios';
 import ProductModal from '../Sale/ProductModal';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
+import { useAdminAuth } from '../../../contexts/adminAuthContext';
 
 function OrderStatus() {
     const location = useLocation();
+    const { admin } = useAdminAuth(); // Lấy thông tin admin đang đăng nhập
     const orderData = location.state?.order || {};
     const [orderDetailDatas, setOrderDetailDatas] = useState(location.state?.orderDetails || []);
     const [checkOut, setCheckOuts] = useState(location.state?.checkOut || []);
@@ -47,6 +52,8 @@ function OrderStatus() {
     const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [orderHistory, setOrderHistory] = useState([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
+    const [showIncidentModal, setShowIncidentModal] = useState(false);
+    const [incidentRefreshTrigger, setIncidentRefreshTrigger] = useState(0);
 
     const fetchPreOrders = async () => {
         try {
@@ -54,7 +61,7 @@ function OrderStatus() {
             setPreOrders(response.data);
         } catch (error) {
             console.error('Lỗi khi lấy danh sách đặt trước:', error);
-            swal('Lỗi!', 'Không thể lấy danh sách đặt trước', 'error');
+            toast.error('Không thể lấy danh sách đặt trước!');
         }
     };
 
@@ -64,7 +71,7 @@ function OrderStatus() {
             setOrderDetailDatas(response.data);
         } catch (error) {
             console.error('Lỗi khi lấy chi tiết hóa đơn:', error);
-            swal('Lỗi!', 'Không thể lấy chi tiết hóa đơn', 'error');
+            toast.error('Không thể lấy chi tiết hóa đơn!');
         }
     };
 
@@ -77,7 +84,7 @@ function OrderStatus() {
             setOrderHistory(response.data);
         } catch (error) {
             console.error('Lỗi khi lấy lịch sử đơn hàng:', error);
-            swal('Lỗi!', 'Không thể lấy lịch sử đơn hàng', 'error');
+            toast.error('Không thể lấy lịch sử đơn hàng!');
         } finally {
             setLoadingHistory(false);
         }
@@ -93,6 +100,42 @@ function OrderStatus() {
         setOrderHistory([]);
     };
 
+    const handleOpenIncidentModal = () => {
+        setShowIncidentModal(true);
+    };
+
+    const handleCloseIncidentModal = () => {
+        setShowIncidentModal(false);
+    };
+
+    const handleIncidentReported = (newIncident) => {
+        // Refresh incidents list by triggering re-fetch
+        console.log('New incident reported:', newIncident);
+        setIncidentRefreshTrigger((prev) => prev + 1);
+    };
+
+    // Hàm để lưu lịch sử đơn hàng khi thay đổi trạng thái
+    const saveOrderHistory = async (newStatus, description) => {
+        if (!admin || !hoaDonId) return;
+
+        try {
+            // Lấy tên trạng thái để lưu vào TrangThaiHoaDon
+            const statusLabel = getStatusLabel(newStatus)?.label || 'Không xác định';
+
+            const params = new URLSearchParams({
+                hoaDonId: hoaDonId.toString(),
+                userId: admin.id.toString(),
+                moTa: description || 'Thay đổi trạng thái đơn hàng',
+                trangThaiHoaDon: statusLabel,
+            });
+
+            await axios.post(`http://localhost:8080/api/lich-su-don-hang/add-status-change?${params.toString()}`);
+        } catch (error) {
+            console.error('Lỗi khi lưu lịch sử đơn hàng:', error);
+            // Không hiển thị lỗi cho user vì đây không phải là chức năng chính
+        }
+    };
+
     useEffect(() => {
         if (hoaDonId) {
             const fetchReturnHistory = async () => {
@@ -101,7 +144,7 @@ function OrderStatus() {
                     setReturnHistory(response.data);
                 } catch (error) {
                     console.error('Lỗi khi lấy lịch sử trả hàng:', error);
-                    swal('Lỗi!', 'Không thể lấy lịch sử trả hàng', 'error');
+                    toast.error('Không thể lấy lịch sử trả hàng!');
                 }
             };
             fetchReturnHistory();
@@ -113,7 +156,7 @@ function OrderStatus() {
             client.connect({}, () => {
                 client.subscribe(`/user/${orderData.taiKhoan?.id}/queue/notifications`, (message) => {
                     const notification = JSON.parse(message.body);
-                    swal('Thông báo', notification.noiDung, 'info');
+                    toast.info(notification.noiDung);
                     fetchPreOrders();
                     fetchBillDetails(hoaDonId);
                 });
@@ -158,7 +201,7 @@ function OrderStatus() {
 
     const handleConfirmAddProduct = async (selectedProduct, quantity) => {
         if (!selectedProduct || !orderData.id) {
-            swal('Lỗi', 'Vui lòng chọn sản phẩm và hóa đơn', 'error');
+            toast.error('Vui lòng chọn sản phẩm và hóa đơn!');
             return;
         }
 
@@ -179,7 +222,7 @@ function OrderStatus() {
                     });
                     fetchPreOrders();
                 } else {
-                    swal('Thành công!', 'Thêm sản phẩm vào hóa đơn thành công', 'success');
+                    toast.success('Thêm sản phẩm vào hóa đơn thành công!');
                 }
                 setShowProductModal(false);
                 fetchBillDetails(orderData.id);
@@ -195,7 +238,7 @@ function OrderStatus() {
                 });
                 fetchPreOrders();
             } else {
-                swal('Lỗi', error.response?.data || 'Không thể thêm sản phẩm', 'error');
+                toast.error(error.response?.data || 'Không thể thêm sản phẩm!');
             }
         }
     };
@@ -228,7 +271,7 @@ function OrderStatus() {
             setOrderDetailDatas(updatedOrderDetails);
         } catch (error) {
             console.error('Error updating quantity:', error);
-            swal('Lỗi!', 'Không thể cập nhật số lượng', 'error');
+            toast.error('Không thể cập nhật số lượng!');
         }
     };
 
@@ -260,7 +303,7 @@ function OrderStatus() {
 
     const handleConfirmImport = async () => {
         if (importQuantity <= 0) {
-            swal('Lỗi', 'Số lượng nhập hàng phải lớn hơn 0', 'error');
+            toast.error('Số lượng nhập hàng phải lớn hơn 0!');
             return;
         }
         try {
@@ -292,15 +335,15 @@ function OrderStatus() {
                 }
             } catch (notificationError) {
                 console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
-                swal('Cảnh báo', 'Không thể gửi thông báo đến người dùng.', 'warning');
+                toast.warning('Không thể gửi thông báo đến người dùng.');
             }
-            swal('Thành công', 'Nhập hàng thành công!', 'success');
+            toast.success('Nhập hàng thành công!');
             fetchBillDetails(hoaDonId);
             fetchPreOrders();
             handleCloseImportModal();
         } catch (error) {
             console.error('Lỗi khi nhập hàng:', error);
-            swal('Lỗi', error.response?.data || 'Không thể nhập hàng', 'error');
+            toast.error(error.response?.data || 'Không thể nhập hàng!');
         }
     };
 
@@ -318,16 +361,44 @@ function OrderStatus() {
                 // Cập nhật orderData với thông tin mới
                 Object.assign(orderData, deliveryInfo);
 
-                swal('Thành công', 'Cập nhật thông tin người nhận thành công!', 'success');
+                toast.success('Cập nhật thông tin người nhận thành công!');
             }
         } catch (error) {
             console.error('Lỗi khi cập nhật thông tin giao hàng:', error);
-            swal('Lỗi', error.response?.data || 'Không thể cập nhật thông tin giao hàng', 'error');
+            toast.error(error.response?.data || 'Không thể cập nhật thông tin giao hàng!');
             throw error; // Re-throw để OrderInfo có thể handle
         }
     };
 
     const getStatusLabel = (status) => {
+        // Xử lý cả trạng thái dạng số và dạng chuỗi
+        if (typeof status === 'string') {
+            // Nếu là chuỗi, tìm theo label
+            switch (status.toLowerCase()) {
+                case 'chờ xác nhận':
+                    return { label: 'Chờ xác nhận', color: 'bg-yellow-200 text-yellow-800' };
+                case 'chờ giao hàng':
+                    return { label: 'Chờ giao hàng', color: 'bg-blue-200 text-blue-800' };
+                case 'đang vận chuyển':
+                    return { label: 'Đang vận chuyển', color: 'bg-purple-200 text-purple-800' };
+                case 'đã giao hàng':
+                    return { label: 'Đã giao hàng', color: 'bg-gray-200 text-green-800' };
+                case 'đã thanh toán':
+                    return { label: 'Đã thanh toán', color: 'bg-teal-200 text-teal-800' };
+                case 'hoàn thành':
+                    return { label: 'Hoàn thành', color: 'bg-pink-200 text-gray-800' };
+                case 'đã hủy':
+                    return { label: 'Đã hủy', color: 'bg-red-200 text-red-800' };
+                case 'trả hàng':
+                    return { label: 'Trả hàng', color: 'bg-red-400 text-white' };
+                case 'chờ nhập hàng':
+                    return { label: 'Chờ nhập hàng', color: 'bg-orange-200 text-orange-800' };
+                default:
+                    return { label: status, color: 'bg-gray-200 text-gray-800' };
+            }
+        }
+
+        // Xử lý trạng thái dạng số
         switch (status) {
             case 1:
                 return { label: 'Chờ xác nhận', color: 'bg-yellow-200 text-yellow-800' };
@@ -430,7 +501,9 @@ function OrderStatus() {
         }
     };
 
-    const updateOrderStatus = async (newStatus) => {
+    const updateOrderStatus = async (newStatus, description = '') => {
+        console.log('updateOrderStatus called with:', { newStatus, description, currentOrderStatus });
+
         try {
             const response = await fetch(`http://localhost:8080/api/hoa-don/${hoaDonId}/status`, {
                 method: 'PUT',
@@ -439,10 +512,20 @@ function OrderStatus() {
                 },
                 body: JSON.stringify(newStatus),
             });
+
+            console.log('API response status:', response.status);
+
             if (!response.ok) {
                 throw new Error('Không thể cập nhật trạng thái hóa đơn');
             }
+
+            // Cập nhật state trước
+            console.log('Setting currentOrderStatus to:', newStatus);
             setCurrentOrderStatus(newStatus);
+
+            // Lưu lịch sử đơn hàng sau khi đã cập nhật state
+            console.log('Saving order history...');
+            await saveOrderHistory(newStatus, description);
 
             // Gửi thông báo đến người dùng
             const userNotification = {
@@ -468,29 +551,172 @@ function OrderStatus() {
                 }
             } catch (notificationError) {
                 console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
-                swal('Cảnh báo', 'Không thể gửi thông báo đến người dùng.', 'warning');
+                toast.warning('Không thể gửi thông báo đến người dùng.');
             }
 
             if (newStatus === 8) {
                 const response = await axios.get(`http://localhost:8080/api/tra-hang/hoa-don/${hoaDonId}`);
                 setReturnHistory(response.data);
             }
+
+            toast.success('Cập nhật trạng thái đơn hàng thành công!');
         } catch (error) {
-            console.error('Error updating order status:', error);
-            swal('Lỗi!', 'Không thể cập nhật trạng thái đơn hàng', 'error');
+            console.error('Lỗi khi cập nhật trạng thái đơn hàng:', error);
+            toast.error('Không thể cập nhật trạng thái đơn hàng!');
         }
     };
 
-    const handleActionButtonClick = () => {
-        if (currentOrderStatus === 3) {
-            updateOrderStatus(4);
-        } else if (currentOrderStatus === 4) {
-            setIsModalOpen(true);
-        } else if (currentOrderStatus === 9) {
-            setShowImportModal(true);
-        } else if (currentOrderStatus < 7) {
-            updateOrderStatus(currentOrderStatus + 1);
+    // Function để quay lại trạng thái trước
+    const revertOrderStatus = async (description = '') => {
+        const previousStatus = getPreviousStatus(currentOrderStatus);
+
+        if (!previousStatus) {
+            toast.error('Không thể quay lại trạng thái trước đó!');
+            return;
         }
+
+        console.log('revertOrderStatus called with:', { currentOrderStatus, previousStatus, description });
+
+        try {
+            const response = await fetch(`http://localhost:8080/api/hoa-don/${hoaDonId}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(previousStatus),
+            });
+
+            console.log('API response status:', response.status);
+
+            if (!response.ok) {
+                throw new Error('Không thể quay lại trạng thái trước đó');
+            }
+
+            // Cập nhật state trước
+            console.log('Setting currentOrderStatus to:', previousStatus);
+            setCurrentOrderStatus(previousStatus);
+
+            // Lưu lịch sử đơn hàng với mô tả quay lại
+            console.log('Saving order history for revert...');
+            await saveOrderHistory(
+                previousStatus,
+                description || `Quay lại trạng thái: ${getStatusLabel(previousStatus).label}`,
+            );
+
+            // Gửi thông báo đến người dùng
+            const userNotification = {
+                khachHang: {
+                    id: orderData.taiKhoan.id,
+                },
+                tieuDe: 'Cập nhật trạng thái đơn hàng',
+                noiDung: `Đơn hàng #${hoaDonId} đã được quay lại trạng thái: ${getStatusLabel(previousStatus).label}`,
+                // idRedirect: `/user/hoa-don/${hoaDonId}`,
+                kieuThongBao: 'info',
+                trangThai: 0,
+            };
+            try {
+                await axios.post('http://localhost:8080/api/thong-bao', userNotification, {
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                if (stompClient) {
+                    stompClient.send(
+                        `/app/user/${orderData.taiKhoan.id}/notifications`,
+                        {},
+                        JSON.stringify(userNotification),
+                    );
+                }
+            } catch (notificationError) {
+                console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
+                toast.warning('Không thể gửi thông báo đến người dùng.');
+            }
+
+            toast.success('Quay lại trạng thái trước đó thành công!');
+        } catch (error) {
+            console.error('Lỗi khi quay lại trạng thái trước đó:', error);
+            toast.error('Không thể quay lại trạng thái trước đó!');
+        }
+    };
+
+    // Function để xác định trạng thái trước đó
+    const getPreviousStatus = (currentStatus) => {
+        switch (currentStatus) {
+            case 2:
+                return 1; // Chờ giao hàng -> Chờ xác nhận
+            case 3:
+                return 2; // Đang vận chuyển -> Chờ giao hàng
+            case 4:
+                return 3; // Đã giao hàng -> Đang vận chuyển
+            case 5:
+                return 4; // Đã thanh toán -> Đã giao hàng
+            case 6:
+                return 5; // Hoàn thành -> Đã thanh toán
+            default:
+                return null; // Không thể quay lại từ trạng thái 1, 7, 8
+        }
+    };
+
+    // Function để kiểm tra có thể quay lại trạng thái trước không
+    const canRevertStatus = (currentStatus) => {
+        return getPreviousStatus(currentStatus) !== null && currentStatus !== 7 && currentStatus !== 8;
+    };
+
+    const handleActionButtonClick = (newStatus = null, description = '') => {
+        console.log('handleActionButtonClick called with:', { newStatus, description, currentOrderStatus });
+
+        if (newStatus) {
+            // Nếu có newStatus được truyền từ OrderProgress
+            console.log('Processing newStatus from OrderProgress:', newStatus);
+
+            // Xử lý các trường hợp đặc biệt
+            if (newStatus === 5 && currentOrderStatus === 4) {
+                // Trạng thái 4 -> 5 cần mở modal thanh toán thay vì cập nhật trạng thái ngay
+                console.log('Opening payment modal for status 4 -> 5');
+                setIsModalOpen(true);
+            } else {
+                // Các trường hợp bình thường - cập nhật trạng thái
+                console.log('Updating order status to:', newStatus);
+                updateOrderStatus(newStatus, description);
+            }
+        } else {
+            // Logic cũ khi không có newStatus (gọi từ các nơi khác)
+            console.log('Using old logic, currentOrderStatus:', currentOrderStatus);
+            if (currentOrderStatus === 3) {
+                updateOrderStatus(4, description);
+            } else if (currentOrderStatus === 4) {
+                setIsModalOpen(true);
+            } else if (currentOrderStatus === 9) {
+                setShowImportModal(true);
+            } else if (currentOrderStatus < 7) {
+                updateOrderStatus(currentOrderStatus + 1, description);
+            }
+        }
+    };
+
+    // Function để xử lý khi người dùng click button quay lại trạng thái trước
+    const handleRevertStatus = () => {
+        const previousStatus = getPreviousStatus(currentOrderStatus);
+
+        if (!canRevertStatus(currentOrderStatus)) {
+            toast.error('Không thể quay lại từ trạng thái hiện tại!');
+            return;
+        }
+
+        swal({
+            title: 'Xác nhận quay lại trạng thái trước',
+            text: `Bạn có chắc chắn muốn quay lại trạng thái "${getStatusLabel(previousStatus).label}"?`,
+            icon: 'warning',
+            buttons: {
+                cancel: 'Hủy',
+                confirm: 'Xác nhận',
+            },
+            dangerMode: true,
+        }).then((willRevert) => {
+            if (willRevert) {
+                revertOrderStatus(
+                    `Admin quay lại trạng thái từ "${getStatusLabel(currentOrderStatus).label}" về "${getStatusLabel(previousStatus).label}"`,
+                );
+            }
+        });
     };
 
     const calculateChange = () => {
@@ -502,6 +728,7 @@ function OrderStatus() {
             const newPayment = {
                 hoaDon: { id: hoaDonId },
                 taiKhoan: { id: orderData.taiKhoan?.id || 1 },
+                nhanVienXacNhan: { id: admin?.id, hoTen: admin?.hoTen }, // Thêm thông tin nhân viên xác nhận
                 ma: `PT-${Date.now()}`,
                 tongTien: total,
                 phuongThucThanhToan: paymentMethod,
@@ -522,14 +749,17 @@ function OrderStatus() {
                 throw new Error('Không thể thêm thanh toán');
             }
 
-            await updateOrderStatus(5);
+            await updateOrderStatus(
+                5,
+                `Thanh toán thành công. Phương thức: ${paymentMethod}. ${note ? 'Ghi chú: ' + note : ''}`,
+            );
             setIsModalOpen(false);
             const savedPayment = await response.json();
             setCheckOuts((prev) => [...prev, savedPayment]);
-            swal('Thành công!', 'Lưu thanh toán thành công', 'success');
+            toast.success('Lưu thanh toán thành công!');
         } catch (error) {
             console.error('Error saving payment:', error);
-            swal('Lỗi!', 'Không thể thêm thanh toán', 'error');
+            toast.error('Không thể thêm thanh toán!');
         }
     };
 
@@ -618,13 +848,13 @@ function OrderStatus() {
         progressPercentage = 100;
     }
 
-    const handleCancelOrder = async () => {
+    const handleCancelOrder = async (reason = 'Đơn hàng đã được hủy') => {
         try {
-            await updateOrderStatus(7);
-            swal('Thành công!', 'Đơn hàng đã được hủy!', 'success');
+            await updateOrderStatus(7, reason);
+            toast.success('Đơn hàng đã được hủy!');
         } catch (error) {
             console.error('Error canceling order:', error);
-            swal('Lỗi!', 'Không thể hủy đơn hàng', 'error');
+            toast.error('Không thể hủy đơn hàng!');
         }
     };
 
@@ -670,12 +900,12 @@ function OrderStatus() {
                     }
                 } catch (notificationError) {
                     console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
-                    swal('Cảnh báo', 'Không thể gửi thông báo đến người dùng.', 'warning');
+                    toast.warning('Không thể gửi thông báo đến người dùng.');
                 }
-                swal('Thành công!', 'Yêu cầu trả hàng đã được duyệt', 'success');
+                toast.success('Yêu cầu trả hàng đã được duyệt!');
             } catch (error) {
                 console.error('Lỗi khi duyệt yêu cầu trả hàng:', error);
-                swal('Lỗi!', error.response?.data?.message || 'Không thể duyệt yêu cầu trả hàng', 'error');
+                toast.error(error.response?.data?.message || 'Không thể duyệt yêu cầu trả hàng!');
             }
         }
     };
@@ -718,12 +948,12 @@ function OrderStatus() {
                     }
                 } catch (notificationError) {
                     console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
-                    swal('Cảnh báo', 'Không thể gửi thông báo đến người dùng.', 'warning');
+                    toast.warning('Không thể gửi thông báo đến người dùng.');
                 }
-                swal('Thành công!', 'Yêu cầu trả hàng đã bị từ chối', 'success');
+                toast.success('Yêu cầu trả hàng đã bị từ chối!');
             } catch (error) {
                 console.error('Lỗi khi từ chối yêu cầu trả hàng:', error);
-                swal('Lỗi!', error.response?.data?.message || 'Không thể từ chối yêu cầu trả hàng', 'error');
+                toast.error(error.response?.data?.message || 'Không thể từ chối yêu cầu trả hàng!');
             }
         }
     };
@@ -743,6 +973,8 @@ function OrderStatus() {
                     getActionButtonText={getActionButtonText}
                     handleCancelOrder={handleCancelOrder}
                     handleShowHistoryModal={handleShowHistoryModal}
+                    handleRevertStatus={handleRevertStatus}
+                    canRevertStatus={canRevertStatus}
                 />
             </div>
 
@@ -885,6 +1117,35 @@ function OrderStatus() {
                     </div>
                 )}
             </div>
+
+            {/* Sự cố vận chuyển - chỉ hiển thị khi đơn hàng đang vận chuyển hoặc có sự cố */}
+            {(currentOrderStatus === 3 || currentOrderStatus === 4) && (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 max-w-5xl mx-auto mt-8">
+                    <div className="p-6 border-b border-gray-200">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                                <AlertTriangle className="w-6 h-6 mr-2 text-red-600" />
+                                Quản lý sự cố vận chuyển
+                            </h2>
+                            <button
+                                onClick={handleOpenIncidentModal}
+                                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2"
+                            >
+                                <AlertTriangle className="w-4 h-4" />
+                                <span>Báo cáo sự cố</span>
+                            </button>
+                        </div>
+                        <p className="text-gray-600 mt-2">
+                            Ghi nhận và quản lý các sự cố xảy ra trong quá trình vận chuyển đơn hàng
+                        </p>
+                    </div>
+
+                    <div className="p-6">
+                        <DeliveryIncidentList hoaDonId={hoaDonId} refreshTrigger={incidentRefreshTrigger} />
+                    </div>
+                </div>
+            )}
+
             {showProductModal && (
                 <ProductModal
                     showProductModal={showProductModal}
@@ -960,13 +1221,13 @@ function OrderStatus() {
                     />
 
                     {/* Modal Container */}
-                    <div className="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] overflow-hidden">
+                    <div className="relative bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
                         {/* Header */}
                         <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-2xl">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center space-x-3">
                                     <div className="bg-white/20 p-2 rounded-lg">
-                                        <Clock className="w-6 h-6" />
+                                        <FileText className="w-6 h-6" />
                                     </div>
                                     <h2 className="text-xl font-bold">Lịch sử đơn hàng #{orderData.ma}</h2>
                                 </div>
@@ -977,73 +1238,198 @@ function OrderStatus() {
                                     <X className="w-5 h-5" />
                                 </button>
                             </div>
+                            <p className="text-blue-100 mt-2 text-sm">
+                                Theo dõi chi tiết các thay đổi trạng thái và hoạt động của đơn hàng
+                            </p>
                         </div>
 
                         {/* Content */}
-                        <div className="p-6 space-y-4 overflow-y-auto max-h-[calc(85vh-120px)]">
+                        <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
                             {loadingHistory ? (
-                                <div className="flex items-center justify-center py-8">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                                    <span className="ml-3 text-gray-600">Đang tải lịch sử...</span>
+                                <div className="flex items-center justify-center py-12">
+                                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                                    <span className="ml-3 text-gray-600 font-medium">Đang tải lịch sử...</span>
                                 </div>
                             ) : orderHistory.length > 0 ? (
-                                <div className="space-y-4">
-                                    {orderHistory.map((history, index) => (
-                                        <div
-                                            key={history.id}
-                                            className="bg-gray-50 rounded-xl p-4 border-l-4 border-blue-500 hover:bg-gray-100 transition-colors duration-200"
-                                        >
-                                            <div className="flex items-start justify-between">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center space-x-2 mb-2">
-                                                        <span className="text-sm font-semibold text-gray-500">
-                                                            #{index + 1}
-                                                        </span>
-                                                        <span className="text-sm text-gray-400">•</span>
-                                                        <span className="text-sm text-gray-600">
-                                                            {new Date(history.ngayTao).toLocaleString('vi-VN', {
-                                                                year: 'numeric',
-                                                                month: '2-digit',
-                                                                day: '2-digit',
-                                                                hour: '2-digit',
-                                                                minute: '2-digit',
-                                                            })}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-gray-800 mb-2">{history.moTa}</p>
-                                                    <div className="flex items-center space-x-4 text-sm text-gray-500">
-                                                        <span>
-                                                            Người thực hiện: {history.user?.hoTen || 'Hệ thống'}
-                                                        </span>
-                                                        <span
-                                                            className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                                                history.trangThai === 1
-                                                                    ? 'bg-green-100 text-green-800'
-                                                                    : 'bg-gray-100 text-gray-800'
+                                <div className="p-6">
+                                    {/* Table Header */}
+                                    <div className="overflow-x-auto">
+                                        <table className="min-w-full bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                                            <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                                                <tr>
+                                                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200">
+                                                        <div className="flex items-center space-x-2">
+                                                            <Calendar className="w-4 h-4 text-blue-600" />
+                                                            <span>Thời gian</span>
+                                                        </div>
+                                                    </th>
+                                                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200">
+                                                        <div className="flex items-center space-x-2">
+                                                            <User className="w-4 h-4 text-green-600" />
+                                                            <span>Người chỉnh sửa</span>
+                                                        </div>
+                                                    </th>
+                                                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200">
+                                                        <div className="flex items-center space-x-2">
+                                                            <ShieldCheck className="w-4 h-4 text-purple-600" />
+                                                            <span>Trạng thái hóa đơn</span>
+                                                        </div>
+                                                    </th>
+                                                    <th className="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200">
+                                                        <div className="flex items-center space-x-2">
+                                                            <FileText className="w-4 h-4 text-orange-600" />
+                                                            <span>Ghi chú</span>
+                                                        </div>
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-200">
+                                                {orderHistory.map((history, index) => {
+                                                    const statusInfo = getStatusLabel(history.trangThaiHoaDon) || {
+                                                        label: history.trangThaiHoaDon || 'Không xác định',
+                                                        color: 'bg-gray-100 text-gray-700',
+                                                    };
+
+                                                    return (
+                                                        <tr
+                                                            key={history.id}
+                                                            className={`hover:bg-gray-50 transition-colors duration-200 ${
+                                                                index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
                                                             }`}
                                                         >
-                                                            {history.trangThai === 1 ? 'Hoạt động' : 'Không hoạt động'}
-                                                        </span>
-                                                    </div>
+                                                            {/* Thời gian */}
+                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                <div className="flex items-center space-x-3">
+                                                                    <div className="flex-shrink-0">
+                                                                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                                                            <span className="text-xs font-bold text-blue-600">
+                                                                                {index + 1}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="text-sm font-medium text-gray-900">
+                                                                            {new Date(
+                                                                                history.ngayTao,
+                                                                            ).toLocaleDateString('vi-VN', {
+                                                                                year: 'numeric',
+                                                                                month: '2-digit',
+                                                                                day: '2-digit',
+                                                                            })}
+                                                                        </div>
+                                                                        <div className="text-xs text-gray-500">
+                                                                            {new Date(
+                                                                                history.ngayTao,
+                                                                            ).toLocaleTimeString('vi-VN', {
+                                                                                hour: '2-digit',
+                                                                                minute: '2-digit',
+                                                                                second: '2-digit',
+                                                                            })}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+
+                                                            {/* Người chỉnh sửa */}
+                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                <div className="flex items-center space-x-3">
+                                                                    <div className="flex-shrink-0">
+                                                                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                                                            <User className="w-4 h-4 text-green-600" />
+                                                                        </div>
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="text-sm font-medium text-gray-900">
+                                                                            {history.user?.hoTen || 'Hệ thống'}
+                                                                        </div>
+                                                                        <div className="text-xs text-gray-500">
+                                                                            {history.user?.email ||
+                                                                                'system@5shuttle.com'}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+
+                                                            {/* Trạng thái hóa đơn */}
+                                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                                <span
+                                                                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${statusInfo.color}`}
+                                                                >
+                                                                    <div className="w-2 h-2 rounded-full bg-current mr-2"></div>
+                                                                    {statusInfo.label}
+                                                                </span>
+                                                            </td>
+
+                                                            {/* Ghi chú */}
+                                                            <td className="px-6 py-4">
+                                                                <div className="text-sm text-gray-900 max-w-xs">
+                                                                    {history.moTa || 'Không có ghi chú'}
+                                                                </div>
+                                                                {history.moTa && history.moTa.length > 50 && (
+                                                                    <div className="text-xs text-gray-500 mt-1">
+                                                                        Nhấn để xem đầy đủ...
+                                                                    </div>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {/* Summary */}
+                                    <div className="mt-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border border-blue-200">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center space-x-3">
+                                                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                                    <FileText className="w-5 h-5 text-blue-600" />
                                                 </div>
-                                                <div className="flex items-center text-blue-600">
-                                                    <Clock className="w-4 h-4" />
+                                                <div>
+                                                    <h3 className="text-sm font-semibold text-gray-800">
+                                                        Tổng quan lịch sử
+                                                    </h3>
+                                                    <p className="text-xs text-gray-600">
+                                                        Đơn hàng có {orderHistory.length} lần thay đổi trạng thái
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-sm font-medium text-gray-800">
+                                                    Trạng thái hiện tại
+                                                </div>
+                                                <div className="text-xs text-gray-600">
+                                                    {getStatusLabel(currentOrderStatus)?.label || 'Không xác định'}
                                                 </div>
                                             </div>
                                         </div>
-                                    ))}
+                                    </div>
                                 </div>
                             ) : (
-                                <div className="text-center py-8">
-                                    <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                                <div className="text-center py-12">
+                                    <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <FileText className="w-10 h-10 text-gray-400" />
+                                    </div>
                                     <h3 className="text-lg font-medium text-gray-600 mb-2">Chưa có lịch sử</h3>
-                                    <p className="text-gray-500">Đơn hàng này chưa có thông tin lịch sử nào.</p>
+                                    <p className="text-gray-500 max-w-sm mx-auto">
+                                        Đơn hàng này chưa có thông tin lịch sử thay đổi trạng thái nào.
+                                    </p>
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
             )}
+
+            {/* Delivery Incident Modal */}
+            <DeliveryIncidentModal
+                isOpen={showIncidentModal}
+                onClose={handleCloseIncidentModal}
+                orderData={orderData}
+                hoaDonId={hoaDonId}
+                onIncidentReported={handleIncidentReported}
+                stompClient={stompClient}
+            />
         </>
     );
 }

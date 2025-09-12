@@ -15,19 +15,24 @@ export const SidebarData = [
         vaiTro: 'Admin',
     },
     {
-    title: 'Bán hàng tại quầy',
-    icon: <ReceiptIcon />,
-    link: '/admin/ban-hang-tai-quay',
-    subItems: [
-        { title: 'Bán hàng', link: '/admin/ban-hang-tai-quay' },
-        { title: 'Đơn hàng', link: '/admin/ban-hang-tai-quay/don-hang' },
-    ],
-},
+        title: 'Bán hàng tại quầy',
+        icon: <ReceiptIcon />,
+        link: '/admin/ban-hang-tai-quay',
+        subItems: [
+            { title: 'Bán hàng', link: '/admin/ban-hang-tai-quay' },
+            { title: 'Đơn hàng', link: '/admin/ban-hang-tai-quay/don-hang' },
+        ],
+    },
 
     {
         title: 'Quản lý đơn hàng',
         icon: <ShoppingCartIcon />,
         link: '/admin/quan-ly-don-hang',
+    },
+    {
+        title: 'Quản lý đặt sỉ',
+        icon: <ShoppingCartIcon />,
+        link: '/admin/quan-ly-dat-si',
     },
     {
         title: 'Quản lý sản phẩm',
