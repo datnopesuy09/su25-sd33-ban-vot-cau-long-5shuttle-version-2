@@ -9,6 +9,7 @@ import OrderInfo from './OrderInfor';
 import OrderProgress from './OrderProgress';
 import ProductList from './ProductList';
 import PaymentDetails from './PaymentDetai';
+import KhoHangManagement from '../../../components/KhoHangManagement';
 import swal from 'sweetalert';
 import axios from 'axios';
 import ProductModal from '../Sale/ProductModal';
@@ -43,6 +44,9 @@ function OrderStatus() {
     const [selectedProductId, setSelectedProductId] = useState(null);
     const shippingFee = 30000;
     const [stompClient, setStompClient] = useState(null);
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
+    const [orderHistory, setOrderHistory] = useState([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
 
     const fetchPreOrders = async () => {
         try {
@@ -62,6 +66,31 @@ function OrderStatus() {
             console.error('Lỗi khi lấy chi tiết hóa đơn:', error);
             swal('Lỗi!', 'Không thể lấy chi tiết hóa đơn', 'error');
         }
+    };
+
+    const fetchOrderHistory = async () => {
+        if (!hoaDonId) return;
+
+        setLoadingHistory(true);
+        try {
+            const response = await axios.get(`http://localhost:8080/api/lich-su-don-hang/hoa-don/${hoaDonId}`);
+            setOrderHistory(response.data);
+        } catch (error) {
+            console.error('Lỗi khi lấy lịch sử đơn hàng:', error);
+            swal('Lỗi!', 'Không thể lấy lịch sử đơn hàng', 'error');
+        } finally {
+            setLoadingHistory(false);
+        }
+    };
+
+    const handleShowHistoryModal = () => {
+        setShowHistoryModal(true);
+        fetchOrderHistory();
+    };
+
+    const handleCloseHistoryModal = () => {
+        setShowHistoryModal(false);
+        setOrderHistory([]);
     };
 
     useEffect(() => {
@@ -239,6 +268,32 @@ function OrderStatus() {
                 sanPhamCTId: selectedProductId,
                 quantity: importQuantity,
             });
+            // Gửi thông báo đến người dùng khi nhập hàng thành công
+            const userNotification = {
+                khachHang: {
+                    id: orderData.taiKhoan.id,
+                },
+                tieuDe: 'Cập nhật trạng thái nhập hàng',
+                noiDung: `Sản phẩm trong đơn hàng #${hoaDonId} đã được nhập hàng. Vui lòng kiểm tra đơn hàng.`,
+                idRedirect: `/user/hoa-don/${hoaDonId}`,
+                kieuThongBao: 'success',
+                trangThai: 0,
+            };
+            try {
+                await axios.post('http://localhost:8080/api/thong-bao', userNotification, {
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                if (stompClient) {
+                    stompClient.send(
+                        `/app/user/${orderData.taiKhoan?.id}/notifications`,
+                        {},
+                        JSON.stringify(userNotification),
+                    );
+                }
+            } catch (notificationError) {
+                console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
+                swal('Cảnh báo', 'Không thể gửi thông báo đến người dùng.', 'warning');
+            }
             swal('Thành công', 'Nhập hàng thành công!', 'success');
             fetchBillDetails(hoaDonId);
             fetchPreOrders();
@@ -246,6 +301,29 @@ function OrderStatus() {
         } catch (error) {
             console.error('Lỗi khi nhập hàng:', error);
             swal('Lỗi', error.response?.data || 'Không thể nhập hàng', 'error');
+        }
+    };
+
+    const handleUpdateDeliveryInfo = async (deliveryInfo) => {
+        try {
+            const response = await axios.put(
+                `http://localhost:8080/api/hoa-don/${orderData.id}/delivery-info`,
+                deliveryInfo,
+                {
+                    headers: { 'Content-Type': 'application/json' },
+                },
+            );
+
+            if (response.status === 200) {
+                // Cập nhật orderData với thông tin mới
+                Object.assign(orderData, deliveryInfo);
+
+                swal('Thành công', 'Cập nhật thông tin người nhận thành công!', 'success');
+            }
+        } catch (error) {
+            console.error('Lỗi khi cập nhật thông tin giao hàng:', error);
+            swal('Lỗi', error.response?.data || 'Không thể cập nhật thông tin giao hàng', 'error');
+            throw error; // Re-throw để OrderInfo có thể handle
         }
     };
 
@@ -365,6 +443,34 @@ function OrderStatus() {
                 throw new Error('Không thể cập nhật trạng thái hóa đơn');
             }
             setCurrentOrderStatus(newStatus);
+
+            // Gửi thông báo đến người dùng
+            const userNotification = {
+                khachHang: {
+                    id: orderData.taiKhoan.id,
+                },
+                tieuDe: 'Cập nhật trạng thái đơn hàng',
+                noiDung: `Đơn hàng #${hoaDonId} đã được cập nhật sang trạng thái: ${getStatusLabel(newStatus).label}`,
+                // idRedirect: `/user/hoa-don/${hoaDonId}`,
+                kieuThongBao: newStatus === 7 ? 'error' : newStatus === 8 ? 'warning' : 'info',
+                trangThai: 0,
+            };
+            try {
+                await axios.post('http://localhost:8080/api/thong-bao', userNotification, {
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                if (stompClient) {
+                    stompClient.send(
+                        `/app/user/${orderData.taiKhoan.id}/notifications`,
+                        {},
+                        JSON.stringify(userNotification),
+                    );
+                }
+            } catch (notificationError) {
+                console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
+                swal('Cảnh báo', 'Không thể gửi thông báo đến người dùng.', 'warning');
+            }
+
             if (newStatus === 8) {
                 const response = await axios.get(`http://localhost:8080/api/tra-hang/hoa-don/${hoaDonId}`);
                 setReturnHistory(response.data);
@@ -540,6 +646,32 @@ function OrderStatus() {
                 setOrderDetailDatas(fetchResponse.data);
                 const hoaDonResponse = await axios.get(`http://localhost:8080/api/hoa-don/${hoaDonId}`);
                 setCurrentOrderStatus(hoaDonResponse.data.trangThai);
+                // Gửi thông báo đến người dùng khi duyệt trả hàng
+                const userNotification = {
+                    khachHang: {
+                        id: orderData.taiKhoan.id,
+                    },
+                    tieuDe: 'Yêu cầu trả hàng được duyệt',
+                    noiDung: `Yêu cầu trả hàng cho đơn hàng #${hoaDonId} đã được duyệt.`,
+                    idRedirect: `/user/hoa-don/${hoaDonId}`,
+                    kieuThongBao: 'success',
+                    trangThai: 0,
+                };
+                try {
+                    await axios.post('http://localhost:8080/api/thong-bao', userNotification, {
+                        headers: { 'Content-Type': 'application/json' },
+                    });
+                    if (stompClient) {
+                        stompClient.send(
+                            `/app/user/${orderData.taiKhoan?.id}/notifications`,
+                            {},
+                            JSON.stringify(userNotification),
+                        );
+                    }
+                } catch (notificationError) {
+                    console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
+                    swal('Cảnh báo', 'Không thể gửi thông báo đến người dùng.', 'warning');
+                }
                 swal('Thành công!', 'Yêu cầu trả hàng đã được duyệt', 'success');
             } catch (error) {
                 console.error('Lỗi khi duyệt yêu cầu trả hàng:', error);
@@ -562,6 +694,32 @@ function OrderStatus() {
                 await axios.put(`http://localhost:8080/api/hoa-don-ct/return/${traHangId}/reject`);
                 const response = await axios.get(`http://localhost:8080/api/tra-hang/hoa-don/${hoaDonId}`);
                 setReturnHistory(response.data);
+                // Gửi thông báo đến người dùng khi từ chối trả hàng
+                const userNotification = {
+                    khachHang: {
+                        id: orderData.taiKhoan.id,
+                    },
+                    tieuDe: 'Yêu cầu trả hàng bị từ chối',
+                    noiDung: `Yêu cầu trả hàng cho đơn hàng #${hoaDonId} đã bị từ chối.`,
+                    idRedirect: `/user/hoa-don/${hoaDonId}`,
+                    kieuThongBao: 'error',
+                    trangThai: 0,
+                };
+                try {
+                    await axios.post('http://localhost:8080/api/thong-bao', userNotification, {
+                        headers: { 'Content-Type': 'application/json' },
+                    });
+                    if (stompClient) {
+                        stompClient.send(
+                            `/app/user/${orderData.taiKhoan?.id}/notifications`,
+                            {},
+                            JSON.stringify(userNotification),
+                        );
+                    }
+                } catch (notificationError) {
+                    console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
+                    swal('Cảnh báo', 'Không thể gửi thông báo đến người dùng.', 'warning');
+                }
                 swal('Thành công!', 'Yêu cầu trả hàng đã bị từ chối', 'success');
             } catch (error) {
                 console.error('Lỗi khi từ chối yêu cầu trả hàng:', error);
@@ -584,6 +742,19 @@ function OrderStatus() {
                     getActionButtonStyle={getActionButtonStyle}
                     getActionButtonText={getActionButtonText}
                     handleCancelOrder={handleCancelOrder}
+                    handleShowHistoryModal={handleShowHistoryModal}
+                />
+            </div>
+
+            {/* Quản lý kho hàng - chỉ hiển thị cho admin */}
+            <div className="max-w-5xl mx-auto mt-8">
+                <KhoHangManagement
+                    hoaDon={orderData}
+                    onRestoreComplete={() => {
+                        // Refresh dữ liệu sau khi hoàn kho
+                        fetchBillDetails(hoaDonId);
+                    }}
+                    currentOrderStatus={currentOrderStatus}
                 />
             </div>
 
@@ -596,6 +767,7 @@ function OrderStatus() {
                     getStatusLabel={getStatusLabel}
                     getStatusStyle={getStatusStyle}
                     getStatus={getStatus}
+                    onUpdateDeliveryInfo={handleUpdateDeliveryInfo}
                 />
                 <ProductList
                     orderDetailDatas={orderDetailDatas}
@@ -609,7 +781,7 @@ function OrderStatus() {
                     setReturnHistory={setReturnHistory}
                     currentOrderStatus={currentOrderStatus}
                 />
-                {preOrders.length > 0 && (
+                {/* {preOrders.length > 0 && (
                     <div className="p-6">
                         <h2 className="text-xl font-bold text-gray-800 mb-4">Danh sách đặt trước</h2>
                         <div className="space-y-4">
@@ -649,7 +821,7 @@ function OrderStatus() {
                             ))}
                         </div>
                     </div>
-                )}
+                )} */}
                 {returnHistory.length > 0 && (
                     <div className="p-6">
                         <h2 className="text-xl font-bold text-gray-800 mb-4">Lịch sử trả hàng</h2>
@@ -773,6 +945,101 @@ function OrderStatus() {
                             >
                                 Xác nhận
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal hiển thị lịch sử đơn hàng */}
+            {showHistoryModal && (
+                <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300"
+                        onClick={handleCloseHistoryModal}
+                    />
+
+                    {/* Modal Container */}
+                    <div className="relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] overflow-hidden">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-2xl">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                    <div className="bg-white/20 p-2 rounded-lg">
+                                        <Clock className="w-6 h-6" />
+                                    </div>
+                                    <h2 className="text-xl font-bold">Lịch sử đơn hàng #{orderData.ma}</h2>
+                                </div>
+                                <button
+                                    onClick={handleCloseHistoryModal}
+                                    className="p-2 hover:bg-white/20 rounded-lg transition-colors duration-200"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6 space-y-4 overflow-y-auto max-h-[calc(85vh-120px)]">
+                            {loadingHistory ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                    <span className="ml-3 text-gray-600">Đang tải lịch sử...</span>
+                                </div>
+                            ) : orderHistory.length > 0 ? (
+                                <div className="space-y-4">
+                                    {orderHistory.map((history, index) => (
+                                        <div
+                                            key={history.id}
+                                            className="bg-gray-50 rounded-xl p-4 border-l-4 border-blue-500 hover:bg-gray-100 transition-colors duration-200"
+                                        >
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center space-x-2 mb-2">
+                                                        <span className="text-sm font-semibold text-gray-500">
+                                                            #{index + 1}
+                                                        </span>
+                                                        <span className="text-sm text-gray-400">•</span>
+                                                        <span className="text-sm text-gray-600">
+                                                            {new Date(history.ngayTao).toLocaleString('vi-VN', {
+                                                                year: 'numeric',
+                                                                month: '2-digit',
+                                                                day: '2-digit',
+                                                                hour: '2-digit',
+                                                                minute: '2-digit',
+                                                            })}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-gray-800 mb-2">{history.moTa}</p>
+                                                    <div className="flex items-center space-x-4 text-sm text-gray-500">
+                                                        <span>
+                                                            Người thực hiện: {history.user?.hoTen || 'Hệ thống'}
+                                                        </span>
+                                                        <span
+                                                            className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                                history.trangThai === 1
+                                                                    ? 'bg-green-100 text-green-800'
+                                                                    : 'bg-gray-100 text-gray-800'
+                                                            }`}
+                                                        >
+                                                            {history.trangThai === 1 ? 'Hoạt động' : 'Không hoạt động'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center text-blue-600">
+                                                    <Clock className="w-4 h-4" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-8">
+                                    <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                                    <h3 className="text-lg font-medium text-gray-600 mb-2">Chưa có lịch sử</h3>
+                                    <p className="text-gray-500">Đơn hàng này chưa có thông tin lịch sử nào.</p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -1,5 +1,6 @@
 package com.example.da_be.service;
 
+import com.example.da_be.dto.UpdateDeliveryInfoRequest;
 import com.example.da_be.entity.HoaDon;
 import com.example.da_be.entity.PhieuGiamGia;
 import com.example.da_be.entity.ThongBao;
@@ -7,6 +8,8 @@ import com.example.da_be.exception.ResourceNotFoundException;
 import com.example.da_be.repository.HoaDonRepository;
 import com.example.da_be.repository.ThongBaoRepository;
 import com.example.da_be.repository.VoucherRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,12 +21,16 @@ import java.util.List;
 @Service
 public class HoaDonService {
 
+    private static final Logger log = LoggerFactory.getLogger(HoaDonService.class);
+
     @Autowired
     private HoaDonRepository hoaDonRepository;
     @Autowired
     private VoucherRepository voucherRepository;
     @Autowired
     private ThongBaoRepository thongBaoRepository;
+    @Autowired
+    private KhoHangService khoHangService;
 
     public List<HoaDon> getAllHoaDon() {
         return hoaDonRepository.findAll();
@@ -42,10 +49,25 @@ public class HoaDonService {
     }
 
 
+    @Transactional
     public HoaDon updateHoaDonStatus(int id, int newStatus) {
         HoaDon hoaDon = hoaDonRepository.findById(id).orElse(null);
         if (hoaDon != null) {
+            int oldStatus = hoaDon.getTrangThai();
             hoaDon.setTrangThai(newStatus);
+            
+            // Xử lý hoàn kho khi hủy đơn hàng
+            if (newStatus == 7 && oldStatus != 7) { // Trạng thái 7 = Đã hủy
+                try {
+                    khoHangService.restoreStockOnCancelOrder(hoaDon);
+                    log.info("Đã hoàn kho thành công cho đơn hàng bị hủy: {}", hoaDon.getMa());
+                } catch (Exception e) {
+                    log.error("Lỗi khi hoàn kho cho đơn hàng bị hủy: {} - {}", hoaDon.getMa(), e.getMessage());
+                    // Không ném exception để không làm gián đoạn flow chính
+                    // Có thể thông báo cho admin để xử lý thủ công
+                }
+            }
+            
             return hoaDonRepository.save(hoaDon);
         }
         return null;
@@ -93,6 +115,26 @@ public class HoaDonService {
         thongBaoRepository.save(thongBao);
 
         return updatedHoaDon;
+    }
+
+    @Transactional
+    public HoaDon updateDeliveryInfo(Integer idHoaDon, UpdateDeliveryInfoRequest request) {
+        HoaDon hoaDon = hoaDonRepository.findById(idHoaDon)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hóa đơn"));
+
+        // Cập nhật thông tin giao hàng
+        if (request.getTenNguoiNhan() != null) {
+            hoaDon.setTenNguoiNhan(request.getTenNguoiNhan());
+        }
+        if (request.getSdtNguoiNhan() != null) {
+            hoaDon.setSdtNguoiNhan(request.getSdtNguoiNhan());
+        }
+        if (request.getDiaChiNguoiNhan() != null) {
+            hoaDon.setDiaChiNguoiNhan(request.getDiaChiNguoiNhan());
+        }
+
+        hoaDon.setNgaySua(new Date());
+        return hoaDonRepository.save(hoaDon);
     }
 
 }

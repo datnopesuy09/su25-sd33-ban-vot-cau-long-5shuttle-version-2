@@ -1,15 +1,36 @@
+// import swal from 'sweetalert';
+import Swal from 'sweetalert2';
 import swal from 'sweetalert';
 import { useState, useEffect, useContext } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { CartContext } from '../Cart/CartContext';
 import ProductCard from '../Product/ProductCard';
 import classNames from 'classnames';
 import { useUserAuth } from '../../../contexts/userAuthContext';
+
+function parseJwt(token) {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+            atob(base64)
+                .split('')
+                .map(function (c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                })
+                .join(''),
+        );
+        return JSON.parse(jsonPayload);
+    } catch (e) {
+        return {};
+    }
+}
 import { toast } from 'react-toastify';
 
 export default function ProductDetail() {
     const { id } = useParams(); // Lấy ID từ URL
+    const navigate = useNavigate(); // Thêm navigate hook
     const [product, setProduct] = useState(null);
     const [selectedColor, setSelectedColor] = useState('');
     const [selectedWeight, setSelectedWeight] = useState('');
@@ -18,11 +39,8 @@ export default function ProductDetail() {
     const [mainImage, setMainImage] = useState('');
     const [currentPrice, setCurrentPrice] = useState(0);
     const [currentQuantity, setCurrentQuantity] = useState(0);
-    const [comments, setComments] = useState([]);
-    const [newComment, setNewComment] = useState('');
-    const [newRating, setNewRating] = useState(1);
     const { setCartItemCount } = useContext(CartContext);
-    const { user } = useUserAuth()
+    const { user } = useUserAuth();
 
     // Lấy dữ liệu sản phẩm từ API
     useEffect(() => {
@@ -39,16 +57,17 @@ export default function ProductDetail() {
                 setCurrentImages(productData.hinhAnhUrls);
                 setMainImage(productData.hinhAnhUrls[0]);
                 setCurrentQuantity(productData.soLuong);
-                
+
                 // Tìm variant đầu tiên để set giá ban đầu
                 const firstVariant = productData.variants.find(
-                    v => v.mauSacTen === productData.mauSac[0] && v.trongLuongTen === productData.trongLuong[0]
+                    (v) => v.mauSacTen === productData.mauSac[0] && v.trongLuongTen === productData.trongLuong[0],
                 );
                 if (firstVariant) {
                     setCurrentPrice(firstVariant.giaKhuyenMai || firstVariant.donGia);
                 }
             } catch (error) {
-                console.error('Failed to fetch product detail', error);
+                console.error('Lấy chi tiết sản phẩm thất bại', error);
+                toast.error('Không thể tải thông tin sản phẩm!');
             }
         };
 
@@ -100,7 +119,10 @@ export default function ProductDetail() {
             return;
         }
 
-        const idTaiKhoan = user?.id
+        const token = user?.token || localStorage.getItem('userToken');
+        const idTaiKhoan =
+            user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
+
         if (!idTaiKhoan) {
             toast.warning('Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng');
             return;
@@ -121,26 +143,226 @@ export default function ProductDetail() {
                 swal('Thất bại!', 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng!', 'error');
             }
         } catch (error) {
-            console.error('Failed to add product to cart', error);
+            console.error('Thêm sản phẩm vào giỏ hàng thất bại', error);
             swal('Thất bại!', 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng!', 'error');
+        }
+    };
+
+    const handleBuyNow = async () => {
+        const selectedVariant = product.variants.find(
+            (v) => v.mauSacTen === selectedColor && v.trongLuongTen === selectedWeight,
+        );
+        if (!selectedVariant) {
+            swal('Thất bại!', 'Vui lòng chọn màu sắc và trọng lượng!', 'error');
+            return;
+        }
+        if (quantity > selectedVariant.soLuong) {
+            swal('Thất bại!', 'Số lượng vượt quá số lượng trong kho!', 'error');
+            return;
+        }
+
+        const token = user?.token || localStorage.getItem('userToken');
+        const idTaiKhoan =
+            user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
+
+        if (!idTaiKhoan) {
+            toast.warning('Bạn cần đăng nhập để mua hàng');
+            return;
+        }
+
+        try {
+            // Thêm sản phẩm vào giỏ hàng trước
+            const payload = {
+                idTaiKhoan,
+                idSanPhamCT: selectedVariant.id,
+                soLuong: quantity,
+            };
+
+            const response = await axios.post('http://localhost:8080/api/gio-hang/them', payload);
+            if (response.status === 201) {
+                // Lấy thông tin cart item vừa thêm
+                const cartResponse = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}`);
+                const latestCartItem = cartResponse.data.find((item) => item.sanPhamCT.id === selectedVariant.id);
+
+                if (latestCartItem) {
+                    // Chuyển đến trang checkout với item đã chọn
+                    navigate('/gio-hang/checkout', {
+                        state: {
+                            selectedItems: [latestCartItem.id],
+                            buyNow: true,
+                        },
+                    });
+                } else {
+                    swal('Lỗi!', 'Không thể tìm thấy sản phẩm trong giỏ hàng!', 'error');
+                }
+            } else {
+                swal('Thất bại!', 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng!', 'error');
+            }
+        } catch (error) {
+            console.error('Mua ngay thất bại', error);
+            swal('Thất bại!', 'Có lỗi xảy ra khi mua sản phẩm!', 'error');
+        }
+    };
+
+    const handleNotifyWhenInStock = async () => {
+        const selectedVariant = product.variants.find(
+            (v) => v.mauSacTen === selectedColor && v.trongLuongTen === selectedWeight,
+        );
+        if (!selectedVariant) {
+            Swal.fire('Thất bại!', 'Vui lòng chọn màu sắc và trọng lượng!', 'error');
+            return;
+        }
+
+        const token = user?.token || localStorage.getItem('userToken');
+        const idTaiKhoan =
+            user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
+        const defaultEmail = user?.email || '';
+
+        // Kiểm tra xem đã đăng ký chưa
+        try {
+            const checkResponse = await axios.get(`http://localhost:8080/api/pre-order/check-existing`, {
+                params: {
+                    idSanPhamCT: selectedVariant.id,
+                    email: defaultEmail || '',
+                    idTaiKhoan: idTaiKhoan || null,
+                },
+            });
+
+            if (checkResponse.data.exists) {
+                Swal.fire('Thông báo!', 'Bạn đã đăng ký thông báo cho sản phẩm này rồi!', 'info');
+                return;
+            }
+        } catch (error) {
+            console.log('Checking existing registration failed:', error);
+        }
+
+        // Sử dụng SweetAlert2 để thu thập thông tin với giao diện cải tiến
+        const formValues = await Swal.fire({
+            title: 'Đăng ký thông báo khi có hàng',
+            html: `
+                <div class="text-left space-y-4">
+                    <div class="bg-blue-50 p-4 rounded-lg mb-4">
+                        <h4 class="font-semibold text-blue-800 mb-2">📋 Quy trình thông báo:</h4>
+                        <ul class="text-sm text-blue-700 space-y-1">
+                            <li>1️⃣ Thông báo theo thứ tự đăng ký</li>
+                            <li>2️⃣ Bạn có 24h để hoàn tất đơn hàng</li>
+                            <li>3️⃣ Sau 24h sản phẩm chuyển người tiếp theo</li>
+                            <li>4️⃣ Mỗi email chỉ đăng ký 1 lần</li>
+                        </ul>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                        <input id="swal-input1" class="swal2-input" placeholder="Nhập email của bạn" value="${defaultEmail}">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Số điện thoại (khuyên dùng)</label>
+                        <input id="swal-input2" class="swal2-input" placeholder="Nhập số điện thoại để nhận SMS">
+                        <p class="text-xs text-gray-500 mt-1">SMS sẽ được gửi ngay lập tức khi có hàng</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Số lượng mong muốn *</label>
+                        <select id="swal-input3" class="swal2-input">
+                            <option value="1">1 sản phẩm</option>
+                            <option value="2">2 sản phẩm</option>
+                            <option value="3">3 sản phẩm</option>
+                            <option value="4">4 sản phẩm</option>
+                            <option value="5">5 sản phẩm</option>
+                        </select>
+                        <p class="text-xs text-orange-600 mt-1">⚠️ Số lượng càng ít, cơ hội nhận thông báo càng cao</p>
+                    </div>
+
+                    <div class="bg-green-50 p-3 rounded-lg">
+                        <p class="text-sm text-green-800">
+                            <strong>💡 Mẹo:</strong> Đăng ký với số lượng nhỏ để tăng cơ hội nhận được thông báo!
+                        </p>
+                    </div>
+                </div>
+            `,
+            customClass: {
+                htmlContainer: 'text-left',
+                popup: 'max-w-md',
+            },
+            focusConfirm: false,
+            preConfirm: () => {
+                const email = document.getElementById('swal-input1').value;
+                const phone = document.getElementById('swal-input2').value;
+                const requestedQuantity = parseInt(document.getElementById('swal-input3').value) || 1;
+
+                if (!email) {
+                    Swal.showValidationMessage('Vui lòng nhập email!');
+                    return false;
+                }
+
+                // Validate email format
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    Swal.showValidationMessage('Email không hợp lệ!');
+                    return false;
+                }
+
+                if (requestedQuantity < 1 || requestedQuantity > 5) {
+                    Swal.showValidationMessage('Số lượng phải từ 1-5!');
+                    return false;
+                }
+
+                return { email, phone, requestedQuantity };
+            },
+            showCancelButton: true,
+            confirmButtonText: 'Đăng ký ngay',
+            cancelButtonText: 'Hủy bỏ',
+            confirmButtonColor: '#3b82f6',
+        });
+
+        if (formValues.isConfirmed && formValues.value) {
+            const { email, phone, requestedQuantity } = formValues.value;
+            const payload = {
+                idSanPhamCT: selectedVariant.id,
+                idTaiKhoan: idTaiKhoan || null,
+                email: email,
+                phone: phone || null,
+                requestedQuantity: requestedQuantity,
+                priority: 'FCFS', // First Come First Served
+                registeredAt: new Date().toISOString(),
+            };
+
+            try {
+                const response = await axios.post('http://localhost:8080/api/pre-order/back-in-stock', payload);
+                if (response.status === 201) {
+                    Swal.fire({
+                        title: 'Đăng ký thành công! 🎉',
+                        html: `
+                            <div class="text-left">
+                                <p class="mb-3">Bạn đã đăng ký thành công thông báo cho sản phẩm:</p>
+                                <div class="bg-gray-50 p-3 rounded-lg mb-3">
+                                    <strong>${product.tenSanPham}</strong><br>
+                                    Màu: ${selectedColor} | Trọng lượng: ${selectedWeight}<br>
+                                    Số lượng: ${requestedQuantity}
+                                </div>
+                                <p class="text-sm text-gray-600">
+                                    📧 Chúng tôi sẽ gửi email thông báo khi sản phẩm có hàng.<br>
+                                    ${phone ? '📱 SMS cũng sẽ được gửi đến số điện thoại của bạn.' : ''}
+                                </p>
+                            </div>
+                        `,
+                        icon: 'success',
+                        confirmButtonText: 'Đã hiểu',
+                    });
+                } else {
+                    Swal.fire('Thất bại!', response.data || 'Có lỗi xảy ra khi đăng ký thông báo!', 'error');
+                }
+            } catch (error) {
+                console.error('Đăng ký thông báo thất bại', error);
+                const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi đăng ký thông báo!';
+                Swal.fire('Thất bại!', errorMessage, 'error');
+            }
         }
     };
 
     const handleThumbnailClick = (image) => {
         setMainImage(image);
-    };
-
-    // Hàm để thêm bình luận
-    const handleCommentSubmit = (e) => {
-        e.preventDefault();
-        if (newComment.trim() === '') return; // Không cho phép bình luận trống
-        const commentData = {
-            text: newComment,
-            rating: newRating,
-        };
-        setComments([...comments, commentData]);
-        setNewComment('');
-        setNewRating(1); // Reset đánh giá về 1 sao
     };
 
     if (!product) {
@@ -186,7 +408,7 @@ export default function ProductDetail() {
                                 <p>
                                     Tình trạng:
                                     <span className="text-[#2f19ae]">
-                                        {product.soLuong > 0 ? ' Còn hàng' : ' Hết hàng'}
+                                        {currentQuantity > 0 ? ' Còn hàng' : ' Hết hàng'}
                                     </span>
                                 </p>
                                 <p>
@@ -211,7 +433,8 @@ export default function ProductDetail() {
                                                     <div key={variant.id} className="flex items-center space-x-2">
                                                         {/* Giá khuyến mãi */}
                                                         <span className="text-3xl font-bold text-red-600">
-                                                            {(variant.giaKhuyenMai || variant.donGia).toLocaleString()} ₫
+                                                            {(variant.giaKhuyenMai || variant.donGia).toLocaleString()}{' '}
+                                                            ₫
                                                         </span>
 
                                                         {/* Giá gốc và % giảm */}
@@ -261,7 +484,9 @@ export default function ProductDetail() {
                                                     if (foundVariant) {
                                                         setCurrentImages(foundVariant.hinhAnhUrls);
                                                         setMainImage(foundVariant.hinhAnhUrls[0]);
-                                                        setCurrentPrice(foundVariant.giaKhuyenMai || foundVariant.donGia);
+                                                        setCurrentPrice(
+                                                            foundVariant.giaKhuyenMai || foundVariant.donGia,
+                                                        );
                                                         setCurrentQuantity(foundVariant.soLuong);
                                                         setQuantity(1);
                                                     }
@@ -297,13 +522,14 @@ export default function ProductDetail() {
                                                     <span className="text-lg font-bold text-red-600">
                                                         {product.variants
                                                             .find((v) => v.mauSacTen === color)
-                                                            ?.giaKhuyenMai?.toLocaleString() || 
+                                                            ?.giaKhuyenMai?.toLocaleString() ||
                                                             product.variants
-                                                            .find((v) => v.mauSacTen === color)
-                                                            ?.donGia.toLocaleString()}
+                                                                .find((v) => v.mauSacTen === color)
+                                                                ?.donGia.toLocaleString()}
                                                         <span className="text-sm ml-1">₫</span>
                                                     </span>
-                                                    {product.variants.find((v) => v.mauSacTen === color)?.giaKhuyenMai && (
+                                                    {product.variants.find((v) => v.mauSacTen === color)
+                                                        ?.giaKhuyenMai && (
                                                         <span className="text-sm text-gray-500 line-through">
                                                             {product.variants
                                                                 .find((v) => v.mauSacTen === color)
@@ -335,18 +561,21 @@ export default function ProductDetail() {
                                                 return (
                                                     <div
                                                         key={weight}
-                                                        className={`relative flex items-center justify-center rounded-xl border-2 px-2 py-2 text-sm font-semibold transition-all duration-300 ${
+                                                        className={classNames(
+                                                            'relative flex items-center justify-center rounded-xl border-2 px-2 py-2 text-sm font-semibold transition-all duration-300 cursor-pointer',
                                                             selectedWeight === weight
                                                                 ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-md transform scale-105'
-                                                                : 'border-gray-300'
-                                                        } ${
-                                                            inStock
-                                                                ? 'cursor-pointer bg-white text-gray-900 hover:border-gray-400 hover:shadow-sm'
-                                                                : 'cursor-not-allowed bg-gray-50 text-gray-300'
-                                                        }`}
+                                                                : 'border-gray-300 hover:border-gray-400 hover:shadow-sm',
+                                                            !inStock && 'bg-gray-50 text-gray-500',
+                                                        )}
                                                         onClick={() => {
-                                                            if (inStock) {
-                                                                setSelectedWeight(weight);
+                                                            setSelectedWeight(weight);
+                                                            if (variant) {
+                                                                setCurrentImages(variant.hinhAnhUrls);
+                                                                setMainImage(variant.hinhAnhUrls[0]);
+                                                                setCurrentPrice(variant.giaKhuyenMai || variant.donGia);
+                                                                setCurrentQuantity(variant.soLuong);
+                                                                setQuantity(1);
                                                             }
                                                         }}
                                                     >
@@ -381,43 +610,120 @@ export default function ProductDetail() {
                                 </div>
 
                                 {/* Quantity Selector */}
-                                <div className="bg-gray-20 rounded-2xl p-4 h-[50px] flex items-center justify-between">
-                                    <div className="flex items-center space-x-4">
-                                        <button
-                                            type="button"
-                                            className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-gray-300 bg-white hover:border-indigo-500 hover:text-indigo-500 transition-colors duration-200"
-                                            onClick={handleDecrease}
-                                        >
-                                            <svg
-                                                className="w-4 h-4"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                viewBox="0 0 24 24"
+                                {currentQuantity > 0 && (
+                                    <div className="bg-gray-20 rounded-2xl p-4 h-[50px] flex items-center justify-between">
+                                        <div className="flex items-center space-x-4">
+                                            <button
+                                                type="button"
+                                                className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-gray-300 bg-white hover:border-indigo-500 hover:text-indigo-500 transition-colors duration-200"
+                                                onClick={handleDecrease}
                                             >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M20 12H4"
-                                                />
-                                            </svg>
-                                        </button>
+                                                <svg
+                                                    className="w-4 h-4"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M20 12H4"
+                                                    />
+                                                </svg>
+                                            </button>
 
-                                        <div className="relative">
-                                            <input
-                                                className="w-16 h-10 text-center text-lg font-semibold border-2 border-gray-300 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
-                                                value={quantity}
-                                                onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
-                                                min="1"
-                                                type="number"
-                                            />
+                                            <div className="relative">
+                                                <input
+                                                    className="w-16 h-10 text-center text-lg font-semibold border-2 border-gray-300 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200"
+                                                    value={quantity}
+                                                    onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
+                                                    min="1"
+                                                    type="number"
+                                                />
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-gray-300 bg-white hover:border-indigo-500 hover:text-indigo-500 transition-colors duration-200"
+                                                onClick={handleIncrease}
+                                            >
+                                                <svg
+                                                    className="w-4 h-4"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                                    />
+                                                </svg>
+                                            </button>
                                         </div>
+                                    </div>
+                                )}
 
+                                {/* Button conditional */}
+                                {currentQuantity > 0 ? (
+                                    <div className="flex flex-col gap-3">
+                                        {/* Nút MUA NGAY */}
                                         <button
                                             type="button"
-                                            className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-gray-300 bg-white hover:border-indigo-500 hover:text-indigo-500 transition-colors duration-200"
-                                            onClick={handleIncrease}
+                                            onClick={handleBuyNow}
+                                            className="w-full bg-gradient-to-r from-red-600 to-orange-500 text-white font-semibold py-3 px-4 rounded-xl hover:from-red-700 hover:to-orange-600 transition-all duration-200 transform hover:scale-105 shadow-lg"
                                         >
+                                            <div className="flex items-center justify-center space-x-2">
+                                                <svg
+                                                    className="w-5 h-5"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M13 10V3L4 14h7v7l9-11h-7z"
+                                                    />
+                                                </svg>
+                                                <span>MUA NGAY</span>
+                                            </div>
+                                        </button>
+
+                                        {/* Nút Thêm vào giỏ hàng */}
+                                        <button
+                                            type="button"
+                                            onClick={handleAddCart}
+                                            className="w-full bg-gradient-to-r from-purple-800 to-pink-200 text-white font-semibold py-3 px-4 rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-200 transform hover:scale-105"
+                                        >
+                                            <div className="flex items-center justify-center space-x-2">
+                                                <svg
+                                                    className="w-4 h-4"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    viewBox="0 0 24 24"
+                                                >
+                                                    <path
+                                                        strokeLinecap="round"
+                                                        strokeLinejoin="round"
+                                                        strokeWidth={2}
+                                                        d="M3 3h2l.4 2M7 13h10l4-8H5.4m2.6 8L6 7H3M7 13v8a2 2 0 002 2h6a2 2 0 002-2v-8m-8 0V9a2 2 0 012-2h4a2 2 0 012 2v4m-6 0h6"
+                                                    />
+                                                </svg>
+                                                <span>Thêm vào giỏ hàng</span>
+                                            </div>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={handleNotifyWhenInStock}
+                                        className="w-full bg-gradient-to-r from-blue-800 to-cyan-200 text-white font-semibold py-3 px-4 rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 transform hover:scale-105"
+                                    >
+                                        <div className="flex items-center justify-center space-x-2">
                                             <svg
                                                 className="w-4 h-4"
                                                 fill="none"
@@ -428,92 +734,17 @@ export default function ProductDetail() {
                                                     strokeLinecap="round"
                                                     strokeLinejoin="round"
                                                     strokeWidth={2}
-                                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                                    d="M15 17h5l-1-5m-4 5V7m-4 10V7m-4 10V7M5 12h14"
                                                 />
                                             </svg>
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Add to Cart Button */}
-                                <button
-                                    type="button"
-                                    onClick={handleAddCart}
-                                    className="w-full bg-gradient-to-r from-purple-800 to-pink-200 text-white font-semibold py-3 px-4 rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-200 transform hover:scale-105"
-                                >
-                                    <div className="flex items-center justify-center space-x-2">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M3 3h2l.4 2M7 13h10l4-8H5.4m2.6 8L6 7H3M7 13v8a2 2 0 002 2h6a2 2 0 002-2v-8m-8 0V9a2 2 0 012-2h4a2 2 0 012 2v4m-6 0h6"
-                                            />
-                                        </svg>
-                                        <span>Thêm vào giỏ hàng</span>
-                                    </div>
-                                </button>
+                                            <span>Thông báo khi có hàng</span>
+                                        </div>
+                                    </button>
+                                )}
                             </form>
                         </div>
                     </div>
                 </section>
-
-                {/* Phần bình luận và đánh giá */}
-                <div className="mt-10 px-4">
-                    <h2 className="text-lg font-semibold">Bình luận và đánh giá</h2>
-                    <form onSubmit={handleCommentSubmit} className="mt-4">
-                        <textarea
-                            className="w-full border rounded-md p-2"
-                            rows="4"
-                            placeholder="Nhập bình luận của bạn..."
-                            value={newComment}
-                            onChange={(e) => setNewComment(e.target.value)}
-                        />
-                        <div className="flex items-center mt-2">
-                            <span className="mr-2">Đánh giá:</span>
-                            {[1, 2, 3, 4, 5].map((star) => (
-                                <span
-                                    key={star}
-                                    className={classNames(
-                                        'cursor-pointer',
-                                        newRating >= star ? 'text-yellow-500' : 'text-gray-300',
-                                    )}
-                                    onClick={() => setNewRating(star)}
-                                >
-                                    ★
-                                </span>
-                            ))}
-                        </div>
-                        <button type="submit" className="mt-2 bg-indigo-600 text-white px-4 py-2 rounded-md">
-                            Gửi bình luận
-                        </button>
-                    </form>
-
-                    {/* Hiển thị danh sách bình luận */}
-                    <div className="mt-6">
-                        {comments.length > 0 ? (
-                            comments.map((comment, index) => (
-                                <div key={index} className="border-b py-2">
-                                    <div className="flex items-center">
-                                        <span className="text-yellow-500">
-                                            {Array.from({ length: comment.rating }, (_, i) => (
-                                                <span key={i}>★</span>
-                                            ))}
-                                            {Array.from({ length: 5 - comment.rating }, (_, i) => (
-                                                <span key={i} className="text-gray-300">
-                                                    ★
-                                                </span>
-                                            ))}
-                                        </span>
-                                    </div>
-                                    <p className="mt-1">{comment.text}</p>
-                                </div>
-                            ))
-                        ) : (
-                            <p>Chưa có bình luận nào.</p>
-                        )}
-                    </div>
-                </div>
             </div>
         </div>
     );

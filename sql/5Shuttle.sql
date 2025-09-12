@@ -1,5 +1,3 @@
--- Chạy từ bảng User xuống trước rồi quay lại đầu trang chạy những bảng còn lại
-
 DROP DATABASE IF EXISTS `5SHUTTLE`;
 CREATE DATABASE 5SHUTTLE CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE 5SHUTTLE;
@@ -103,6 +101,22 @@ CREATE TABLE HinhAnh (
     FOREIGN KEY (IdSanPhamCT) REFERENCES SanPhamCT(Id)
 );
 
+CREATE TABLE User
+(
+    Id         INT AUTO_INCREMENT NOT NULL,
+    Ma         VARCHAR(255)       NULL,
+    HoTen      VARCHAR(255)       NULL,
+    Email      VARCHAR(255)       NULL,
+    MatKhau    VARCHAR(255)       NULL,
+    Sdt        VARCHAR(255)       NULL,
+    NgaySinh   DATE               NULL,
+    GioiTinh   INT                NULL,
+    Avatar     VARCHAR(255)       NULL,
+    CCCD       VARCHAR(255)       NULL,
+    TrangThai  INT                NULL,
+    CONSTRAINT pk_user PRIMARY KEY (Id)
+);
+
 CREATE TABLE DiaChi (
     Id INT AUTO_INCREMENT PRIMARY KEY,
     IdUser INT,
@@ -118,14 +132,18 @@ CREATE TABLE DiaChi (
 
 CREATE TABLE ThongBao (
     Id INT AUTO_INCREMENT PRIMARY KEY,
-    IdKhachHang INT,
+    IdKhachHang INT NULL,
+    Email VARCHAR(255) NULL,
     TieuDe NVARCHAR(255),
     NoiDung NVARCHAR(255),
     IdRedirect NVARCHAR(255),
     KieuThongBao NVARCHAR(255),
     TrangThai INT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (IdKhachHang) REFERENCES User(Id)
 );
+
 
 CREATE TABLE GioHang (
     Id INT AUTO_INCREMENT PRIMARY KEY,
@@ -224,15 +242,35 @@ CREATE TABLE TraHang (
 
 CREATE TABLE PreOrder (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    id_hoa_don INT NOT NULL,
+
+    id_hoa_don INT NULL, -- Cho phép NULL
     id_tai_khoan INT NOT NULL,
+    Email VARCHAR(255) NULL,
+    Phone VARCHAR(255) NULL,
     id_san_pham_ct INT NOT NULL,
     so_luong INT NOT NULL,
+    RequestedQuantity INT NOT NULL DEFAULT 1,
     ngay_tao DATETIME NOT NULL,
+    requested_quantity INT NOT NULL DEFAULT 1,
     trang_thai INT DEFAULT 0, -- 0: Chờ nhập hàng, 1: Đã nhập hàng, 2: Đã xác nhận
     FOREIGN KEY (id_hoa_don) REFERENCES HoaDon(id),
     FOREIGN KEY (id_tai_khoan) REFERENCES User(id),
     FOREIGN KEY (id_san_pham_ct) REFERENCES SanPhamCT(id)
+);
+
+
+CREATE TABLE BackInStockRequest (
+    Id INT AUTO_INCREMENT PRIMARY KEY,
+    IdSanPhamCT INT NOT NULL,
+    IdUser INT NULL,
+    Email VARCHAR(255) NULL,
+    Phone VARCHAR(255) NULL,
+    RequestedQuantity INT NOT NULL DEFAULT 1,
+    RequestDate DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    Status INT NOT NULL DEFAULT 0, -- 0: Pending, 1: Notified, 2: Canceled
+    TrangThai INT NULL,
+    FOREIGN KEY (IdSanPhamCT) REFERENCES SanPhamCT(Id),
+    FOREIGN KEY (IdUser) REFERENCES User(Id)
 );
 
 CREATE TABLE PhieuTraHang (
@@ -262,7 +300,6 @@ CREATE TABLE PhieuTraHangCT (
     LyDoTraHang NVARCHAR(500),
 	GhiChuNhanVien NVARCHAR(255),
     TrangThai ENUM('PENDING', 'APPROVED', 'REJECTED') DEFAULT 'PENDING',
-    
     FOREIGN KEY (IdPhieuTraHang) REFERENCES PhieuTraHang(Id),
     FOREIGN KEY (IdHoaDonCT) REFERENCES HoaDonCT(Id)
 );
@@ -281,6 +318,7 @@ CREATE TABLE User
     CCCD       VARCHAR(255)       NULL,
     TrangThai  INT                NULL,
     CONSTRAINT pk_user PRIMARY KEY (Id)
+   
 );
 
 CREATE TABLE `Role`
@@ -318,14 +356,31 @@ CREATE TABLE Role_Permissions
     CONSTRAINT fk_role_permissions_permission FOREIGN KEY (IdPermission) REFERENCES Permission (Id)
 );
 
+
+CREATE TABLE IF NOT EXISTS lich_su_hoan_kho (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    hoa_don_id INT NOT NULL,
+    san_pham_ct_id INT NOT NULL,
+    so_luong_hoan INT NOT NULL,
+    loai_hoan_kho ENUM('AUTO', 'MANUAL', 'FORCE') NOT NULL,
+    ly_do TEXT,
+    nguoi_thuc_hien VARCHAR(100),
+    thoi_gian TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (hoa_don_id) REFERENCES HoaDon(id),
+    INDEX idx_hoa_don_id (hoa_don_id),
+    INDEX idx_san_pham_ct_id (san_pham_ct_id)
+);
+
+
+
 -- Bảng Role
 INSERT INTO `Role` (Name, `Description`)
-VALUES ('Customer', 'Vai trò mặc định cho người dùng thông thường'),
-		('Admin', 'Admin'),
-		('Staff', 'Staff');
-
+VALUES ('ADMIN', 'Admin'),
+		('STAFF', 'Staff'),
+		('USER', 'Vai trò mặc định của người dùng');
+        
 INSERT INTO User (Ma, HoTen, Email, MatKhau, Sdt, NgaySinh, GioiTinh, Avatar, CCCD, TrangThai)
-VALUES 
+VALUES
 ('KH001', 'Nguyen Van A', 'a@gmail.com', '123456', '0901234567', '1990-01-01', 1, NULL, '123456789', 1),
 ('KH002', 'Tran Thi B', 'b@gmail.com', '123456', '0912345678', '1995-05-20', 0, NULL, '987654321', 1);
 
@@ -367,7 +422,7 @@ INSERT INTO HinhAnh (IdSanPhamCT, Link, TrangThai)
 VALUES (1, 'https://example.com/image1.jpg', 1);
 
 INSERT INTO DiaChi (IdUser, Ten, Sdt, IdTinh, IdHuyen, IdXa, DiaChiCuThe)
-VALUES (1, 'Nguyen Van A', '0901234567', '01', '001', '0001', '123 Đường ABC');
+VALUES (1, 'Nguyen Van A', '0901234567', '02', '001', '0001', '123 Đường ABC');
 
 INSERT INTO GioHang (IdSanPhamCT, IdUser, SoLuong, NgayTao, NgaySua)
 VALUES (1, 1, 2, NOW(), NOW());
@@ -377,7 +432,3 @@ VALUES (1, 1, 'HD001', 2, 'Online', 'COD', 'Nguyen Van A', '0901234567', 'a@gmai
 
 INSERT INTO HoaDonCT (IdSanPhamCT, IdHoaDon, SoLuong, GiaBan, TrangThai)
 VALUES (1, 1, 2, 1500000, 1);
-
-
-
-

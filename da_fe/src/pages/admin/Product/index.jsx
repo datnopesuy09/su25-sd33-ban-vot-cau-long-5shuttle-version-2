@@ -6,25 +6,19 @@ import SkipNextIcon from '@mui/icons-material/SkipNext';
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import { Link } from 'react-router-dom';
 import { TbEyeEdit } from 'react-icons/tb';
+import { toast } from 'react-toastify';
+import Swal from 'sweetalert2';
 
 function Product() {
     const navigate = useNavigate();
     const [dataTable, setDataTable] = useState([]);
-    // const [filterStatus, setFilterStatus] = useState('');
-    // const [currentPage, setCurrentPage] = useState(0);
-    // const itemsPerPage = 5;
-    // const totalPages = Math.ceil(dataTable.length / itemsPerPage);
-    // const startIndex = currentPage * itemsPerPage;
-
-    // const currentData = dataTable.slice(startIndex, startIndex + itemsPerPage);
-
     const [filterStatus, setFilterStatus] = useState('');
     const [currentPage, setCurrentPage] = useState(0);
     const itemsPerPage = 5;
 
     // Lọc sản phẩm theo trạng thái
     const filteredProducts = dataTable.filter((product) => {
-        if (filterStatus === '') return true; // Hiển thị tất cả nếu filterStatus rỗng
+        if (filterStatus === '') return true;
         return filterStatus === '1' ? product.trangThai === 1 : product.trangThai === 0;
     });
 
@@ -33,11 +27,12 @@ function Product() {
     const startIndex = currentPage * itemsPerPage;
     const currentData = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
 
-    // Reset về trang đầu mỗi khi lọc thay đổi
+    // Reset về trang đầu khi lọc thay đổi
     useEffect(() => {
         setCurrentPage(0);
     }, [filterStatus]);
 
+    // Lấy danh sách sản phẩm
     const getAllSanPham = () => {
         axios
             .get(`http://localhost:8080/api/san-pham/hien-thi`)
@@ -45,7 +40,8 @@ function Product() {
                 setDataTable(response.data);
             })
             .catch((error) => {
-                console.error('Có lỗi xảy ra:', error);
+                console.error('Có lỗi xảy ra khi lấy sản phẩm:', error);
+                toast.error('Không thể tải danh sách sản phẩm!');
             });
     };
 
@@ -133,7 +129,7 @@ function Product() {
                                     <td className="py-2 px-4 text-center">
                                         <span
                                             className={`inline-block px-3 py-1 rounded-full text-xs font-medium 
-            ${sp.trangThai === 1 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                        ${sp.trangThai === 1 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
                                         >
                                             {sp.trangThai === 1 ? 'Active' : 'Inactive'}
                                         </span>
@@ -159,7 +155,6 @@ function Product() {
                     </tbody>
                 </table>
                 <div className="flex justify-center items-center gap-2 mt-4">
-                    {/* Previous button */}
                     <button
                         onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 0))}
                         disabled={currentPage === 0}
@@ -167,24 +162,20 @@ function Product() {
                     >
                         &lt;
                     </button>
-
-                    {/* Page number buttons */}
                     {Array.from({ length: totalPages }, (_, index) => (
                         <button
                             key={index}
                             onClick={() => setCurrentPage(index)}
                             className={`w-8 h-8 rounded-full border text-sm font-medium 
-        ${
-            index === currentPage
-                ? 'text-orange-600 border-orange-400 bg-orange-100'
-                : 'text-gray-700 hover:bg-gray-100'
-        }`}
+                            ${
+                                index === currentPage
+                                    ? 'text-orange-600 border-orange-400 bg-orange-100'
+                                    : 'text-gray-700 hover:bg-gray-100'
+                            }`}
                         >
                             {index + 1}
                         </button>
                     ))}
-
-                    {/* Next button */}
                     <button
                         onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages - 1))}
                         disabled={currentPage === totalPages - 1}

@@ -1,23 +1,52 @@
 import { useContext, useEffect, useState } from 'react';
 import axios from 'axios';
 import swal from 'sweetalert';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import ShippingInfo from './ShippingInfo';
 import OrderSummary from './OrderSummary';
 import DiscountModal from './DiscountModal';
+
+import { useAdminAuth } from '../../../contexts/adminAuthContext';
+
 import ModalAddress from './ModalAddress';
 import { useUserAuth } from '../../../contexts/userAuthContext';
 import { CartContext } from '../Cart/CartContext';
 import { Button } from '@mui/material';
-import { toast } from "react-toastify";
+import { toast } from 'react-toastify';
 import CircularProgress from '@mui/material/CircularProgress';
 
+function parseJwt(token) {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+            atob(base64)
+                .split('')
+                .map(function (c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                })
+                .join(''),
+        );
+        return JSON.parse(jsonPayload);
+    } catch (e) {
+        return {};
+    }
+}
 const CheckOut = () => {
     const navigate = useNavigate();
+
     const location = useLocation();
+    // Giả sử idTaiKhoan được truyền qua location.state hoặc dùng giá trị mặc định
     const { user } = useUserAuth();
+    const { admin } = useAdminAuth();
+    const token = user?.token || localStorage.getItem('userToken');
+    const token2 = admin?.token || localStorage.getItem('userToken');
+    const idTaiKhoan = user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
+    const idAdmin = admin?.id || parseJwt(token2)?.sub || parseJwt(token2)?.id;
+    console.log('iduser checkout: ', idTaiKhoan);
+    console.log('idadmin checkout: ', idAdmin);
+
     const { setCartItemCount } = useContext(CartContext);
-    const idTaiKhoan = user?.id;
 
     const [carts, setCarts] = useState([]);
     const [formData, setFormData] = useState({
@@ -53,12 +82,12 @@ const CheckOut = () => {
     const [isLoadingAddress, setIsLoadingAddress] = useState(false);
 
     const selectedItems = location.state?.selectedItems || [];
+    const isBuyNow = location.state?.buyNow || false; // Kiểm tra có phải là mua ngay không
 
     const formatPhoneNumber = (phone) => {
         if (!phone) return '';
         return phone.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3');
     };
-
 
     useEffect(() => {
         if (idTaiKhoan) {
@@ -75,6 +104,8 @@ const CheckOut = () => {
             const res = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}`);
             const filteredCarts = res.data.filter((item) => selectedItems.includes(item.id));
             setCarts(filteredCarts);
+            console.log('res: ', res);
+            console.log('fiuto cart: ', filteredCarts);
 
             const total = filteredCarts.reduce((sum, item) => {
                 const price = item.sanPhamCT.giaKhuyenMai || item.sanPhamCT.donGia;
@@ -84,21 +115,22 @@ const CheckOut = () => {
             setTotalPrice(total);
             setDiscountedPrice(total);
         } catch (err) {
+            console.error('Không thể lấy giỏ hàng', err);
             swal('Lỗi', 'Không thể lấy giỏ hàng', 'error');
         }
     };
-
+    console.log('gio hang: ', carts);
     const fetchDefaultAddress = async () => {
         setIsLoadingAddress(true);
         try {
-            const res = await axios.get("http://localhost:8080/dia-chi/mac-dinh", {
+            const res = await axios.get('http://localhost:8080/dia-chi/mac-dinh', {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem("userToken")}` // nếu cần
-                }
+                    Authorization: `Bearer ${localStorage.getItem('userToken')}`, // nếu cần
+                },
             });
             setDefaultAddress(res.data.result);
         } catch (err) {
-            console.error("Không thể lấy địa chỉ mặc định:", err);
+            console.error('Không thể lấy địa chỉ mặc định:', err);
             setDefaultAddress(null);
         } finally {
             setIsLoadingAddress(false);
@@ -109,7 +141,7 @@ const CheckOut = () => {
         try {
             const res = await axios.get('http://localhost:8080/dia-chi/getMyAddress', {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+                    Authorization: `Bearer ${localStorage.getItem('userToken')}`,
                 },
             });
             setUserAddresses(res.data.result);
@@ -134,8 +166,8 @@ const CheckOut = () => {
             wardName: '',
         });
 
-        setIsDefaultAddress(isFirst);      // Tích sẵn nếu là địa chỉ đầu tiên
-        // setIsFirstAddress(isFirst); 
+        setIsDefaultAddress(isFirst); // Tích sẵn nếu là địa chỉ đầu tiên
+        // setIsFirstAddress(isFirst);
         setDistricts([]);
         setWards([]);
         setErrors({});
@@ -147,6 +179,7 @@ const CheckOut = () => {
             const res = await axios.get('https://provinces.open-api.vn/api/p/');
             setProvinces(res.data);
         } catch (error) {
+            console.error('Không thể lấy danh sách tỉnh thành:', error);
             toast.error('Không thể lấy danh sách tỉnh/thành phố.');
         }
     };
@@ -158,6 +191,7 @@ const CheckOut = () => {
             setWards([]);
             setShippingFee(provinceCode === 'someProvinceCode' ? 30000 : 50000);
         } catch (error) {
+            console.error('Không thể lấy danh sách huyện/thị xã:', error);
             toast.error('Không thể lấy danh sách quận/huyện.');
         }
     };
@@ -167,6 +201,7 @@ const CheckOut = () => {
             const res = await axios.get(`https://provinces.open-api.vn/api/d/${districtCode}?depth=2`);
             setWards(res.data.wards);
         } catch (error) {
+            console.error('Không thể lấy danh sách xã/phường:', error);
             toast.error('Không thể lấy danh sách xã/phường.');
         }
     };
@@ -179,6 +214,7 @@ const CheckOut = () => {
             );
             setDiscounts(validDiscounts);
         } catch (error) {
+            console.error('Không thể lấy danh sách khuyến mãi:', error);
             toast.error('Không thể lấy danh sách phiếu giảm giá.');
         }
     };
@@ -274,9 +310,8 @@ const CheckOut = () => {
                 diaChiCuThe: formData.diaChiCuThe,
                 xa: formData.wardName,
                 huyen: formData.districtName,
-                tinh: formData.provinceName
+                tinh: formData.provinceName,
             };
-
         } else {
             if (!defaultAddress) {
                 swal('Lỗi', 'Bạn chưa có địa chỉ giao hàng.', 'error');
@@ -289,9 +324,8 @@ const CheckOut = () => {
                 diaChiCuThe: defaultAddress.diaChiCuThe,
                 xa: defaultAddress.xa,
                 huyen: defaultAddress.huyen,
-                tinh: defaultAddress.tinh
+                tinh: defaultAddress.tinh,
             };
-
         }
 
         if (!selectedPaymentMethod) {
@@ -302,6 +336,7 @@ const CheckOut = () => {
         const cartItems = carts.map((item) => ({
             sanPhamCTId: item.sanPhamCT.id,
             soLuong: item.soLuong,
+            preOrder: item.preOrder || false,
         }));
 
         const orderData = {
@@ -311,23 +346,67 @@ const CheckOut = () => {
             discountId: selectedDiscount?.id || null,
             phuongThucThanhToan: selectedPaymentMethod,
         };
-
+        console.log('orderData:', orderData);
         try {
             const response = await axios.post('http://localhost:8080/api/dat-hang', orderData);
+
             if (response.status === 200) {
-                swal('Thành công', 'Đặt hàng thành công!', 'success').then(async () => {
-                    await axios.delete('http://localhost:8080/api/gio-hang/xoa-danh-sach', {
-                        data: carts.map(item => item.id)
+                // Trường hợp sản phẩm hết hàng
+                if (response.data.trangThai === 9) {
+                    swal({
+                        title: 'Sản phẩm tạm hết hàng',
+                        text: 'Một số sản phẩm trong đơn hàng của bạn hiện không đủ hàng. Chúng tôi đã ghi nhận yêu cầu và sẽ thông báo khi hàng về. Bạn có muốn tiếp tục chờ?',
+                        icon: 'warning',
+                        buttons: ['Hủy', 'Chờ nhập hàng'],
+                    }).then(async (confirm) => {
+                        if (confirm) {
+                            // Xóa giỏ hàng và chuyển trang
+                            await axios.delete(`http://localhost:8080/api/gio-hang/xoa/${idTaiKhoan}`);
+
+                            // Cập nhật số lượng giỏ hàng
+                            const countRes = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}/count`);
+                            setCartItemCount(countRes.data || 0);
+
+                            navigate('/xac-nhan-don-hang', { state: { order: response.data } });
+                        } else {
+                            // Hủy đơn hàng và quay lại giỏ hàng
+                            await axios.delete(`http://localhost:8080/api/hoa-don/${response.data.id}`);
+                            navigate('/gio-hang');
+                        }
                     });
+                } else {
+                    // Trường hợp đặt hàng thành công bình thường
+                    swal('Thành công', 'Đặt hàng thành công!', 'success').then(async () => {
+                        try {
+                            // Xóa các item đã đặt hàng khỏi giỏ hàng
+                            await axios.delete('http://localhost:8080/api/gio-hang/xoa-danh-sach', {
+                                data: carts.map((item) => item.id),
+                            });
 
-                    const countRes = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}/count`);
-                    setCartItemCount(countRes.data || 0);
+                            // Cập nhật số lượng giỏ hàng
+                            const countRes = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}/count`);
+                            setCartItemCount(countRes.data || 0);
 
-                    navigate('/xac-nhan-don-hang', { state: { order: response.data } });
-                });
+                            // Chuyển trang đến trang xác nhận đơn hàng
+                            navigate('/xac-nhan-don-hang', { state: { order: response.data } });
+                        } catch (deleteError) {
+                            console.error('Lỗi khi xóa giỏ hàng:', deleteError);
+                            // Vẫn chuyển trang ngay cả khi xóa giỏ hàng lỗi
+                            navigate('/xac-nhan-don-hang', { state: { order: response.data } });
+                        }
+                    });
+                }
             }
         } catch (error) {
-            swal('Lỗi', 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại.', 'error');
+            console.error('Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại.', error);
+
+            // Hiển thị thông báo lỗi chi tiết hơn
+            let errorMessage = 'Có lỗi xảy ra khi đặt hàng. Vui lòng thử lại.';
+            if (error.response && error.response.data && error.response.data.message) {
+                errorMessage = error.response.data.message;
+            }
+
+            swal('Lỗi', errorMessage, 'error');
         }
     };
 
@@ -345,17 +424,17 @@ const CheckOut = () => {
         };
 
         try {
-            const res = await axios.post("http://localhost:8080/dia-chi/create", data, {
+            const res = await axios.post('http://localhost:8080/dia-chi/create', data, {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem("userToken")}`,
+                    Authorization: `Bearer ${localStorage.getItem('userToken')}`,
                 },
             });
 
-            toast.success("Đã thêm địa chỉ mới!");
+            toast.success('Đã thêm địa chỉ mới!');
 
-            const newAddress = res.data.result
+            const newAddress = res.data.result;
 
-            setDefaultAddress(newAddress)
+            setDefaultAddress(newAddress);
 
             setShowAddressForm(false);
             setIsDefaultAddress(false);
@@ -374,14 +453,53 @@ const CheckOut = () => {
             fetchUserAddresses();
             // fetchDefaultAddress();
         } catch (error) {
-            console.error("Lỗi khi thêm địa chỉ mới:", error);
-            toast.error("Không thể thêm địa chỉ mới");
+            console.error('Lỗi khi thêm địa chỉ mới:', error);
+            toast.error('Không thể thêm địa chỉ mới');
         }
     };
 
     return (
         <div className="container mx-auto p-4">
             <h1 className="text-2xl font-bold mb-4">Thanh toán</h1>
+
+            {/* Banner thông báo mua ngay */}
+            {isBuyNow && (
+                <div className="mb-4 bg-gradient-to-r from-red-500 to-orange-500 text-white p-4 rounded-xl shadow-lg">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                                />
+                            </svg>
+                            <div>
+                                <h3 className="font-bold text-lg">🚀 Mua ngay - Thanh toán nhanh</h3>
+                                <p className="text-sm opacity-90">
+                                    Bạn đang ở chế độ mua ngay. Đơn hàng sẽ được xử lý ưu tiên!
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => navigate(-1)}
+                            className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                                />
+                            </svg>
+                            Quay lại
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-white/95 p-6 rounded-2xl shadow-xl border border-white/20">
                     <div className="flex items-center mb-4">
@@ -400,12 +518,16 @@ const CheckOut = () => {
                             <div className="text-gray-700">
                                 <div className="flex items-center">
                                     <span className="font-semibold text-lg">{defaultAddress.ten}</span>
-                                    <span className="text-sm text-gray-500 px-2">| ({formatPhoneNumber(defaultAddress.sdt)})</span>
+                                    <span className="text-sm text-gray-500 px-2">
+                                        | ({formatPhoneNumber(defaultAddress.sdt)})
+                                    </span>
                                 </div>
 
                                 <div className="mt-1 text-sm text-gray-600">
                                     <p>{defaultAddress.diaChiCuThe}</p>
-                                    <p>{defaultAddress.xa}, {defaultAddress.huyen}, {defaultAddress.tinh}</p>
+                                    <p>
+                                        {defaultAddress.xa}, {defaultAddress.huyen}, {defaultAddress.tinh}
+                                    </p>
                                 </div>
 
                                 {defaultAddress.loai === 1 && (
@@ -512,6 +634,8 @@ const CheckOut = () => {
                     setSelectedPaymentMethod={setSelectedPaymentMethod}
                     handleSubmit={handleSubmit}
                     shippingFee={shippingFee}
+                    promoDiscount={promoDiscount}
+                    selectedDiscount={selectedDiscount}
                 />
             </div>
 
@@ -520,6 +644,7 @@ const CheckOut = () => {
                 setShowModal={setShowModal}
                 discounts={discounts}
                 totalPrice={totalPrice}
+                selectedDiscount={selectedDiscount} // Thêm prop này để modal biết phiếu đang chọn
                 handleSelectDiscount={handleSelectDiscount}
                 handleRemoveDiscount={handleRemoveDiscount}
             />
@@ -547,7 +672,6 @@ const CheckOut = () => {
                 }}
                 defaultAddress={defaultAddress}
             />
-
         </div>
     );
 };

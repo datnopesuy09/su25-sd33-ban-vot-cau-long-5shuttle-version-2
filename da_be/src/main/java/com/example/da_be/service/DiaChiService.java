@@ -28,6 +28,24 @@ public class DiaChiService {
     DiaChiMapper diaChiMapper;
     UserRepository userRepository;
 
+    public List<DiaChiResponse> getAllDiaChi() {
+        List<DiaChi> diaChiList = diaChiRepository.findAll();
+        return diaChiList.stream()
+                .map(diaChiMapper::toDiaChiResponse)
+                .toList();
+    }
+
+
+    public List<DiaChiResponse> getDiaChiByUserId(Integer userId) {
+    User user = userRepository.findById(userId)
+            .orElseThrow(() -> new RuntimeException("User not found with id: " + userId)); // Thay đổi này
+    
+    List<DiaChi> diaChiList = diaChiRepository.findByTaiKhoanId(userId); // Thay đổi này
+    return diaChiList.stream()
+            .map(diaChiMapper::toDiaChiResponse)
+            .toList();
+}
+
     private User getCurrentAuthenticatedUser() {
         var context = SecurityContextHolder.getContext();
         var email = context.getAuthentication().getName();
@@ -138,4 +156,105 @@ public class DiaChiService {
     }
 
 
+
+
+
+
+
+
+
+    // Tạo địa chỉ công khai cho user cụ thể (không cần token)
+    public DiaChiResponse createDiaChiPublic(DiaChiCreationRequest request, Integer userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+
+        DiaChi diaChi = diaChiMapper.toDiaChi(request);
+        diaChi.setTaiKhoan(user);
+
+        // Mặc định là địa chỉ thường
+        int loai = 0;
+
+        if (Boolean.TRUE.equals(request.getIsMacDinh())) {
+            // Nếu muốn set làm địa chỉ mặc định
+            // Reset tất cả các địa chỉ hiện tại về không mặc định
+            diaChiRepository.findByTaiKhoanAndLoai(user, 1).ifPresent(dc -> {
+                dc.setLoai(0);
+                diaChiRepository.save(dc);
+            });
+
+            loai = 1; // Địa chỉ mới là mặc định
+        }
+
+        diaChi.setLoai(loai);
+        diaChi = diaChiRepository.save(diaChi);
+
+        return diaChiMapper.toDiaChiResponse(diaChi);
+    }
+
+    // Cập nhật địa chỉ công khai (không cần token)
+    public DiaChiResponse updateDiaChiPublic(DiaChiUpdateRequest request, Integer diaChiId) {
+        DiaChi diaChi = diaChiRepository.findById(diaChiId)
+                .orElseThrow(() -> new RuntimeException("Address not found with id: " + diaChiId));
+
+        // Cập nhật thông tin từ request
+        diaChiMapper.updateDiaChi(diaChi, request);
+
+        diaChi = diaChiRepository.save(diaChi);
+        return diaChiMapper.toDiaChiResponse(diaChi);
+    }
+
+    // Xóa địa chỉ công khai (không cần token)
+    public void deleteDiaChiPublic(Integer diaChiId) {
+        DiaChi diaChi = diaChiRepository.findById(diaChiId)
+                .orElseThrow(() -> new RuntimeException("Address not found with id: " + diaChiId));
+
+        diaChiRepository.delete(diaChi);
+    }
+
+    // Set địa chỉ mặc định công khai (không cần token)
+    public DiaChiResponse setDefaultAddressPublic(Integer diaChiId, Integer userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+
+        DiaChi diaChi = diaChiRepository.findById(diaChiId)
+                .orElseThrow(() -> new RuntimeException("Address not found with id: " + diaChiId));
+
+        // Kiểm tra địa chỉ có thuộc về user này không
+        if (!diaChi.getTaiKhoan().getId().equals(userId)) {
+            throw new RuntimeException("Address does not belong to this user");
+        }
+
+        // Đặt tất cả các địa chỉ mặc định khác của người dùng thành không mặc định
+        diaChiRepository.findByTaiKhoanAndLoai(user, 1).stream()
+                .filter(otherDiaChi -> !otherDiaChi.getId().equals(diaChi.getId()))
+                .forEach(otherDiaChi -> {
+                    otherDiaChi.setLoai(0);
+                    diaChiRepository.save(otherDiaChi);
+                });
+
+        // Đặt địa chỉ hiện tại thành mặc định
+        diaChi.setLoai(1);
+        DiaChi savedDiaChi = diaChiRepository.save(diaChi);
+
+        return diaChiMapper.toDiaChiResponse(savedDiaChi);
+    }
+
+    // Lấy địa chỉ mặc định công khai (không cần token)
+    public DiaChiResponse getDefaultAddressPublic(Integer userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+
+        DiaChi diaChiMacDinh = diaChiRepository.findByTaiKhoanAndLoai(user, 1)
+                .orElseThrow(() -> new RuntimeException("Default address not found for user"));
+
+        return diaChiMapper.toDiaChiResponse(diaChiMacDinh);
+    }
+
+    // Lấy chi tiết địa chỉ công khai (không cần token)
+    public DiaChiResponse getDiaChiByIdPublic(Integer diaChiId) {
+        DiaChi diaChi = diaChiRepository.findById(diaChiId)
+                .orElseThrow(() -> new RuntimeException("Address not found with id: " + diaChiId));
+
+        return diaChiMapper.toDiaChiResponse(diaChi);
+    }
 }

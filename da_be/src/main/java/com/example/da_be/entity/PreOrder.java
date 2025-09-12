@@ -1,4 +1,4 @@
-        package com.example.da_be.entity;
+package com.example.da_be.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -11,11 +11,11 @@ public class PreOrder {
     private Integer id;
 
     @ManyToOne
-    @JoinColumn(name = "id_hoa_don")
+    @JoinColumn(name = "id_hoa_don", nullable = true)
     private HoaDon hoaDon;
 
     @ManyToOne
-    @JoinColumn(name = "id_tai_khoan")
+    @JoinColumn(name = "id_tai_khoan", nullable = true)
     private User taiKhoan;
 
     @ManyToOne
@@ -24,6 +24,15 @@ public class PreOrder {
 
     @Column(name = "so_luong")
     private Integer soLuong;
+
+    @Column(name = "email")
+    private String email;
+
+    @Column(name = "phone")
+    private String phone;
+
+    @Column(name = "requested_quantity", nullable = false)
+    private Integer requestedQuantity = 1;
 
     @Column(name = "trang_thai")
     private Integer trangThai;
@@ -71,12 +80,28 @@ public class PreOrder {
         this.soLuong = soLuong;
     }
 
-    public LocalDateTime getNgayTao() {
-        return ngayTao;
+    public String getEmail() {
+        return email;
     }
 
-    public void setNgayTao(LocalDateTime ngayTao) {
-        this.ngayTao = ngayTao;
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public Integer getRequestedQuantity() {
+        return requestedQuantity;
+    }
+
+    public void setRequestedQuantity(Integer requestedQuantity) {
+        this.requestedQuantity = requestedQuantity;
     }
 
     public Integer getTrangThai() {
@@ -85,5 +110,13 @@ public class PreOrder {
 
     public void setTrangThai(Integer trangThai) {
         this.trangThai = trangThai;
+    }
+
+    public LocalDateTime getNgayTao() {
+        return ngayTao;
+    }
+
+    public void setNgayTao(LocalDateTime ngayTao) {
+        this.ngayTao = ngayTao;
     }
 }
