@@ -21,6 +21,8 @@ public class HoaDonCTResponse {
 
     Integer id;
 
+    String hinhAnhUrl;
+
     SanPhamCT sanPhamCT;
 
     HoaDon hoaDon;
@@ -30,4 +32,12 @@ public class HoaDonCTResponse {
     BigDecimal giaBan;
 
     Integer trangThai;
+
+    public String getHinhAnhUrl() {
+        return hinhAnhUrl;
+    }
+
+    public void setHinhAnhUrl(String hinhAnhUrl) {
+        this.hinhAnhUrl = hinhAnhUrl;
+    }
 }

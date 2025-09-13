@@ -396,6 +396,7 @@ const Cart = () => {
                     onContactStaff={handleContactStaff}
                     onContinueNormal={handleContinueNormal}
                     showModal={showBulkModal}
+                    onClose={() => setShowBulkModal(false)}
                 />
             </div>
         </div>

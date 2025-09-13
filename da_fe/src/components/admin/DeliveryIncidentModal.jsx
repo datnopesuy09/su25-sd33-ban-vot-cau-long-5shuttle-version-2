@@ -80,6 +80,23 @@ const DeliveryIncidentModal = ({ isOpen, onClose, orderData, hoaDonId, onInciden
         }
     };
 
+    // Safe STOMP send helper for this component
+    const safeStompSendLocal = (destination, headers = {}, body = '') => {
+        try {
+            if (!stompClient) return false;
+            const isConnected = !!stompClient.connected || (stompClient.ws && stompClient.ws.readyState === 1);
+            if (isConnected && typeof stompClient.send === 'function') {
+                stompClient.send(destination, headers, body);
+                return true;
+            }
+            console.warn('DeliveryIncidentModal: STOMP not connected, skipping send to', destination);
+            return false;
+        } catch (err) {
+            console.warn('DeliveryIncidentModal: error sending STOMP message', err);
+            return false;
+        }
+    };
+
     const handleSubmit = async () => {
         if (!incidentData.loaiSuCo || !incidentData.moTa) {
             swal('Lỗi', 'Vui lòng điền đầy đủ thông tin bắt buộc', 'error');
@@ -142,13 +159,7 @@ const DeliveryIncidentModal = ({ isOpen, onClose, orderData, hoaDonId, onInciden
                         headers: { 'Content-Type': 'application/json' },
                     });
 
-                    if (stompClient) {
-                        stompClient.send(
-                            `/app/user/${orderData.taiKhoan.id}/notifications`,
-                            {},
-                            JSON.stringify(userNotification),
-                        );
-                    }
+                    safeStompSendLocal(`/app/user/${orderData.taiKhoan.id}/notifications`, {}, JSON.stringify(userNotification));
                 } catch (notificationError) {
                     console.error('Lỗi khi gửi thông báo:', notificationError);
                 }
