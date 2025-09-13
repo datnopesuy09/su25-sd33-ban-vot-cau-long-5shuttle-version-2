@@ -86,8 +86,14 @@ public class BulkOrderService {
 
     public BulkOrderInquiryResponse updateStatus(Long id, UpdateInquiryStatusRequest request){
         BulkOrderInquiry inq = inquiryRepository.findById(id).orElseThrow();
+        System.out.println("[BulkOrderService] updateStatus called for id="+id+" status="+request.status+" contactMethod="+request.contactMethod);
         inq.setStatus(request.status);
         inq.setAssignedStaff(request.assignedStaff);
+        // If contactMethod is provided in the request, persist it
+        if(request.contactMethod!=null){
+            inq.setContactMethod(request.contactMethod);
+            System.out.println("[BulkOrderService] contactMethod persisted="+request.contactMethod);
+        }
         inq.setUpdatedAt(LocalDateTime.now());
         logInteraction(id, "status_change", request.status);
         return map(inquiryRepository.save(inq));
