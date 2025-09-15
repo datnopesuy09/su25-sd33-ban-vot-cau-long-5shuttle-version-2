@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext, useMemo, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import CartItem from './CartItem';
 import CartSummary from './CartSummary';
 import { Button } from '@mui/material';
@@ -38,6 +39,7 @@ const Cart = () => {
     const { user } = useUserAuth();
     const { setCartItemCount } = useContext(CartContext);
     const userId = user?.id;
+    const location = useLocation();
 
     const [carts, setCarts] = useState([]);
     const [totalPrice, setTotalPrice] = useState(0);
@@ -61,10 +63,7 @@ const Cart = () => {
         return carts.filter((item) => selectedItems.includes(item.id));
     }, [carts, selectedItems]);
 
-    const { shouldShowBulkWarning, bulkOrderData, resetBulkWarning } = useBulkOrderDetection(
-        selectedCartItems,
-        totalPrice,
-    );
+    const { bulkOrderData, resetBulkWarning } = useBulkOrderDetection(selectedCartItems, totalPrice);
 
     const bulkInquiryIdRef = useRef(null);
     const creatingInquiryRef = useRef(false);
@@ -147,8 +146,16 @@ const Cart = () => {
         if (userId) {
             fetchCart(userId);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userId]);
+
+    // If navigated from 'Mua ngay', pre-select the passed items
+    useEffect(() => {
+        const preSelected = location.state?.selectedItems || [];
+        if (preSelected.length > 0) {
+            // wait until carts are fetched and then set selected items
+            setSelectedItems(preSelected);
+        }
+    }, [location.state]);
 
     const fetchCart = async (userId) => {
         setIsLoading(true);
@@ -204,14 +211,9 @@ const Cart = () => {
             return;
         }
 
-        // Kiểm tra bulk order trước khi checkout
-        if (shouldShowBulkWarning) {
-            await ensureBulkInquiry();
-            setShowBulkModal(true);
-            return;
-        }
-
-        // Proceed with normal checkout
+        // Proceed with normal checkout from cart page.
+        // Bulk-order detection and any advisory modal are handled on the checkout page,
+        // so we don't block navigation here.
         setIsCheckingOut(true);
         try {
             await new Promise((resolve) => setTimeout(resolve, 1000));
