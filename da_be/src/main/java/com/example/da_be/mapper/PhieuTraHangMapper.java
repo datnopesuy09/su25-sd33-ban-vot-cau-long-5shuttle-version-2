@@ -49,5 +49,4 @@ public interface PhieuTraHangMapper {
     SanPhamTraResponse mapHoaDonCTToSanPhamTra(HoaDonCT hoaDonCT);
 
 
-
 }

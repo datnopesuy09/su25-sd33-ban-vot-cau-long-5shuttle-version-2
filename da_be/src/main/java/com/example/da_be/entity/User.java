@@ -8,6 +8,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.Set;
 
 @Entity
@@ -56,6 +57,18 @@ public class User {
 
     @Column(name = "TrangThai") // Ánh xạ đến cột "TrangThai"
     Integer trangThai;
+
+    @OneToMany(mappedBy = "taiKhoan", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    Set<DiaChi> diaChi;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "User_SanPham", // tên bảng trung gian
+            joinColumns = @JoinColumn(name = "IdUser"),  // khóa ngoại tới User
+            inverseJoinColumns = @JoinColumn(name = "IdSanPham") // khóa ngoại tới SanPham
+    )
+    Set<SanPham> sanPhams = new HashSet<>();
+
 
     @ManyToMany(fetch = FetchType.EAGER) // Hoặc FetchType.LAZY tùy nhu cầu
     @JoinTable(

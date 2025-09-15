@@ -49,12 +49,15 @@ import ResponsiveAppBar from '../pages/admin';
 import ChangePassword from '../pages/users/TaiKhoan/changePass.jsx';
 import AddressUser from '../pages/users/TaiKhoan/userAdress.jsx';
 import MyVoucher from '../pages/users/TaiKhoan/myVoucher.jsx';
+import Favorites from '../pages/users/TaiKhoan/favorites.jsx';
 import AdminInfo from '../pages/admin/ad-info.jsx';
 import MyOrderDetail from '../pages/admin/nhanvien/draft.jsx';
 import ReturnOrders from '../pages/admin/Order/ReturnOrders.jsx';
+import { computeAxisValue } from '@mui/x-charts/internals';
+//import UpdateProduct from '../pages/admin/Product/update.jsx';
+import orderReturn from '../pages/users/TaiKhoan/orderReturn.jsx';
 import UpdateProduct from '../pages/admin/Product/update.jsx';
 import SpctDetail from '../pages/admin/Product/SpctDetail.jsx';
-
 import InStoreOrders from '../pages/admin/Sale/InStoreOrders.jsx';
 import OrderReturn from '../pages/users/TaiKhoan/orderReturn.jsx';
 import BulkOrderManagement from '../pages/admin/BulkOrder/BulkOrderManagement.jsx';
@@ -80,7 +83,7 @@ const publicRoutes = [
     { path: '/san-pham', component: Product },
     { path: '/admin/quan-ly-san-pham/san-pham-ct', component: ProductAdmin, layout: AdminLayout },
     { path: '/admin/quan-ly-san-pham/san-pham-ct/add', component: AddProduct, layout: AdminLayout },
-    { path: '/admin/quan-ly-san-pham/san-pham-ct/:id/update', component: UpdateProduct, layout: AdminLayout },
+
     { path: '/admin/quan-ly-san-pham/san-pham-ct/:id/detail', component: SpctDetail, layout: AdminLayout },
     { path: '/gio-hang', component: Cart },
     { path: '/xac-nhan-don-hang', component: SuccessOrder },
@@ -112,6 +115,7 @@ const publicRoutes = [
             { path: 'address', component: AddressUser, layout: null },
             { path: 'my-voucher', component: MyVoucher, layout: null },
             { path: 'order-return/:id', component: OrderReturn, layout: null },
+            { path: 'favorites', component: Favorites, layout: null}
         ],
     },
     { path: '/login', component: Sign },

@@ -26,6 +26,8 @@ public enum ErrorCode {
     UNAUTHORIZED(1006, "You do not have permisstion",HttpStatus.FORBIDDEN),
     HOADON_NOT_EXISTS(1010, "Receipt does not exist", HttpStatus.NOT_FOUND),
     INVALID_ORDER_STATUS(1011, "Invalid order status", HttpStatus.BAD_REQUEST),
+    PRODUCT_NOT_EXISTS(1012, "Product does not exist", HttpStatus.NOT_FOUND),
+    PRODUCT_ID_NOT_EXISTS(1013, "Product does not exist", HttpStatus.NOT_FOUND),
     ;
 
 //    ErrorCode(int code, String message, HttpStatus httpStatus) {

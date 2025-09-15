@@ -2,6 +2,9 @@ package com.example.da_be.entity;
 
 import jakarta.persistence.*;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Entity
 @Table(name = "SanPham")
 public class SanPham {

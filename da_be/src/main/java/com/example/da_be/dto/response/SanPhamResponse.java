@@ -14,5 +14,5 @@ public class SanPhamResponse {
 
     private String ten;
 
-    private int trangthai;
+    private Integer trangThai;
 }

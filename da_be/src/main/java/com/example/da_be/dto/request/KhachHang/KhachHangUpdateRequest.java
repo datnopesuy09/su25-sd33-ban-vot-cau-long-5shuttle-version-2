@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -27,7 +28,5 @@ public class KhachHangUpdateRequest {
     Integer gioiTinh;
 
     UserType userType;
-
-    DiaChi diaChi;
 
 }

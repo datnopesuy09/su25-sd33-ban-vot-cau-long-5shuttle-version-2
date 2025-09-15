@@ -27,5 +27,4 @@ public class DiaChiResponse {
 
     Integer loai;
 
-    User taiKhoan;
 }
