@@ -1,16 +1,109 @@
 import { useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { Heart } from 'lucide-react';
+import { useUserAuth } from '../../../contexts/userAuthContext';
+import { toast } from 'react-toastify';
 import './ProductCard.css';
 
 function ProductCard({ product }) {
     const navigate = useNavigate();
+    const { user } = useUserAuth();
     const [productVariants, setProductVariants] = useState([]);
     const [loading, setLoading] = useState(false);
     const [variantsCached, setVariantsCached] = useState(false);
     const [currentVariantIndex, setCurrentVariantIndex] = useState(0);
     const [displayedVariant, setDisplayedVariant] = useState(null);
+    const [isFavorite, setIsFavorite] = useState(false);
     const intervalRef = useRef(null);
+
+    // Hàm lấy token từ user hoặc localStorage
+    const getToken = () => {
+        const token = user?.token || localStorage.getItem('userToken');
+        return token;
+    };
+
+    // Kiểm tra sản phẩm có trong danh sách yêu thích không
+    const checkFavoriteStatus = async () => {
+        const token = getToken();
+        if (!token) return;
+
+        try {
+            const response = await axios.get('http://localhost:8080/wish-list', {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = response.data;
+            if (data.code === 1000) {
+                const favoriteIds = data.result.sanPhamList.map((item) => item.id);
+                setIsFavorite(favoriteIds.includes(product.id));
+            }
+        } catch (error) {
+            console.error('Error checking favorite status:', error);
+        }
+    };
+
+    // Xử lý toggle yêu thích (thêm hoặc xóa)
+    const handleToggleFavorite = async (e) => {
+        e.stopPropagation(); // Ngăn sự kiện click lan sang thẻ sản phẩm
+        const token = getToken();
+        if (!token) {
+            toast.error('Vui lòng đăng nhập để thêm/xóa sản phẩm khỏi danh sách yêu thích.');
+            localStorage.removeItem('userToken');
+            return;
+        }
+
+        try {
+            if (isFavorite) {
+                // Gọi API DELETE để xóa khỏi danh sách yêu thích
+                const response = await axios.delete('http://localhost:8080/wish-list', {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                    data: { idSanPham: product.id },
+                });
+                const data = response.data;
+                if (data.code === 1000) {
+                    setIsFavorite(false);
+                    toast.success('Đã xóa sản phẩm khỏi danh sách yêu thích.');
+                } else {
+                    toast.error('Không thể xóa sản phẩm khỏi danh sách yêu thích.');
+                }
+            } else {
+                // Gọi API POST để thêm vào danh sách yêu thích
+                const response = await axios.post(
+                    'http://localhost:8080/wish-list',
+                    { idSanPham: product.id },
+                    {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Authorization: `Bearer ${token}`,
+                        },
+                    },
+                );
+                const data = response.data;
+                if (data.code === 1000) {
+                    setIsFavorite(true);
+                    toast.success('Đã thêm sản phẩm vào danh sách yêu thích.');
+                } else {
+                    toast.error('Không thể thêm sản phẩm vào danh sách yêu thích.');
+                }
+            }
+        } catch (error) {
+            console.error('Error toggling favorite:', error);
+            if (error.response?.status === 401) {
+                toast.error('Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.');
+                localStorage.removeItem('userToken');
+            } else {
+                toast.error('Có lỗi xảy ra khi thêm/xóa sản phẩm khỏi danh sách yêu thích.');
+            }
+        }
+    };
+
+    // Gọi kiểm tra trạng thái yêu thích khi component mount
+    useEffect(() => {
+        checkFavoriteStatus();
+    }, [product.id, user]);
 
     const handleClick = () => {
         navigate(`/san-pham/san-pham-ct/${product.id}`);
@@ -61,7 +154,7 @@ function ProductCard({ product }) {
             );
             const productData = response.data;
 
-            // Lọc các màu sắc khác nhau (chỉ lấy màu sắc, không cần trọng lượng)
+            // Lọc các màu sắc khác nhau
             const uniqueColors = [...new Set(productData.variants.map((v) => v.mauSacTen))];
             const colorVariants = uniqueColors.map((color) => {
                 const variant = productData.variants.find((v) => v.mauSacTen === color);
@@ -75,7 +168,7 @@ function ProductCard({ product }) {
             });
 
             setProductVariants(colorVariants);
-            setDisplayedVariant(colorVariants[0]); // Hiển thị variant đầu tiên
+            setDisplayedVariant(colorVariants[0]);
             setVariantsCached(true);
         } catch (error) {
             console.error('Error fetching product variants:', error);
@@ -84,7 +177,7 @@ function ProductCard({ product }) {
         }
     };
 
-    // Auto-cycle through variants every 5 seconds
+    // Auto-cycle through variants every 3 seconds
     useEffect(() => {
         if (productVariants.length > 1) {
             intervalRef.current = setInterval(() => {
@@ -141,6 +234,16 @@ function ProductCard({ product }) {
                             e.target.src = 'https://placehold.co/300x300';
                         }}
                     />
+
+                    {/* Icon yêu thích */}
+                    <button
+                        onClick={handleToggleFavorite}
+                        className={`absolute top-2 left-2 p-2 rounded-full transition-colors ${
+                            isFavorite ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                        }`}
+                    >
+                        <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+                    </button>
 
                     {/* Color dots indicator */}
                     {productVariants.length > 1 && (

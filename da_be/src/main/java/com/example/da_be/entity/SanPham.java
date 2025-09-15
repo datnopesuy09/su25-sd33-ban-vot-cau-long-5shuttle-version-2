@@ -22,9 +22,6 @@ public class SanPham {
     @Column(name = "trangThai")
     private Integer trangThai;
 
-    @OneToMany(mappedBy = "sanPham", cascade = CascadeType.ALL, orphanRemoval = true)
-    Set<UserProductList> userLists = new HashSet<>();
-
     // Constructors
     public SanPham() {
     }

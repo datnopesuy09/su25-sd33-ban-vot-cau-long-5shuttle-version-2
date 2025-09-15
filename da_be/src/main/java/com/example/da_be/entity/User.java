@@ -61,8 +61,13 @@ public class User {
     @OneToMany(mappedBy = "taiKhoan", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     Set<DiaChi> diaChi;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    Set<UserProductList> productLists = new HashSet<>();
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "User_SanPham", // tên bảng trung gian
+            joinColumns = @JoinColumn(name = "IdUser"),  // khóa ngoại tới User
+            inverseJoinColumns = @JoinColumn(name = "IdSanPham") // khóa ngoại tới SanPham
+    )
+    Set<SanPham> sanPhams = new HashSet<>();
 
 
     @ManyToMany(fetch = FetchType.EAGER) // Hoặc FetchType.LAZY tùy nhu cầu

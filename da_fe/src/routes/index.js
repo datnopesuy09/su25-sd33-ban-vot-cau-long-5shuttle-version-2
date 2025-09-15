@@ -49,6 +49,7 @@ import ResponsiveAppBar from '../pages/admin';
 import ChangePassword from '../pages/users/TaiKhoan/changePass.jsx';
 import AddressUser from '../pages/users/TaiKhoan/userAdress.jsx';
 import MyVoucher from '../pages/users/TaiKhoan/myVoucher.jsx';
+import Favorites from '../pages/users/TaiKhoan/favorites.jsx';
 import AdminInfo from '../pages/admin/ad-info.jsx';
 import MyOrderDetail from '../pages/admin/nhanvien/draft.jsx';
 import ReturnOrders from '../pages/admin/Order/ReturnOrders.jsx';
@@ -114,6 +115,7 @@ const publicRoutes = [
             { path: 'address', component: AddressUser, layout: null },
             { path: 'my-voucher', component: MyVoucher, layout: null },
             { path: 'order-return/:id', component: OrderReturn, layout: null },
+            { path: 'favorites', component: Favorites, layout: null}
         ],
     },
     { path: '/login', component: Sign },
