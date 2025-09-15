@@ -1,5 +1,7 @@
 package com.example.da_be.controller;
 
+import com.example.da_be.dto.InternalNotificationRequest;
+import com.example.da_be.dto.InternalNotificationResponse;
 import com.example.da_be.entity.ThongBao;
 import com.example.da_be.service.ThongBaoService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -103,6 +105,19 @@ public class ThongBaoController {
     public ResponseEntity<List<ThongBao>> getThongBaoByKhachHang(@PathVariable int idKhachHang) {
         try {
             return ResponseEntity.ok(thongBaoService.getThongBaoByKhachHang(idKhachHang));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+
+    // Tạo thông báo nội bộ (cho admin, nhân viên)
+    @PostMapping("/internal")
+    public ResponseEntity<InternalNotificationResponse> createInternalNotification(@RequestBody InternalNotificationRequest request) {
+        try {
+            InternalNotificationResponse response = thongBaoService.createInternalNotification(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }

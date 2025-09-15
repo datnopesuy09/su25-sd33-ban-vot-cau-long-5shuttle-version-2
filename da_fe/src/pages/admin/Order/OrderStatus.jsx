@@ -1199,7 +1199,7 @@ function OrderStatus() {
             </div>
 
             {/* Sự cố vận chuyển - chỉ hiển thị khi đơn hàng đang vận chuyển hoặc có sự cố */}
-            {(currentOrderStatus === 3 || currentOrderStatus === 4 || currentOrderStatus === 10) && (
+            {(currentOrderStatus === 3 || currentOrderStatus === 4 || currentOrderStatus === 7 || currentOrderStatus === 10) && (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 max-w-5xl mx-auto mt-8">
                     <div className="p-6 border-b border-gray-200">
                         <div className="flex items-center justify-between">
@@ -1228,12 +1228,47 @@ function OrderStatus() {
                             adminId={admin?.id}
                             onIncidentResolved={async (incident) => {
                                 try {
-                                    // Use existing updateOrderStatus helper to ensure notifications and history are created consistently
-                                    if (currentOrderStatus === 10) {
+                                    if (incident.isUnresolvable) {
+                                        // Handle unresolvable incident - order should be cancelled
+                                        console.log('Handling unresolvable incident - order will be cancelled');
                                         await updateOrderStatus(
-                                            3,
-                                            `Gỡ khoá sau khi giải quyết sự cố (IncidentId=${incident.id})`,
+                                            7, // CANCELLED
+                                            `Đơn hàng bị hủy do sự cố vận chuyển không thể giải quyết (IncidentId=${incident.id})`,
                                         );
+                                        
+                                        // Send additional notification about cancellation and refund
+                                        const cancellationNotification = {
+                                            khachHang: {
+                                                id: orderData.taiKhoan.id,
+                                            },
+                                            tieuDe: 'Đơn hàng đã được hủy và hoàn tiền',
+                                            noiDung: `Đơn hàng #${orderData.ma} đã bị hủy do sự cố vận chuyển không thể giải quyết. Chúng tôi đã bắt đầu quy trình hoàn tiền và sẽ liên hệ với bạn trong vòng 24h.`,
+                                            idRedirect: `/user/hoa-don/${hoaDonId}`,
+                                            kieuThongBao: 'error',
+                                            trangThai: 0,
+                                        };
+                                        
+                                        try {
+                                            await axios.post('http://localhost:8080/api/thong-bao', cancellationNotification, {
+                                                headers: { 'Content-Type': 'application/json' },
+                                            });
+                                            safeStompSend(
+                                                `/app/user/${orderData.taiKhoan.id}/notifications`,
+                                                {},
+                                                JSON.stringify(cancellationNotification),
+                                            );
+                                        } catch (notificationError) {
+                                            console.error('Lỗi khi gửi thông báo hủy đơn:', notificationError);
+                                        }
+                                        
+                                    } else {
+                                        // Handle normal resolved incident
+                                        if (currentOrderStatus === 10) {
+                                            await updateOrderStatus(
+                                                3,
+                                                `Gỡ khoá sau khi giải quyết sự cố (IncidentId=${incident.id})`,
+                                            );
+                                        }
                                     }
 
                                     // Refresh order details

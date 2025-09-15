@@ -8,7 +8,7 @@ const DeliveryIncidentModal = ({ isOpen, onClose, orderData, hoaDonId, onInciden
         loaiSuCo: '',
         moTa: '',
         diaDiem: '',
-        ngayXayRa: new Date().toISOString().slice(0, 16),
+        ngayXayRa: new Date().toISOString().slice(0, 16), // Format cho datetime-local: yyyy-MM-ddTHH:mm
         trangThai: 0, // 0: Đang xử lý, 1: Đã giải quyết
         ghiChu: '',
         hinhAnh: [],
@@ -111,8 +111,11 @@ const DeliveryIncidentModal = ({ isOpen, onClose, orderData, hoaDonId, onInciden
 
             // Chuẩn hóa định dạng ngày (datetime-local trả về yyyy-MM-ddTHH:mm)
             let ngayXayRa = incidentData.ngayXayRa;
-            // Backend hiện dùng pattern yyyy-MM-dd'T'HH:mm nên KHÔNG thêm giây vào (tránh 400)
-            // Nếu muốn hỗ trợ giây, đổi pattern trong backend thành yyyy-MM-dd'T'HH:mm:ss và thêm :00 tại đây.
+            // Backend hiện dùng pattern yyyy-MM-dd'T'HH:mm:ss nên cần thêm giây vào
+            if (ngayXayRa && (ngayXayRa.match(/:/g) || []).length === 1) {
+                // Nếu chỉ có 1 dấu : (HH:mm), thêm :00
+                ngayXayRa = ngayXayRa + ':00';
+            }
 
             // Map loại sự cố sang enum backend (đã dùng chính value trùng enum nên chỉ cần toUpperCase safeguard)
             const enumLoaiSuCo = (incidentData.loaiSuCo || '').toUpperCase();

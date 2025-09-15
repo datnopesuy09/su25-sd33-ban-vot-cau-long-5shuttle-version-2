@@ -23,8 +23,8 @@ public class SuCoVanChuyenRequest {
 
     private String diaDiem;
 
-    // Frontend gửi định dạng yyyy-MM-dd'T'HH:mm (không có giây), nên pattern điều chỉnh lại để tránh lỗi 400
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm")
+    // Frontend gửi định dạng yyyy-MM-dd'T'HH:mm:ss
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime ngayXayRa;
 
     private Integer nguoiBaoCao;

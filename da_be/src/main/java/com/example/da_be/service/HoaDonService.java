@@ -1,11 +1,20 @@
 package com.example.da_be.service;
 
+import com.example.da_be.dto.CancelIncidentRequest;
+import com.example.da_be.dto.IncidentRefundRequest;
+import com.example.da_be.dto.IncidentRefundResponse;
+import com.example.da_be.dto.RestoreStockIncidentRequest;
+import com.example.da_be.dto.RestoreStockResponse;
 import com.example.da_be.dto.UpdateDeliveryInfoRequest;
 import com.example.da_be.entity.HoaDon;
+import com.example.da_be.entity.HoaDonCT;
 import com.example.da_be.entity.PhieuGiamGia;
+import com.example.da_be.entity.SuCoVanChuyen;
 import com.example.da_be.entity.ThongBao;
 import com.example.da_be.exception.ResourceNotFoundException;
+import com.example.da_be.repository.HoaDonCTRepository;
 import com.example.da_be.repository.HoaDonRepository;
+import com.example.da_be.repository.SuCoVanChuyenRepository;
 import com.example.da_be.repository.ThongBaoRepository;
 import com.example.da_be.repository.VoucherRepository;
 import org.slf4j.Logger;
@@ -15,8 +24,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class HoaDonService {
@@ -31,6 +42,10 @@ public class HoaDonService {
     private ThongBaoRepository thongBaoRepository;
     @Autowired
     private KhoHangService khoHangService;
+    @Autowired
+    private SuCoVanChuyenRepository suCoVanChuyenRepository;
+    @Autowired
+    private HoaDonCTRepository hoaDonCTRepository;
 
     public List<HoaDon> getAllHoaDon() {
         return hoaDonRepository.findAll();
@@ -56,17 +71,36 @@ public class HoaDonService {
             int oldStatus = hoaDon.getTrangThai();
             hoaDon.setTrangThai(newStatus);
             
-            // Xử lý hoàn kho khi hủy đơn hàng
+            // Xử lý hoàn kho khi hủy đơn hàng (chỉ cho hủy thông thường, không phải do sự cố)
             if (newStatus == 7 && oldStatus != 7) { // Trạng thái 7 = Đã hủy
                 try {
                     khoHangService.restoreStockOnCancelOrder(hoaDon);
-                    log.info("Đã hoàn kho thành công cho đơn hàng bị hủy: {}", hoaDon.getMa());
+                    log.info("Đã hoàn kho thành công cho đơn hàng bị hủy (thông thường): {}", hoaDon.getMa());
                 } catch (Exception e) {
                     log.error("Lỗi khi hoàn kho cho đơn hàng bị hủy: {} - {}", hoaDon.getMa(), e.getMessage());
                     // Không ném exception để không làm gián đoạn flow chính
                     // Có thể thông báo cho admin để xử lý thủ công
                 }
             }
+            
+            return hoaDonRepository.save(hoaDon);
+        }
+        return null;
+    }
+
+    /**
+     * Cập nhật trạng thái đơn hàng mà KHÔNG tự động hoàn kho
+     * Dùng cho trường hợp đã xử lý hoàn kho riêng (như sự cố vận chuyển)
+     */
+    @Transactional
+    public HoaDon updateHoaDonStatusWithoutStockRestore(int id, int newStatus) {
+        HoaDon hoaDon = hoaDonRepository.findById(id).orElse(null);
+        if (hoaDon != null) {
+            int oldStatus = hoaDon.getTrangThai();
+            hoaDon.setTrangThai(newStatus);
+            
+            log.info("Cập nhật trạng thái đơn hàng {} từ {} sang {} - KHÔNG tự động hoàn kho", 
+                    hoaDon.getMa(), oldStatus, newStatus);
             
             return hoaDonRepository.save(hoaDon);
         }
@@ -135,6 +169,212 @@ public class HoaDonService {
 
         hoaDon.setNgaySua(new Date());
         return hoaDonRepository.save(hoaDon);
+    }
+
+    /**
+     * Hủy đơn hàng do sự cố vận chuyển không thể giải quyết
+     */
+    @Transactional
+    public HoaDon cancelOrderDueToIncident(Integer hoaDonId, com.example.da_be.dto.CancelIncidentRequest request) {
+        // 1. Kiểm tra hóa đơn tồn tại
+        HoaDon hoaDon = hoaDonRepository.findById(hoaDonId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hóa đơn"));
+
+        // 2. Kiểm tra sự cố tồn tại và thuộc về hóa đơn này
+        if (request.getIncidentId() != null) {
+            SuCoVanChuyen incident = suCoVanChuyenRepository.findById(request.getIncidentId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy sự cố"));
+            
+            if (!incident.getHoaDon().getId().equals(hoaDonId)) {
+                throw new IllegalArgumentException("Sự cố không thuộc về hóa đơn này");
+            }
+        }
+
+        // 3. Kiểm tra trạng thái đơn hàng có thể hủy không
+        if (hoaDon.getTrangThai() == 7) {
+            throw new IllegalArgumentException("Đơn hàng đã bị hủy trước đó");
+        }
+
+        // 4. Hủy đơn hàng với lý do cụ thể
+        int oldStatus = hoaDon.getTrangThai();
+        hoaDon.setTrangThai(7); // 7 = Đã hủy
+        hoaDon.setNgaySua(new Date());
+        
+        // Ghi chú lý do hủy
+        String cancelNote = String.format("Hủy do sự cố vận chuyển không thể giải quyết. " +
+                "Incident ID: %d. Lý do: %s. Admin: %d", 
+                request.getIncidentId(), request.getReason(), request.getAdminId());
+        
+        // Nếu có field ghi chú, có thể set ở đây
+        // hoaDon.setGhiChu(cancelNote);
+
+        // 5. Hoàn kho hàng (có điều kiện dựa trên loại sự cố)
+        try {
+            // Kiểm tra loại sự cố để quyết định có hoàn kho hay không
+            if (request.getIncidentId() != null) {
+                SuCoVanChuyen incident = suCoVanChuyenRepository.findById(request.getIncidentId()).orElse(null);
+                if (incident != null) {
+                    boolean shouldRestoreStock = shouldRestoreStockForIncidentType(incident.getLoaiSuCo());
+                    
+                    if (shouldRestoreStock) {
+                        khoHangService.restoreStockOnCancelOrder(hoaDon);
+                        log.info("Đã hoàn kho thành công cho đơn hàng bị hủy do sự cố: {} (Loại: {})", 
+                                hoaDon.getMa(), incident.getLoaiSuCo());
+                    } else {
+                        // Ghi log không hoàn kho cho hàng hỏng/mất
+                        log.info("Không hoàn kho cho đơn hàng {} do loại sự cố: {} (hàng không thể tái sử dụng)", 
+                                hoaDon.getMa(), incident.getLoaiSuCo());
+                        
+                        // Ghi vào kho hàng hỏng/mất để tracking
+                        khoHangService.recordDamagedOrLostStock(hoaDon, incident.getLoaiSuCo(), request.getReason());
+                    }
+                } else {
+                    // Không tìm thấy sự cố, hoàn kho mặc định
+                    khoHangService.restoreStockOnCancelOrder(hoaDon);
+                    log.info("Đã hoàn kho thành công cho đơn hàng bị hủy (không xác định được loại sự cố): {}", hoaDon.getMa());
+                }
+            } else {
+                // Không có incident ID, hoàn kho mặc định
+                khoHangService.restoreStockOnCancelOrder(hoaDon);
+                log.info("Đã hoàn kho thành công cho đơn hàng bị hủy: {}", hoaDon.getMa());
+            }
+        } catch (Exception e) {
+            log.error("Lỗi khi xử lý kho cho đơn hàng bị hủy do sự cố: {} - {}", hoaDon.getMa(), e.getMessage());
+            // Tiếp tục thực hiện, không ném exception
+        }
+
+        // 6. Lưu hóa đơn
+        HoaDon cancelledOrder = hoaDonRepository.save(hoaDon);
+
+        log.info("Đã hủy đơn hàng {} do sự cố vận chuyển không thể giải quyết. " +
+                "Incident ID: {}, Admin: {}", hoaDon.getMa(), request.getIncidentId(), request.getAdminId());
+
+        return cancelledOrder;
+    }
+
+    /**
+     * Xử lý hoàn tiền cho đơn hàng bị sự cố
+     */
+    @Transactional
+    public IncidentRefundResponse processIncidentRefund(Integer hoaDonId, IncidentRefundRequest request) {
+        // 1. Kiểm tra hóa đơn tồn tại
+        HoaDon hoaDon = hoaDonRepository.findById(hoaDonId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hóa đơn"));
+
+        // 2. Kiểm tra đơn hàng đã bị hủy
+        if (hoaDon.getTrangThai() != 7) {
+            throw new IllegalArgumentException("Chỉ có thể hoàn tiền cho đơn hàng đã bị hủy");
+        }
+
+        // 3. Kiểm tra đã thanh toán chưa
+        if (hoaDon.getTongTien() == null || hoaDon.getTongTien().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Đơn hàng chưa có thông tin thanh toán");
+        }
+
+        // 4. Tạo yêu cầu hoàn tiền
+        String refundId = "REF-" + hoaDonId + "-" + System.currentTimeMillis();
+        
+        // TODO: Tích hợp với payment gateway để thực hiện hoàn tiền thực tế
+        // Ví dụ: VNPay, MoMo, etc.
+        
+        // 5. Ghi log hoàn tiền
+        log.info("Khởi tạo hoàn tiền cho đơn hàng {} do sự cố. " +
+                "Số tiền: {}, Loại: {}, Incident ID: {}", 
+                hoaDon.getMa(), hoaDon.getTongTien(), request.getRefundType(), request.getIncidentId());
+
+        // 6. Tạo thông báo hoàn tiền
+        ThongBao refundNotification = new ThongBao();
+        refundNotification.setKhachHang(hoaDon.getTaiKhoan());
+        refundNotification.setTieuDe("Thông báo hoàn tiền");
+        refundNotification.setNoiDung(String.format(
+                "Yêu cầu hoàn tiền cho đơn hàng #%s đã được xử lý. " +
+                "Số tiền: %s VNĐ. Mã hoàn tiền: %s. " +
+                "Thời gian xử lý dự kiến: 3-7 ngày làm việc.",
+                hoaDon.getMa(), hoaDon.getTongTien(), refundId));
+        refundNotification.setTrangThai(0); // Chưa đọc
+        thongBaoRepository.save(refundNotification);
+
+        return new IncidentRefundResponse(
+                "PROCESSING",
+                refundId,
+                "Yêu cầu hoàn tiền đã được khởi tạo thành công",
+                "3-7 ngày làm việc"
+        );
+    }
+
+    /**
+     * Hoàn kho hàng do sự cố vận chuyển
+     */
+    @Transactional
+    public RestoreStockResponse restoreStockDueToIncident(Integer hoaDonId, RestoreStockIncidentRequest request) {
+        // 1. Kiểm tra hóa đơn tồn tại
+        HoaDon hoaDon = hoaDonRepository.findById(hoaDonId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hóa đơn"));
+
+        // 2. Lấy danh sách sản phẩm trong đơn hàng
+        List<HoaDonCT> orderDetails = hoaDonCTRepository.findByHoaDonId(hoaDonId);
+        if (orderDetails.isEmpty()) {
+            throw new IllegalArgumentException("Không tìm thấy sản phẩm trong đơn hàng");
+        }
+
+        int totalItemsRestored = 0;
+
+        try {
+            // 3. Hoàn kho cho từng sản phẩm
+            for (HoaDonCT detail : orderDetails) {
+                // Chỉ hoàn kho nếu sản phẩm chưa được hoàn trước đó
+                if (detail.getSoLuong() > 0) {
+                    // Gọi service hoàn kho
+                    khoHangService.restoreStock(detail.getSanPhamCT().getId(), detail.getSoLuong());
+                    totalItemsRestored += detail.getSoLuong();
+                    
+                    log.info("Đã hoàn kho {} sản phẩm {} do sự cố. Incident ID: {}", 
+                            detail.getSoLuong(), detail.getSanPhamCT().getSanPham().getTen(), request.getIncidentId());
+                }
+            }
+
+            // 4. Ghi log hoàn kho
+            log.info("Hoàn kho thành công cho đơn hàng {} do sự cố. " +
+                    "Tổng số lượng hoàn: {}, Loại: {}, Admin: {}", 
+                    hoaDon.getMa(), totalItemsRestored, request.getRestoreType(), request.getAdminId());
+
+            return new RestoreStockResponse(
+                    "SUCCESS",
+                    String.format("Đã hoàn kho thành công %d sản phẩm", totalItemsRestored),
+                    totalItemsRestored
+            );
+
+        } catch (Exception e) {
+            log.error("Lỗi khi hoàn kho cho đơn hàng {} do sự cố: {}", hoaDon.getMa(), e.getMessage());
+            throw new RuntimeException("Không thể hoàn kho: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Xác định có nên hoàn kho hay không dựa trên loại sự cố
+     * CHỈ HOÀN KHO khi hàng còn nguyên vẹn và khách hàng không nhận
+     */
+    private boolean shouldRestoreStockForIncidentType(SuCoVanChuyen.LoaiSuCo loaiSuCo) {
+        switch (loaiSuCo) {
+            case KHONG_NHAN_HANG:
+            case CHUA_NHAN_HANG:
+                // CHỈ hoàn kho khi khách hàng không nhận/chưa nhận (hàng còn nguyên vẹn)
+                log.info("Sẽ hoàn kho cho loại sự cố: {} (hàng còn nguyên vẹn)", loaiSuCo);
+                return true;
+            
+            case HANG_BI_MAT:
+            case HANG_BI_HONG:
+            case SU_CO_VAN_CHUYEN:
+            case KHAC:
+                // KHÔNG hoàn kho cho các trường hợp hàng có thể bị ảnh hưởng
+                log.info("KHÔNG hoàn kho cho loại sự cố: {} (hàng có thể bị ảnh hưởng/không khả dụng)", loaiSuCo);
+                return false;
+            
+            default:
+                // Mặc định KHÔNG hoàn kho để an toàn
+                log.warn("Loại sự cố không xác định: {} - KHÔNG hoàn kho để an toàn", loaiSuCo);
+                return false;
+        }
     }
 
 }
