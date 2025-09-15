@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
     Box, Typography, Paper, Button, Stack, Avatar, Grid,
-    Divider
+    Divider, Chip
 } from '@mui/material';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -15,6 +15,20 @@ import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 dayjs.extend(isSameOrBefore);
 import ModalReturn from './modalReturn';
+
+// Local status map (labels only) used for displaying order status
+const statusMap = {
+    1: { label: 'Chờ xác nhận' },
+    2: { label: 'Chờ giao hàng' },
+    3: { label: 'Đang vận chuyển' },
+    4: { label: 'Đã giao hàng' },
+    6: { label: 'Hoàn thành' },
+    7: { label: 'Đã hủy' },
+    8: { label: 'Trả hàng' },
+    9: { label: 'Chờ nhập hàng' },
+};
+
+const getStatus = (status) => statusMap[status]?.label || 'Không xác định';
 
 function OrderDetail() {
     const { id } = useParams();
@@ -64,7 +78,7 @@ function OrderDetail() {
             stompClient.deactivate();
         };
     }, [id]);
-
+console.log(billDetail);
     const handleHuyDonHang = (hoaDonId) => {
         swal({
             title: 'Xác nhận hủy đơn hàng?',
@@ -122,95 +136,118 @@ function OrderDetail() {
 
     return (
         <Box>
-            <Typography variant="h6" fontWeight={600} mb={2}>
-                Thông tin đơn hàng
-            </Typography>
+            {/* Header similar to order.jsx */}
+            <Paper sx={{ p: 4, mb: 3, borderRadius: 3, background: 'linear-gradient(90deg, #f0f7ff 0%, #eef4ff 100%)', border: '1px solid #e6f0ff' }} elevation={0}>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                    <div style={{ background: '#e8f3ff', padding: 12, borderRadius: 12 }}>
+                        <Avatar sx={{ bgcolor: '#dff2ff' }}>
+                            <LocationOnIcon color="primary" />
+                        </Avatar>
+                    </div>
+                    <div>
+                        <Typography variant="h5" fontWeight={700}>Chi tiết đơn hàng</Typography>
+                        <Typography color="text.secondary">Xem thông tin, trạng thái và các sản phẩm trong đơn</Typography>
+                    </div>
+                </div>
+            </Paper>
 
+            {/* Order meta */}
             {hoaDon && (
-                <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-                    <Typography sx={{ mb: 1 }}>Địa chỉ nhận hàng</Typography>
-                    <Stack direction="row" spacing={1} alignItems="center">
+                <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }} elevation={1}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                        <div>
+                            <Typography variant="subtitle1" fontWeight={700}>{hoaDon.ma || `#${hoaDon.id}`}</Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                {hoaDon.trangThai === 7 ? `Hủy: ${dayjs(hoaDon.ngaySua).format('DD/MM/YYYY HH:mm')}` : `Đặt: ${dayjs(hoaDon.ngayTao).format('DD/MM/YYYY HH:mm')}`}
+                            </Typography>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <Chip label={hoaDon?.phuongThucThanhToan || 'Chưa có phương thức'} variant="outlined" />
+                            <Chip label={getStatus(hoaDon?.trangThai)} color="primary" />
+                        </div>
+                    </div>
+                </Paper>
+            )}
+
+            {/* Address card */}
+            {hoaDon && (
+                <Paper sx={{ p: 2, mb: 3, borderRadius: 2 }} elevation={0}>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Địa chỉ nhận hàng</Typography>
+                    <Stack direction="row" spacing={2} alignItems="flex-start">
                         <LocationOnIcon color="action" />
-                        <Box>
-                            <Typography fontWeight={400}>
-                                {hoaDon.tenNguoiNhan}{' '}
-                                <span variant="body2" color="text.secondary">
-                                    {' '}
-                                    | ({hoaDon.sdtNguoiNhan})
-                                </span>
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                {hoaDon.diaChiNguoiNhan}
-                            </Typography>
-                        </Box>
+                        <div>
+                            <Typography fontWeight={600}>{hoaDon.tenNguoiNhan} <span style={{ color: '#666' }}>| {hoaDon.sdtNguoiNhan}</span></Typography>
+                            <Typography variant="body2" color="text.secondary">{hoaDon.diaChiNguoiNhan}</Typography>
+                        </div>
                     </Stack>
                 </Paper>
             )}
 
-            {billDetail.map((bill, index) => (
-                <Paper key={index} variant="outlined" sx={{ p: 2, mb: 2 }}>
-                    <Grid container spacing={2}>
-                        <Grid item xs={3}>
+            {/* Product list */}
+            <div style={{ display: 'grid', gap: 12 }}>
+                {billDetail.map((bill, index) => (
+                    <Paper key={index} sx={{ p: 2.5, borderRadius: 2 }} elevation={0}>
+                        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                             <Avatar
                                 variant="rounded"
-                                src={bill.sanPhamCT?.hinhAnh || ''}
+                                src={bill.hinhAnh || bill.hinhAnhUrl || ''}
                                 alt={bill.sanPhamCT?.sanPham?.ten}
-                                sx={{ width: 100, height: 100 }}
+                                sx={{ width: 96, height: 96, borderRadius: 2 }}
                             />
-                        </Grid>
-                        <Grid item xs={9}>
-                            <Typography fontWeight={600} noWrap>
-                                {bill.sanPhamCT?.sanPham?.ten}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Phân loại: {bill.sanPhamCT?.mauSac?.ten}, {bill.sanPhamCT?.trongLuong?.ten},{' '}
-                                {bill.sanPhamCT?.doCung?.ten}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Số lượng: {bill.soLuong}
-                            </Typography>
-                            <Stack direction="row" spacing={1} mt={1}>
-                                {bill.giaKhuyenMai ? (
-                                    <>
-                                        <Typography
-                                            variant="body2"
-                                            sx={{ textDecoration: 'line-through', color: 'text.disabled' }}
-                                        >
-                                            {formatCurrency(bill.giaBan)}
-                                        </Typography>
-                                        <Typography color="error">{formatCurrency(bill.giaKhuyenMai)}</Typography>
-                                    </>
-                                ) : (
-                                    <Typography>{formatCurrency(bill.giaBan)}</Typography>
-                                )}
-                            </Stack>
-                        </Grid>
-                    </Grid>
-                </Paper>
-            ))}
 
-            <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-                <Stack spacing={1}>
-                    <Box display="flex" justifyContent="space-between">
-                        <span>Tổng tiền hàng</span>
-                        <span>{formatCurrency(totalAmount)}</span>
-                    </Box>
-                    <Box display="flex" justifyContent="space-between">
-                        <span>Phí vận chuyển</span>
-                        <span>{formatCurrency(phiShip)}</span>
-                    </Box>
-                    <Box display="flex" justifyContent="space-between">
-                        <span>Giảm giá</span>
-                        <span>-{formatCurrency(discountAmount)}</span>
-                    </Box>
-                    <Divider sx={{ mt: 2 }} />
-                    <Box display="flex" justifyContent="flex-end">
-                        <Typography > Thành tiền: <span style={{ fontWeight: 'bold' }}>{formatCurrency(tongThanhToan)}</span>
-                        </Typography>
-                    </Box>
-                </Stack>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <Typography fontWeight={700} noWrap>{bill.sanPhamCT?.sanPham?.ten}</Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }} noWrap>
+                                    {`Phân loại: ${bill.sanPhamCT?.mauSac?.ten || '-'}, ${bill.sanPhamCT?.trongLuong?.ten || '-'}, ${bill.sanPhamCT?.doCung?.ten || '-'}`}
+                                </Typography>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                        <Typography variant="body2" color="text.secondary">Số lượng: {bill.soLuong}</Typography>
+                                    </div>
+
+                                    <div style={{ textAlign: 'right' }}>
+                                        {bill.giaKhuyenMai ? (
+                                            <div>
+                                                <Typography variant="body2" sx={{ textDecoration: 'line-through', color: 'gray' }}>{formatCurrency(bill.giaBan)}</Typography>
+                                                <Typography color="error" fontWeight={700}>{formatCurrency(bill.giaKhuyenMai)}</Typography>
+                                            </div>
+                                        ) : (
+                                            <Typography fontWeight={700}>{formatCurrency(bill.giaBan)}</Typography>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </Paper>
+                ))}
+            </div>
+
+            {/* Summary */}
+            <Paper sx={{ p: 2.5, mt: 3, borderRadius: 2 }} elevation={0}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ color: '#555' }}>
+                        <div style={{ marginBottom: 6 }}>Tổng tiền hàng</div>
+                        <div style={{ marginBottom: 6 }}>Phí vận chuyển</div>
+                        <div style={{ marginBottom: 6 }}>Giảm giá</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                        <div style={{ marginBottom: 6 }}>{formatCurrency(totalAmount)}</div>
+                        <div style={{ marginBottom: 6 }}>{formatCurrency(phiShip)}</div>
+                        <div style={{ marginBottom: 6 }}>-{formatCurrency(discountAmount)}</div>
+                    </div>
+                </div>
+                <Divider sx={{ my: 2 }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div />
+                    <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: 14, color: '#666' }}>Thành tiền</div>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: '#d32f2f' }}>{formatCurrency(tongThanhToan)}</div>
+                    </div>
+                </div>
             </Paper>
 
+            {/* Sticky actions */}
             <Box
                 position="sticky"
                 bottom={0}
@@ -218,34 +255,18 @@ function OrderDetail() {
                 bgcolor="#fff"
                 borderTop="1px solid #eee"
                 p={2}
-                // display="flex"
-                // justifyContent="space-between"
-                // alignItems="center"
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
                 flexWrap="wrap"
                 gap={1}
             >
-                <Stack>
-                    <Box display="flex" justifyContent="space-between">
-                        <Typography fontSize={13}>
-                            Phương thức thanh toán:
-                        </Typography>
-                        <Typography fontSize={13}>
-                            {hoaDon?.phuongThucThanhToan}
-                        </Typography>
-                    </Box>
-                    <Box display="flex" justifyContent="space-between">
-                        <Typography fontSize={13}>
-                            Thời gian đặt hàng:
-                        </Typography>
-                        <Typography fontSize={13}>
-                            {dayjs(hoaDon?.ngayTao).format('DD/MM/YYYY HH:mm')}
-                        </Typography>
-                    </Box>
-                    {/* <Typography fontWeight={600}>
-                        Tổng thanh toán: <span style={{ color: 'red' }}>{formatCurrency(tongThanhToan)}</span>
-                    </Typography> */}
-                </Stack>
-                <Stack direction="row" spacing={1} sx={{ mt: 2 }} justify-content="end">
+                <div>
+                    <Typography fontSize={13}>Phương thức thanh toán: <strong>{hoaDon?.phuongThucThanhToan}</strong></Typography>
+                    <Typography fontSize={13}>Thời gian đặt: {dayjs(hoaDon?.ngayTao).format('DD/MM/YYYY HH:mm')}</Typography>
+                </div>
+
+                <Stack direction="row" spacing={1}>
                     {hoaDon?.trangThai === 1 && (
                         <Button onClick={() => handleHuyDonHang(hoaDon.id)} variant="outlined" color="error">
                             Hủy đơn hàng
@@ -260,12 +281,10 @@ function OrderDetail() {
                             Trả hàng/Hoàn tiền
                         </Button>
                     )}
-                    <Button component={Link} to="/profile/order" variant="outlined" color="primary">
+                    <Button component={Link} to="/profile/order" variant="contained" color="primary">
                         Trở về
                     </Button>
                 </Stack>
-                {/* 
-                <ModalReturn open={openReturnModal} setOpen={setOpenReturnModal} setTab={() => {}} /> */}
             </Box>
         </Box>
     );

@@ -177,6 +177,8 @@ function UserOrder() {
     const endIndex = startIndex + itemsPerPage;
     const currentBills = filteredBills.slice(startIndex, endIndex);
 
+    console.log('Current Bills:', currentBills);
+
     // Reset current page when tab changes, search changes, or items per page changes
     useEffect(() => {
         setCurrentPage(1);
@@ -509,8 +511,17 @@ function UserOrder() {
                                                 {/* Product Image */}
                                                 <div className="flex-shrink-0">
                                                     <img
-                                                        src={sp?.sanPhamCT?.hinhAnh || 'https://via.placeholder.com/80'}
-                                                        alt="Sản phẩm"
+                                                        src={
+                                                            sp?.hinhAnhUrl ||
+                                                            sp?.sanPhamCT?.hinhAnhUrl ||
+                                                            sp?.sanPhamCT?.hinhAnh ||
+                                                            'https://via.placeholder.com/80'
+                                                        }
+                                                        alt={
+                                                            item.trangThai === 8
+                                                                ? sp?.thongTinSanPhamTra?.tenSanPham
+                                                                : sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'
+                                                        }
                                                         className="w-20 h-20 object-cover rounded-xl border border-gray-200"
                                                     />
                                                 </div>

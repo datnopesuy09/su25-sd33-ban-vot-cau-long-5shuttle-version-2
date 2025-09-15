@@ -104,7 +104,8 @@ const CheckOut = () => {
             totalValue: totalPrice,
             itemCount: carts.length,
         },
-        contactMethod: 'phone',
+        // Do not default contact method here; leave null until the customer chooses
+        contactMethod: null,
     });
 
     useEffect(() => {
@@ -725,18 +726,28 @@ const CheckOut = () => {
                     reasons: bulkOrderData.reasons || [],
                 }}
                 onContactMethod={async (method) => {
-                    if (bulkInquiryId) {
-                        try {
-                            await bulkOrderAPI.updateInquiryStatus(bulkInquiryId, 'contacted');
-                            await bulkOrderAPI.trackInteraction({
-                                inquiryId: bulkInquiryId,
-                                type: 'contact_method',
-                                method,
-                            });
-                        } catch (e) {
-                            console.error(e);
+                    try {
+                        let id = bulkInquiryId;
+                        if (!id && !creatingRef.current) {
+                            // Create inquiry synchronously if it hasn't been created yet
+                            creatingRef.current = true;
+                            const created = await bulkOrderAPI.createBulkOrderInquiry(buildBulkInquiryPayload());
+                            id = created.id || created?.result?.id;
+                            setBulkInquiryId(id);
                         }
+
+                        if (id) {
+                            await bulkOrderAPI.updateInquiryContactMethod(id, method);
+                            await bulkOrderAPI.trackInteraction({ inquiryId: id, type: 'contact_method', method });
+                        } else {
+                            console.warn('Bulk inquiry not available to update contact method');
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    } finally {
+                        creatingRef.current = false;
                     }
+
                     swal({
                         title: 'Đã gửi yêu cầu!',
                         text: 'Chuyên viên sẽ liên hệ với bạn trong thời gian sớm nhất.',

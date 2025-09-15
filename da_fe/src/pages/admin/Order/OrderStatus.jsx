@@ -90,6 +90,25 @@ function OrderStatus() {
         }
     };
 
+    // Safe STOMP send helper (component scope) - can be used by all handlers
+    const safeStompSend = (destination, headers = {}, body = '') => {
+        try {
+            const c = stompClient;
+            if (!c) return false;
+
+            const isConnected = !!c.connected || (c.ws && c.ws.readyState === 1);
+            if (isConnected && typeof c.send === 'function') {
+                c.send(destination, headers, body);
+                return true;
+            }
+            console.warn('STOMP not connected, skipping send to', destination);
+            return false;
+        } catch (err) {
+            console.warn('Error while sending STOMP message:', err);
+            return false;
+        }
+    };
+
     const handleShowHistoryModal = () => {
         setShowHistoryModal(true);
         fetchOrderHistory();
@@ -162,6 +181,7 @@ function OrderStatus() {
                 });
             });
             setStompClient(client);
+
 
             return () => {
                 if (client) client.disconnect();
@@ -326,13 +346,7 @@ function OrderStatus() {
                 await axios.post('http://localhost:8080/api/thong-bao', userNotification, {
                     headers: { 'Content-Type': 'application/json' },
                 });
-                if (stompClient) {
-                    stompClient.send(
-                        `/app/user/${orderData.taiKhoan?.id}/notifications`,
-                        {},
-                        JSON.stringify(userNotification),
-                    );
-                }
+                safeStompSend(`/app/user/${orderData.taiKhoan?.id}/notifications`, {}, JSON.stringify(userNotification));
             } catch (notificationError) {
                 console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
                 toast.warning('Không thể gửi thông báo đến người dùng.');
@@ -542,13 +556,7 @@ function OrderStatus() {
                 await axios.post('http://localhost:8080/api/thong-bao', userNotification, {
                     headers: { 'Content-Type': 'application/json' },
                 });
-                if (stompClient) {
-                    stompClient.send(
-                        `/app/user/${orderData.taiKhoan.id}/notifications`,
-                        {},
-                        JSON.stringify(userNotification),
-                    );
-                }
+                safeStompSend(`/app/user/${orderData.taiKhoan.id}/notifications`, {}, JSON.stringify(userNotification));
             } catch (notificationError) {
                 console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
                 toast.warning('Không thể gửi thông báo đến người dùng.');
@@ -618,13 +626,7 @@ function OrderStatus() {
                 await axios.post('http://localhost:8080/api/thong-bao', userNotification, {
                     headers: { 'Content-Type': 'application/json' },
                 });
-                if (stompClient) {
-                    stompClient.send(
-                        `/app/user/${orderData.taiKhoan.id}/notifications`,
-                        {},
-                        JSON.stringify(userNotification),
-                    );
-                }
+                safeStompSend(`/app/user/${orderData.taiKhoan.id}/notifications`, {}, JSON.stringify(userNotification));
             } catch (notificationError) {
                 console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
                 toast.warning('Không thể gửi thông báo đến người dùng.');

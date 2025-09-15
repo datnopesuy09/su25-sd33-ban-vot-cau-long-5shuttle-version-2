@@ -48,6 +48,7 @@ public class UserService {
     HoaDonMapper hoaDonMapper;
     HoaDonCTRepository hoaDonCTRepository;
     HoaDonChiTietMapper hoaDonCTMapper;
+    com.example.da_be.repository.HinhAnhRepository hinhAnhRepository;
 
     public UserResponse createUser(UserCreationRequest request){
         if(userRepository.existsByEmail(request.getEmail()))
@@ -140,7 +141,18 @@ public class UserService {
 
         List<HoaDonCT> hdct = hoaDonCTRepository.findByHoaDonId(idHoaDon);
 
-        return hdct.stream().map(hoaDonCTMapper::toHoaDonChiTietResponse).toList();
+        return hdct.stream().map(hd -> {
+            var resp = hoaDonCTMapper.toHoaDonChiTietResponse(hd);
+            try {
+                Integer spctId = hd.getSanPhamCT().getId();
+                String url = hinhAnhRepository.findFirstBySanPhamCT_Id(spctId)
+                        .map(com.example.da_be.entity.HinhAnh::getLink)
+                        .orElse(null);
+                resp.setHinhAnhUrl(url);
+            } catch (Exception ignored) {
+            }
+            return resp;
+        }).toList();
     }
 
     public HoaDonResponse updateMyOrderStatus(Integer idHoaDon, int newStatus) {

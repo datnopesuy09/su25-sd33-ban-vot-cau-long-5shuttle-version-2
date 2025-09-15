@@ -101,7 +101,9 @@ const Cart = () => {
                     };
                 }),
             },
-            contactMethod: 'phone',
+            // Do not default to 'phone' here; leave null so admin doesn't see a contact method
+            // until the customer explicitly chooses one (phone, zalo, email, visit)
+            contactMethod: null,
         };
     };
 
@@ -227,7 +229,8 @@ const Cart = () => {
         const id = await ensureBulkInquiry();
         if (id) {
             try {
-                await bulkOrderAPI.updateInquiryStatus(id, 'contacted');
+                // Update contact method and mark as contacted
+                await bulkOrderAPI.updateInquiryContactMethod(id, method);
                 await bulkOrderAPI.trackInteraction({
                     inquiryId: id,
                     type: 'contact_method',
@@ -396,6 +399,7 @@ const Cart = () => {
                     onContactStaff={handleContactStaff}
                     onContinueNormal={handleContinueNormal}
                     showModal={showBulkModal}
+                    onClose={() => setShowBulkModal(false)}
                 />
             </div>
         </div>

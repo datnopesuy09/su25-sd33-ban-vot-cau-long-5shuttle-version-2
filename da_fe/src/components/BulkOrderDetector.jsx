@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, PhoneCall, MessageCircle, ShoppingCart, AlertTriangle, UserCheck, Clock } from 'lucide-react';
+import { X, Users, PhoneCall, MessageCircle, ShoppingCart, AlertTriangle, UserCheck, Clock } from 'lucide-react';
 
 const BulkOrderDetector = ({
     cartItems = [],
@@ -7,6 +7,7 @@ const BulkOrderDetector = ({
     totalValue = 0,
     onContactStaff = () => {},
     onContinueNormal = () => {},
+    onClose = () => {},
     showModal = false, // Thêm prop để manual control
 }) => {
     const [showBulkModal, setShowBulkModal] = useState(false);
@@ -117,7 +118,20 @@ Vui lòng liên hệ tư vấn giá tốt nhất. Cảm ơn!`;
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
                 {/* Header */}
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-2xl">
+                <div className="relative bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-2xl">
+                    {/* Close (X) button */}
+                    <button
+                        aria-label="Close bulk order modal"
+                        onClick={() => {
+                            setShowBulkModal(false);
+                            setHasUserDismissed(true);
+                            onClose();
+                        }}
+                        className="absolute top-3 right-3 bg-white/20 hover:bg-white/30 rounded-full p-1 transition-colors"
+                    >
+                        <X className="w-4 h-4 text-white" />
+                    </button>
+
                     <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 bg-white/20 rounded-lg">
                             <Users className="w-6 h-6" />

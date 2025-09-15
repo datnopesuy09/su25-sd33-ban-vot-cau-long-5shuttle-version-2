@@ -6,13 +6,15 @@ const bulkOrderAPI = {
     // Tạo yêu cầu bulk order mới
     createBulkOrderInquiry: async (inquiryData) => {
         try {
-            const response = await axios.post(`${API_BASE_URL}/bulk-orders/inquiries`, {
+            const payload = {
                 customerInfo: inquiryData.customerInfo,
                 orderData: inquiryData.orderData, // bao gồm cả cartItems nếu có
                 contactMethod: inquiryData.contactMethod,
                 createdAt: new Date().toISOString(),
                 status: 'pending',
-            });
+            };
+            console.debug('[bulkOrderAPI] createBulkOrderInquiry payload:', payload);
+            const response = await axios.post(`${API_BASE_URL}/bulk-orders/inquiries`, payload);
             return response.data.result;
         } catch (error) {
             console.error('Error creating bulk order inquiry:', error);
@@ -69,6 +71,24 @@ const bulkOrderAPI = {
             return response.data.result;
         } catch (error) {
             console.error('Error updating inquiry status:', error);
+            throw error;
+        }
+    },
+
+    // Cập nhật phương thức liên hệ cho inquiry và đánh dấu là đã liên hệ
+    updateInquiryContactMethod: async (id, contactMethod) => {
+        try {
+            const payload = {
+                status: 'contacted',
+                contactMethod,
+                updatedAt: new Date().toISOString(),
+            };
+            console.debug('[bulkOrderAPI] updateInquiryContactMethod id:', id, 'payload:', payload);
+            const response = await axios.patch(`${API_BASE_URL}/bulk-orders/inquiries/${id}/status`, payload);
+            console.debug('[bulkOrderAPI] updateInquiryContactMethod response:', response?.data);
+            return response.data.result;
+        } catch (error) {
+            console.error('Error updating inquiry contact method:', error);
             throw error;
         }
     },
