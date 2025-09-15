@@ -131,6 +131,77 @@ function OrderStatus() {
         // Refresh incidents list by triggering re-fetch
         console.log('New incident reported:', newIncident);
         setIncidentRefreshTrigger((prev) => prev + 1);
+
+        // Try to mark the order as "on hold" due to incident.
+        // We'll use status code 10 for frontend-only "Có sự cố - Tạm dừng vận chuyển".
+        // Attempt to update backend; if it fails, keep local state so UI is locked until handled.
+        (async () => {
+            const incidentSummary = `${newIncident.loaiSuCo || 'SU_CO'} (ID:${newIncident.id})`;
+            try {
+                // Try to update backend to a special incident status (10). Backend may reject unknown codes.
+                const res = await fetch(`http://localhost:8080/api/hoa-don/${hoaDonId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(10),
+                });
+
+                if (res.ok) {
+                    console.log('Backend accepted incident status 10');
+                    setCurrentOrderStatus(10);
+                    await saveOrderHistory(10, `Ghi nhận sự cố: ${incidentSummary} - ${newIncident.moTa || ''}`);
+                } else {
+                    console.warn('Backend rejected incident status 10, using local on-hold state');
+                    // Keep local state: mark as on-hold so UI is locked and history recorded locally
+                    setCurrentOrderStatus(10);
+                    await saveOrderHistory(
+                        10,
+                        `Ghi nhận sự cố (local): ${incidentSummary} - ${newIncident.moTa || ''}`,
+                    );
+                }
+            } catch (err) {
+                console.warn('Error while trying to update order status for incident:', err);
+                // Fallback to local on-hold state and save history
+                setCurrentOrderStatus(10);
+                try {
+                    await saveOrderHistory(
+                        10,
+                        `Ghi nhận sự cố (local-error): ${incidentSummary} - ${newIncident.moTa || ''}`,
+                    );
+                } catch (err2) {
+                    console.error('Failed saving order history after incident:', err2);
+                }
+            }
+
+            // Send an internal notification via API (best-effort) and via STOMP topic for internal teams
+            const internalNotification = {
+                tieuDe: 'Sự cố vận chuyển nội bộ',
+                noiDung: `Đơn #${orderData.ma} gặp sự cố: ${newIncident.loaiSuCo}. Xem chi tiết trong mục Sự cố vận chuyển.`,
+                idRedirect: `/admin/hoa-don/${hoaDonId}`,
+                kieuThongBao: 'warning',
+                trangThai: 0,
+                meta: { incidentId: newIncident.id, hoaDonId: hoaDonId },
+            };
+
+            try {
+                // Best-effort POST; backend may accept generic notifications
+                await axios.post('http://localhost:8080/api/thong-bao', internalNotification, {
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            } catch (err) {
+                console.warn('Internal notification API failed (non-blocking):', err);
+            }
+
+            // Send STOMP message to an internal topic so connected services/users can react
+            try {
+                safeStompSend(
+                    '/app/internal/incidents',
+                    {},
+                    JSON.stringify({ type: 'NEW_INCIDENT', data: internalNotification }),
+                );
+            } catch (err) {
+                console.warn('STOMP internal incident send failed (non-blocking):', err);
+            }
+        })();
     };
 
     // Hàm để lưu lịch sử đơn hàng khi thay đổi trạng thái
@@ -181,7 +252,6 @@ function OrderStatus() {
                 });
             });
             setStompClient(client);
-
 
             return () => {
                 if (client) client.disconnect();
@@ -346,7 +416,11 @@ function OrderStatus() {
                 await axios.post('http://localhost:8080/api/thong-bao', userNotification, {
                     headers: { 'Content-Type': 'application/json' },
                 });
-                safeStompSend(`/app/user/${orderData.taiKhoan?.id}/notifications`, {}, JSON.stringify(userNotification));
+                safeStompSend(
+                    `/app/user/${orderData.taiKhoan?.id}/notifications`,
+                    {},
+                    JSON.stringify(userNotification),
+                );
             } catch (notificationError) {
                 console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
                 toast.warning('Không thể gửi thông báo đến người dùng.');
@@ -432,6 +506,8 @@ function OrderStatus() {
                 return { label: 'Trả hàng', color: 'bg-red-400 text-white' };
             case 9:
                 return { label: 'Chờ nhập hàng', color: 'bg-orange-200 text-orange-800' };
+            case 10:
+                return { label: 'Có sự cố - Tạm dừng vận chuyển', color: 'bg-yellow-100 text-yellow-800' };
             default:
                 return { label: 'Không xác định', color: 'bg-gray-200 text-gray-800' };
         }
@@ -457,6 +533,8 @@ function OrderStatus() {
                 return { label: 'Trả hàng', color: '#f54278', icon: RotateCcw };
             case 9:
                 return { label: 'Chờ nhập hàng', color: '#ff9800', icon: AlertCircle };
+            case 10:
+                return { label: 'Có sự cố - Tạm dừng vận chuyển', color: '#f59e0b', icon: AlertTriangle };
             default:
                 return { label: 'Không xác định', color: '#f54278', icon: AlertCircle };
         }
@@ -1121,7 +1199,7 @@ function OrderStatus() {
             </div>
 
             {/* Sự cố vận chuyển - chỉ hiển thị khi đơn hàng đang vận chuyển hoặc có sự cố */}
-            {(currentOrderStatus === 3 || currentOrderStatus === 4) && (
+            {(currentOrderStatus === 3 || currentOrderStatus === 4 || currentOrderStatus === 10) && (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 max-w-5xl mx-auto mt-8">
                     <div className="p-6 border-b border-gray-200">
                         <div className="flex items-center justify-between">

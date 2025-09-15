@@ -104,6 +104,8 @@ function Order() {
                 return { label: 'Đã hủy', color: 'bg-red-200 text-red-800' };
             case 8:
                 return { label: 'Trả hàng', color: 'bg-red-400 text-white' };
+            case 10:
+                return { label: 'Có sự cố', color: 'bg-orange-200 text-orange-800' };
             // case 9:
             //     return { label: 'Chờ nhập hàng', color: 'bg-orange-200 text-orange-800' };
             default:
@@ -122,6 +124,7 @@ function Order() {
         { label: 'HOÀN THÀNH', value: '6' },
         { label: 'ĐÃ HỦY', value: '7' },
         { label: 'TRẢ HÀNG', value: '8' },
+        { label: 'CÓ SỰ CỐ', value: '10' },
     ];
 
     const indexOfLastOrder = currentPage * ordersPerPage;
