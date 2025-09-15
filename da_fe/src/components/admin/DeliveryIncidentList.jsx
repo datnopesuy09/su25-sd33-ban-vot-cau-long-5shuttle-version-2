@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { AlertTriangle, MapPin, Clock, User, FileText, Camera, CheckCircle, XCircle, Eye } from 'lucide-react';
 import axios from 'axios';
 
-const DeliveryIncidentList = ({ hoaDonId, refreshTrigger }) => {
+const DeliveryIncidentList = ({ hoaDonId, refreshTrigger, onIncidentResolved, stompClient, adminId }) => {
     const [incidents, setIncidents] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedIncident, setSelectedIncident] = useState(null);
@@ -56,6 +56,96 @@ const DeliveryIncidentList = ({ hoaDonId, refreshTrigger }) => {
             fetchIncidents(); // Refresh list
         } catch (error) {
             console.error('Lỗi khi cập nhật trạng thái sự cố:', error);
+        }
+    };
+
+    // Resolve incident with additional resolution info and perform follow-up actions
+    const resolveIncident = async (incident) => {
+        try {
+            // Prepare resolution payload: set trangThai=1 and add ghiChu as resolution note
+            // Format ngayXayRa to match backend expected pattern: yyyy-MM-dd'T'HH:mm (no seconds)
+            const formatDateForBackend = (raw) => {
+                try {
+                    const d = new Date(raw);
+                    const pad = (n) => String(n).padStart(2, '0');
+                    const yyyy = d.getFullYear();
+                    const MM = pad(d.getMonth() + 1);
+                    const dd = pad(d.getDate());
+                    const hh = pad(d.getHours());
+                    const mm = pad(d.getMinutes());
+                    return `${yyyy}-${MM}-${dd}T${hh}:${mm}`;
+                } catch (e) {
+                    return raw;
+                }
+            };
+
+            const payload = {
+                hoaDonId: incident.hoaDonId,
+                loaiSuCo: incident.loaiSuCo,
+                moTa: incident.moTa,
+                diaDiem: incident.diaDiem,
+                ngayXayRa: formatDateForBackend(incident.ngayXayRa),
+                nguoiBaoCao: incident.nguoiBaoCao,
+                trangThai: 1,
+                ghiChu: (incident.ghiChu ? incident.ghiChu + '\n' : '') + 'Đã giải quyết bởi hệ thống',
+                hinhAnh: incident.hinhAnh,
+            };
+
+            // Update incident record (PUT /api/su-co-van-chuyen/{id}) so backend can store resolution and timestamps
+            await axios.put(`http://localhost:8080/api/su-co-van-chuyen/${incident.id}`, payload);
+
+            // Business logic: decide next order status. We'll attempt to set order to 'Đang vận chuyển' (3) as default
+            // If the incident type implies delivery completed, caller can change this logic. Here we choose 3.
+            try {
+                // Use fetch with JSON body and Content-Type to match backend expectations
+                const res = await fetch(`http://localhost:8080/api/hoa-don/${incident.hoaDonId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(3),
+                });
+                if (!res.ok) {
+                    throw new Error('Order status update failed');
+                }
+            } catch (e) {
+                console.warn('Không thể cập nhật trạng thái hóa đơn sang 3:', e?.message || e);
+            }
+
+            // Send notification to customer about resolution
+            try {
+                const notify = {
+                    tieuDe: 'Sự cố vận chuyển đã được xử lý',
+                    noiDung: `Sự cố liên quan đến đơn ${incident.maHoaDon || incident.hoaDonId} đã được xử lý. Thời gian giao dự kiến sẽ được cập nhật sớm.`,
+                    loai: 'SUCOVANCHUYEN',
+                    taiKhoanId: incident.taiKhoanId || incident.nguoiBaoCao || null,
+                };
+                await axios.post('http://localhost:8080/api/thong-bao', notify);
+
+                // publish via STOMP to user queue if client exists
+                if (stompClient && stompClient.connected) {
+                    const dest = `/app/user/${incident.taiKhoanId || incident.nguoiBaoCao}/queue/notifications`;
+                    stompClient.send(dest, {}, JSON.stringify(notify));
+                }
+            } catch (e) {
+                console.warn('Không thể gửi thông báo khách hàng:', e?.message || e);
+            }
+
+            // Audit: record who resolved the incident
+            try {
+                const params = new URLSearchParams();
+                params.append('hoaDonId', incident.hoaDonId);
+                params.append('userId', adminId || 1);
+                params.append('moTa', `Sự cố đã được giải quyết. IncidentId=${incident.id}`);
+                params.append('trangThaiHoaDon', 'Có sự cố - Đã giải quyết');
+                await axios.post(`http://localhost:8080/api/lich-su-don-hang/add-status-change?${params.toString()}`);
+            } catch (e) {
+                console.warn('Không thể ghi audit lịch sử đơn hàng:', e?.message || e);
+            }
+
+            // Refresh and call parent callback so parent can unlock UI or take further actions
+            fetchIncidents();
+            if (typeof onIncidentResolved === 'function') onIncidentResolved(incident);
+        } catch (error) {
+            console.error('Lỗi khi đánh dấu sự cố đã giải quyết:', error);
         }
     };
 
@@ -232,7 +322,7 @@ const DeliveryIncidentList = ({ hoaDonId, refreshTrigger }) => {
                                     {incident.trangThai === 0 && (
                                         <>
                                             <button
-                                                onClick={() => updateIncidentStatus(incident.id, 1)}
+                                                onClick={() => resolveIncident(incident)}
                                                 className="px-3 py-2 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors flex items-center space-x-1"
                                             >
                                                 <CheckCircle className="w-4 h-4" />

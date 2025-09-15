@@ -1221,7 +1221,29 @@ function OrderStatus() {
                     </div>
 
                     <div className="p-6">
-                        <DeliveryIncidentList hoaDonId={hoaDonId} refreshTrigger={incidentRefreshTrigger} />
+                        <DeliveryIncidentList
+                            hoaDonId={hoaDonId}
+                            refreshTrigger={incidentRefreshTrigger}
+                            stompClient={stompClient}
+                            adminId={admin?.id}
+                            onIncidentResolved={async (incident) => {
+                                try {
+                                    // Use existing updateOrderStatus helper to ensure notifications and history are created consistently
+                                    if (currentOrderStatus === 10) {
+                                        await updateOrderStatus(
+                                            3,
+                                            `Gỡ khoá sau khi giải quyết sự cố (IncidentId=${incident.id})`,
+                                        );
+                                    }
+
+                                    // Refresh order details
+                                    fetchBillDetails(hoaDonId);
+                                    fetchOrderHistory();
+                                } catch (err) {
+                                    console.error('Error in onIncidentResolved handler:', err);
+                                }
+                            }}
+                        />
                     </div>
                 </div>
             )}
