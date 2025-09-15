@@ -38,7 +38,8 @@ import java.util.Set;
 @Service
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @RequiredArgsConstructor
-public class UserService {
+public class
+UserService {
 
     UserRepository userRepository;
     UserMapper userMapper;
