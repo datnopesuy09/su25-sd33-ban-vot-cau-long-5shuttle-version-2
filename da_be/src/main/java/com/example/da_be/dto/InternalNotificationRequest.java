@@ -24,3 +24,7 @@ public class InternalNotificationRequest {
     public void setRequiresAction(Boolean requiresAction) { this.requiresAction = requiresAction; }
 }
 
+
+
+
+

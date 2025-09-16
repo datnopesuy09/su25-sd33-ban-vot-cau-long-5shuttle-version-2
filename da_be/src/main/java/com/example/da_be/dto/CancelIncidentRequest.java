@@ -16,3 +16,7 @@ public class CancelIncidentRequest {
     public void setAdminId(Integer adminId) { this.adminId = adminId; }
 }
 
+
+
+
+

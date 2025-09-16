@@ -19,3 +19,7 @@ public class InternalNotificationResponse {
     public void setMessage(String message) { this.message = message; }
 }
 
+
+
+
+
