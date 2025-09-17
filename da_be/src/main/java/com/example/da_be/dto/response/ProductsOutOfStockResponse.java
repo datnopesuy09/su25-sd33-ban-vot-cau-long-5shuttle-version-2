@@ -1,4 +1,5 @@
 package com.example.da_be.dto.response;
+
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -11,10 +12,11 @@ import java.math.BigDecimal;
 @Setter
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class TopSellingProductResponse {
-    String tenSanPham;
-    Integer soLuongDaBan;
-    BigDecimal giaTien;
+public class ProductsOutOfStockResponse {
 
+    String tenSanPham;
+    Integer soLuong;
+    BigDecimal donGia;
+    String hinhAnh;
 
 }

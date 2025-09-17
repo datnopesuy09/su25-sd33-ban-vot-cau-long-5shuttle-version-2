@@ -1,8 +1,10 @@
 package com.example.da_be.mapper;
 
+import com.example.da_be.dto.response.ProductsOutOfStockResponse;
 import com.example.da_be.dto.response.ThongKeResponse;
 import com.example.da_be.dto.response.TopSellingProductResponse;
 import com.example.da_be.repository.OrderStatsProjection;
+import com.example.da_be.repository.ProductsOutOfStockProjection;
 import com.example.da_be.repository.TopSellingProductProjection;
 import org.mapstruct.Mapper;
 
@@ -17,4 +19,5 @@ public interface ThongKeMapper {
 
     List<TopSellingProductResponse> toTopSellingProductResponseList(List<TopSellingProductProjection> projections);
 
+    List<ProductsOutOfStockResponse> toProductsOutOfStockResponseList(List<ProductsOutOfStockProjection> projections);
 }

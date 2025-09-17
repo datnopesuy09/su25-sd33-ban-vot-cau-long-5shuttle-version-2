@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 @Repository
 public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
@@ -220,4 +221,29 @@ public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
         ORDER BY soLuongDaBan DESC
     """, nativeQuery = true)
     List<TopSellingProductProjection> findTopSellingProductsByDateRange(@Param("fromDate") Date fromDate, @Param("toDate") Date toDate);
+
+    @Query(value = """
+        SELECT
+            CONCAT_WS(' - ', sp.Ten, ms.Ten, cl.Ten, th.Ten, tl.Ten, dc.Ten) AS tenSanPham,
+            spct.SoLuong AS soLuong,
+            spct.DonGia AS donGia,
+            (
+                SELECT ha.Link
+                FROM 5SHUTTLE.HinhAnh ha
+                WHERE ha.IdSanPhamCT = spct.Id
+                ORDER BY ha.Id ASC
+                LIMIT 1
+            ) AS hinhAnh
+        FROM 5SHUTTLE.SanPhamCT spct
+        JOIN 5SHUTTLE.SanPham sp ON spct.IdSanPham = sp.Id
+        LEFT JOIN 5SHUTTLE.MauSac ms ON spct.IdMauSac = ms.Id
+        LEFT JOIN 5SHUTTLE.ChatLieu cl ON spct.IdChatLieu = cl.Id
+        LEFT JOIN 5SHUTTLE.ThuongHieu th ON spct.IdThuongHieu = th.Id
+        LEFT JOIN 5SHUTTLE.TrongLuong tl ON spct.IdTrongLuong = tl.Id
+        LEFT JOIN 5SHUTTLE.DiemCanBang dcb ON spct.IdDiemCanBang = dcb.Id
+        LEFT JOIN 5SHUTTLE.DoCung dc ON spct.IdDoCung = dc.Id
+        ORDER BY spct.SoLuong ASC
+        LIMIT 5;
+    """, nativeQuery = true)
+    List<ProductsOutOfStockProjection> findProductsOutOfStock();
 }

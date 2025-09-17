@@ -24,4 +24,5 @@ public class SanPhamCTResponse {
     private String tenDiemCanBang;
 
     private String tenDoCung;
+
 }
