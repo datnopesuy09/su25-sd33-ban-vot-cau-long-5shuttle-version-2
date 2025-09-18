@@ -269,18 +269,30 @@ function OrderStatus() {
         }
     }, [orderData.id]);
 
+    // Discount validation logic (same as CheckOut.jsx)
+    function validateDiscount(subtotal, voucher) {
+        if (!voucher) return 0;
+        if (subtotal < (voucher.dieuKienNhoNhat || 0)) return 0;
+        let discountAmount = (subtotal * (voucher.giaTri || 0)) / 100;
+        if (voucher.giaTriMax && discountAmount > voucher.giaTriMax) {
+            discountAmount = voucher.giaTriMax;
+        }
+        return discountAmount;
+    }
+
     useEffect(() => {
         const newSubtotal = orderDetailDatas.reduce((sum, item) => {
             return sum + item.sanPhamCT.donGia * item.soLuong;
         }, 0);
 
-        const newDiscountAmount = (newSubtotal * discountPercent) / 100;
+        let voucher = orderData.voucher || null;
+        const newDiscountAmount = validateDiscount(newSubtotal, voucher);
         const newTotal = newSubtotal - newDiscountAmount + shippingFee;
 
         setSubtotal(newSubtotal);
         setDiscountAmount(newDiscountAmount);
         setTotal(newTotal);
-    }, [orderDetailDatas, discountPercent]);
+    }, [orderDetailDatas, orderData.voucher]);
 
     useEffect(() => {
         if (orderData.voucher) {
@@ -1341,6 +1353,7 @@ function OrderStatus() {
                 setDiscountPercent={setDiscountPercent}
                 total={total}
                 discountAmount={discountAmount}
+                subtotal={subtotal}
             />
             <PaymentModal
                 isOpen={isModalOpen}

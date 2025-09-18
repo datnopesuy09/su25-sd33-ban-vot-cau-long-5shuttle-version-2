@@ -9,6 +9,7 @@ const PaymentDetails = ({
     setDiscountPercent,
     total,
     discountAmount,
+    subtotal,
 }) => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
@@ -87,7 +88,7 @@ const PaymentDetails = ({
                                         <div className="flex justify-between items-center text-sm">
                                             <span className="text-gray-700">Tổng tiền hàng:</span>
                                             <span className="font-semibold text-gray-900">
-                                                {(total - 30000).toLocaleString()} VNĐ
+                                                {subtotal.toLocaleString()} VNĐ
                                             </span>
                                         </div>
 
