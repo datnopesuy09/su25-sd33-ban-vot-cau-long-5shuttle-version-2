@@ -4,9 +4,10 @@ import java.math.BigDecimal;
 
 public interface OrderStatsProjection {
     BigDecimal getTongTien();
-    Integer getTongSanPham();
-    Integer getTongDonThanhCong();
-    Integer getTongDonHuy();
-    Integer getTongDonTra();
+    Long getTongSanPham();
+    Long getTongSanPhamTra();
+    Long getTongDonThanhCong();
+    Long getTongDonHuy();
+    Long getTongDonTra();
 
 }

@@ -15,99 +15,128 @@ public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
 
     @Query(value = """
         SELECT
-            COALESCE(SUM(h.TongTien), 0) AS tongTien,
-            SUM(COALESCE(hdct_agg.total_so_luong, 0)) AS tongSanPham,
-            COUNT(CASE WHEN h.TrangThai = 6 THEN h.Id END) AS tongDonThanhCong,
-            COUNT(CASE WHEN h.TrangThai = 7 THEN h.Id END) AS tongDonHuy,
-            COUNT(CASE WHEN h.TrangThai = 8 THEN h.Id END) AS tongDonTra
+            COALESCE(SUM(hdct.SoLuong * hdct.GiaBan), 0)
+              - COALESCE(SUM(ptrct.SoLuongPheDuyet * hdct.GiaBan), 0) AS tongTien,
+            COALESCE(SUM(hdct.SoLuong), 0)
+              - COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPham,
+            COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPhamTra,
+            SUM(CASE WHEN h.TrangThai = 6 THEN 1 ELSE 0 END) AS tongDonThanhCong,
+            SUM(CASE WHEN h.TrangThai = 7 THEN 1 ELSE 0 END) AS tongDonHuy,
+            SUM(CASE WHEN h.TrangThai = 8 THEN 1 ELSE 0 END) AS tongDonTra
         FROM 5SHUTTLE.HoaDon h
-        LEFT JOIN (
-            SELECT
-                hdct.IdHoaDon,
-                SUM(hdct.SoLuong) AS total_so_luong
-            FROM 5SHUTTLE.HoaDonCT hdct
-            GROUP BY hdct.IdHoaDon
-        ) AS hdct_agg ON h.Id = hdct_agg.IdHoaDon
-        WHERE h.NgayTao >= CURDATE() AND h.NgayTao < CURDATE() + INTERVAL 1 DAY;
+        JOIN 5SHUTTLE.HoaDonCT hdct
+            ON h.Id = hdct.IdHoaDon
+        LEFT JOIN 5SHUTTLE.PhieuTraHang ptr
+            ON ptr.IdHoaDon = h.Id
+           AND ptr.TrangThai = 'APPROVED'
+        LEFT JOIN 5SHUTTLE.PhieuTraHangCT ptrct
+            ON ptrct.IdPhieuTraHang = ptr.Id
+           AND ptrct.IdHoaDonCT = hdct.Id
+        WHERE hdct.TrangThai = 6
+          AND h.NgayTao >= CURDATE()
+          AND h.NgayTao < CURDATE() + INTERVAL 1 DAY;
     """, nativeQuery = true)
     OrderStatsProjection getStatsByCurrentDate();
 
     @Query(value = """
         SELECT
-            COALESCE(SUM(h.TongTien), 0) AS tongTien,
-            SUM(COALESCE(hdct_agg.total_so_luong, 0)) AS tongSanPham,
-            COUNT(CASE WHEN h.TrangThai = 6 THEN h.Id END) AS tongDonThanhCong,
-            COUNT(CASE WHEN h.TrangThai = 7 THEN h.Id END) AS tongDonHuy,
-            COUNT(CASE WHEN h.TrangThai = 8 THEN h.Id END) AS tongDonTra
+            COALESCE(SUM(hdct.SoLuong * hdct.GiaBan), 0)\s
+              - COALESCE(SUM(ptrct.SoLuongPheDuyet * hdct.GiaBan), 0) AS tongTien,
+            COALESCE(SUM(hdct.SoLuong), 0)\s
+              - COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPham,
+            COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPhamTra,
+            SUM(CASE WHEN h.TrangThai = 6 THEN 1 ELSE 0 END) AS tongDonThanhCong,
+            SUM(CASE WHEN h.TrangThai = 7 THEN 1 ELSE 0 END) AS tongDonHuy,
+            SUM(CASE WHEN h.TrangThai = 8 THEN 1 ELSE 0 END) AS tongDonTra
         FROM 5SHUTTLE.HoaDon h
-        LEFT JOIN (
-            SELECT
-                hdct.IdHoaDon,
-                SUM(hdct.SoLuong) AS total_so_luong
-            FROM 5SHUTTLE.HoaDonCT hdct
-            GROUP BY hdct.IdHoaDon
-        ) AS hdct_agg ON h.Id = hdct_agg.IdHoaDon
-        WHERE h.NgayTao >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
+        JOIN 5SHUTTLE.HoaDonCT hdct
+            ON h.Id = hdct.IdHoaDon
+        LEFT JOIN 5SHUTTLE.PhieuTraHang ptr
+            ON ptr.IdHoaDon = h.Id
+           AND ptr.TrangThai = 'APPROVED'
+        LEFT JOIN 5SHUTTLE.PhieuTraHangCT ptrct
+            ON ptrct.IdPhieuTraHang = ptr.Id
+           AND ptrct.IdHoaDonCT = hdct.Id
+        WHERE hdct.TrangThai = 6
+          AND h.NgayTao >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
           AND h.NgayTao < DATE_ADD(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL 7 DAY);
+        
     """, nativeQuery = true)
     OrderStatsProjection getStatsByCurrentWeek();
 
     @Query(value = """
         SELECT
-            COALESCE(SUM(h.TongTien), 0) AS tongTien,
-            SUM(COALESCE(hdct_agg.total_so_luong, 0)) AS tongSanPham,
-            COUNT(CASE WHEN h.TrangThai = 6 THEN h.Id END) AS tongDonThanhCong,
-            COUNT(CASE WHEN h.TrangThai = 7 THEN h.Id END) AS tongDonHuy,
-            COUNT(CASE WHEN h.TrangThai = 8 THEN h.Id END) AS tongDonTra
+            COALESCE(SUM(hdct.SoLuong * hdct.GiaBan), 0)
+              - COALESCE(SUM(ptrct.SoLuongPheDuyet * hdct.GiaBan), 0) AS tongTien,
+            COALESCE(SUM(hdct.SoLuong), 0)
+              - COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPham,
+            COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPhamTra,
+            SUM(CASE WHEN h.TrangThai = 6 THEN 1 ELSE 0 END) AS tongDonThanhCong,
+            SUM(CASE WHEN h.TrangThai = 7 THEN 1 ELSE 0 END) AS tongDonHuy,
+            SUM(CASE WHEN h.TrangThai = 8 THEN 1 ELSE 0 END) AS tongDonTra
         FROM 5SHUTTLE.HoaDon h
-        LEFT JOIN (
-            SELECT
-                hdct.IdHoaDon,
-                SUM(hdct.SoLuong) AS total_so_luong
-            FROM 5SHUTTLE.HoaDonCT hdct
-            GROUP BY hdct.IdHoaDon
-        ) AS hdct_agg ON h.Id = hdct_agg.IdHoaDon
-        WHERE h.NgayTao >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
-        AND h.NgayTao < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01');
+        JOIN 5SHUTTLE.HoaDonCT hdct
+            ON h.Id = hdct.IdHoaDon
+        LEFT JOIN 5SHUTTLE.PhieuTraHang ptr
+            ON ptr.IdHoaDon = h.Id
+           AND ptr.TrangThai = 'APPROVED'
+        LEFT JOIN 5SHUTTLE.PhieuTraHangCT ptrct
+            ON ptrct.IdPhieuTraHang = ptr.Id
+           AND ptrct.IdHoaDonCT = hdct.Id
+        WHERE hdct.TrangThai = 6
+          AND h.NgayTao >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+          AND h.NgayTao < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01');
+        
     """, nativeQuery = true)
     OrderStatsProjection getStatsByCurrentMonth();
 
     @Query(value = """
         SELECT
-            COALESCE(SUM(h.TongTien), 0) AS tongTien,
-            SUM(COALESCE(hdct_agg.total_so_luong, 0)) AS tongSanPham,
-            COUNT(CASE WHEN h.TrangThai = 6 THEN h.Id END) AS tongDonThanhCong,
-            COUNT(CASE WHEN h.TrangThai = 7 THEN h.Id END) AS tongDonHuy,
-            COUNT(CASE WHEN h.TrangThai = 8 THEN h.Id END) AS tongDonTra
+            COALESCE(SUM(hdct.SoLuong * hdct.GiaBan), 0)
+              - COALESCE(SUM(ptrct.SoLuongPheDuyet * hdct.GiaBan), 0) AS tongTien,
+            COALESCE(SUM(hdct.SoLuong), 0)
+              - COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPham,
+            COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPhamTra,
+            SUM(CASE WHEN h.TrangThai = 6 THEN 1 ELSE 0 END) AS tongDonThanhCong,
+            SUM(CASE WHEN h.TrangThai = 7 THEN 1 ELSE 0 END) AS tongDonHuy,
+            SUM(CASE WHEN h.TrangThai = 8 THEN 1 ELSE 0 END) AS tongDonTra
         FROM 5SHUTTLE.HoaDon h
-        LEFT JOIN (
-            SELECT
-                hdct.IdHoaDon,
-                SUM(hdct.SoLuong) AS total_so_luong
-            FROM 5SHUTTLE.HoaDonCT hdct
-            GROUP BY hdct.IdHoaDon
-        ) AS hdct_agg ON h.Id = hdct_agg.IdHoaDon
-        WHERE h.NgayTao >= DATE_FORMAT(CURDATE(), '%Y-01-01')
-        AND h.NgayTao < DATE_FORMAT(CURDATE() + INTERVAL 1 YEAR, '%Y-01-01');
+        JOIN 5SHUTTLE.HoaDonCT hdct
+            ON h.Id = hdct.IdHoaDon
+        LEFT JOIN 5SHUTTLE.PhieuTraHang ptr
+            ON ptr.IdHoaDon = h.Id
+           AND ptr.TrangThai = 'APPROVED'
+        LEFT JOIN 5SHUTTLE.PhieuTraHangCT ptrct
+            ON ptrct.IdPhieuTraHang = ptr.Id
+           AND ptrct.IdHoaDonCT = hdct.Id
+        WHERE hdct.TrangThai = 6
+          AND h.NgayTao >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+          AND h.NgayTao < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01');
     """, nativeQuery = true)
     OrderStatsProjection getStatsByCurrentYear();
 
     @Query(value = """
         SELECT
-            COALESCE(SUM(h.TongTien), 0) AS tongTien,
-            SUM(COALESCE(hdct_agg.total_so_luong, 0)) AS tongSanPham,
-            COUNT(CASE WHEN h.TrangThai = 6 THEN h.Id END) AS tongDonThanhCong,
-            COUNT(CASE WHEN h.TrangThai = 7 THEN h.Id END) AS tongDonHuy,
-            COUNT(CASE WHEN h.TrangThai = 8 THEN h.Id END) AS tongDonTra
+            COALESCE(SUM(hdct.SoLuong * hdct.GiaBan), 0)
+              - COALESCE(SUM(ptrct.SoLuongPheDuyet * hdct.GiaBan), 0) AS tongTien,
+            COALESCE(SUM(hdct.SoLuong), 0)
+              - COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPham,
+            COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPhamTra,
+            SUM(CASE WHEN h.TrangThai = 6 THEN 1 ELSE 0 END) AS tongDonThanhCong,
+            SUM(CASE WHEN h.TrangThai = 7 THEN 1 ELSE 0 END) AS tongDonHuy,
+            SUM(CASE WHEN h.TrangThai = 8 THEN 1 ELSE 0 END) AS tongDonTra
         FROM 5SHUTTLE.HoaDon h
-        LEFT JOIN (
-            SELECT
-                hdct.IdHoaDon,
-                SUM(hdct.SoLuong) AS total_so_luong
-            FROM 5SHUTTLE.HoaDonCT hdct
-            GROUP BY hdct.IdHoaDon
-        ) AS hdct_agg ON h.Id = hdct_agg.IdHoaDon
-        WHERE DATE(h.NgayTao) >= :fromDate AND DATE(h.NgayTao) <= :toDate
+        JOIN 5SHUTTLE.HoaDonCT hdct
+            ON h.Id = hdct.IdHoaDon
+        LEFT JOIN 5SHUTTLE.PhieuTraHang ptr
+            ON ptr.IdHoaDon = h.Id
+           AND ptr.TrangThai = 'APPROVED'
+        LEFT JOIN 5SHUTTLE.PhieuTraHangCT ptrct
+            ON ptrct.IdPhieuTraHang = ptr.Id
+           AND ptrct.IdHoaDonCT = hdct.Id
+        WHERE hdct.TrangThai = 6
+          AND DATE(h.NgayTao) >= :fromDate
+          AND DATE(h.NgayTao) <= :toDate
     """, nativeQuery = true)
     OrderStatsProjection getStatsByDateRange(@Param("fromDate") Date fromDate, @Param("toDate") Date toDate);
 
@@ -130,6 +159,7 @@ public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
         LEFT JOIN 5SHUTTLE.DiemCanBang dcb ON spct.IdDiemCanBang = dcb.Id
         LEFT JOIN 5SHUTTLE.DoCung dc ON spct.IdDoCung = dc.Id
         WHERE hd.NgayTao >= CURDATE() AND hd.NgayTao < CURDATE() + INTERVAL 1 DAY
+        AND hdct.TrangThai = 6
         GROUP BY spct.Id, sp.Ten, ms.Ten, cl.Ten, th.Ten, tl.Ten, dcb.Ten, dc.Ten
         ORDER BY soLuongDaBan DESC
     """, nativeQuery = true)
@@ -152,6 +182,7 @@ public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
         LEFT JOIN 5SHUTTLE.DoCung dc ON spct.IdDoCung = dc.Id
         WHERE hd.NgayTao >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
           AND hd.NgayTao < DATE_ADD(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL 7 DAY)
+            AND hdct.TrangThai = 6
         GROUP BY spct.Id, sp.Ten, ms.Ten, cl.Ten, th.Ten, tl.Ten, dcb.Ten, dc.Ten
         ORDER BY soLuongDaBan DESC
     """, nativeQuery = true)
@@ -174,6 +205,7 @@ public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
         LEFT JOIN 5SHUTTLE.DoCung dc ON spct.IdDoCung = dc.Id
         WHERE hd.NgayTao >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
         AND hd.NgayTao < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01')
+            AND hdct.TrangThai = 6
         GROUP BY spct.Id, sp.Ten, ms.Ten, cl.Ten, th.Ten, tl.Ten, dcb.Ten, dc.Ten
         ORDER BY soLuongDaBan DESC
     """, nativeQuery = true)
@@ -196,6 +228,7 @@ public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
         LEFT JOIN 5SHUTTLE.DoCung dc ON spct.IdDoCung = dc.Id
         WHERE hd.NgayTao >= DATE_FORMAT(CURDATE(), '%Y-01-01')
         AND hd.NgayTao < DATE_FORMAT(CURDATE() + INTERVAL 1 YEAR, '%Y-01-01')
+            AND hdct.TrangThai = 6
         GROUP BY spct.Id, sp.Ten, ms.Ten, cl.Ten, th.Ten, tl.Ten, dcb.Ten, dc.Ten
         ORDER BY soLuongDaBan DESC
     """, nativeQuery = true)
@@ -217,6 +250,7 @@ public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
         LEFT JOIN 5SHUTTLE.DiemCanBang dcb ON spct.IdDiemCanBang = dcb.Id
         LEFT JOIN 5SHUTTLE.DoCung dc ON spct.IdDoCung = dc.Id
         WHERE DATE(hd.NgayTao) >= :fromDate AND DATE(hd.NgayTao) <= :toDate
+            AND hdct.TrangThai = 6
         GROUP BY spct.Id, sp.Ten, ms.Ten, cl.Ten, th.Ten, tl.Ten, dcb.Ten, dc.Ten
         ORDER BY soLuongDaBan DESC
     """, nativeQuery = true)
@@ -242,6 +276,7 @@ public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
         LEFT JOIN 5SHUTTLE.TrongLuong tl ON spct.IdTrongLuong = tl.Id
         LEFT JOIN 5SHUTTLE.DiemCanBang dcb ON spct.IdDiemCanBang = dcb.Id
         LEFT JOIN 5SHUTTLE.DoCung dc ON spct.IdDoCung = dc.Id
+        WHERE spct.TrangThai = 1
         ORDER BY spct.SoLuong ASC
         LIMIT 5;
     """, nativeQuery = true)
