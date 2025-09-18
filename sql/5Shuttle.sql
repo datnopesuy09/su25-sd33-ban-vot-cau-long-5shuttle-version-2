@@ -206,6 +206,7 @@ CREATE TABLE ThanhToan (
     TongTien DECIMAL(10,2),
     NgayTao DATETIME,
     PhuongThucThanhToan NVARCHAR(255),
+    GhiChu NVARCHAR(500),
     TrangThai INT,
     FOREIGN KEY (IdUser) REFERENCES User(Id),
     FOREIGN KEY (IdHoaDon) REFERENCES HoaDon(Id)

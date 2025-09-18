@@ -32,6 +32,9 @@ public class ThanhToan {
     @Column(name = "PhuongThucThanhToan")
     private String phuongThucThanhToan;
 
+    @Column(name = "GhiChu")
+    private String ghiChu;
+
     @Column(name = "TrangThai")
     private Integer trangThai;
 
@@ -89,6 +92,14 @@ public class ThanhToan {
 
     public void setPhuongThucThanhToan(String phuongThucThanhToan) {
         this.phuongThucThanhToan = phuongThucThanhToan;
+    }
+
+    public String getGhiChu() {
+        return ghiChu;
+    }
+
+    public void setGhiChu(String ghiChu) {
+        this.ghiChu = ghiChu;
     }
 
     public Integer getTrangThai() {

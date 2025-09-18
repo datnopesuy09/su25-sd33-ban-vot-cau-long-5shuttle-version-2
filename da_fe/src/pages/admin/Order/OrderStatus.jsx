@@ -807,12 +807,11 @@ function OrderStatus() {
         try {
             const newPayment = {
                 hoaDon: { id: hoaDonId },
-                taiKhoan: { id: orderData.taiKhoan?.id || 1 },
-                nhanVienXacNhan: { id: admin?.id, hoTen: admin?.hoTen }, // Thêm thông tin nhân viên xác nhận
+                taiKhoan: { id: admin?.id, hoTen: admin?.hoTen },
                 ma: `PT-${Date.now()}`,
                 tongTien: total,
                 phuongThucThanhToan: paymentMethod,
-                ghiChu: note,
+                ghiChu: note || null,
                 trangThai: 1,
                 ngayTao: new Date().toISOString(),
             };
