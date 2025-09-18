@@ -8,7 +8,7 @@ const DeliveryIncidentModal = ({ isOpen, onClose, orderData, hoaDonId, onInciden
         loaiSuCo: '',
         moTa: '',
         diaDiem: '',
-        ngayXayRa: new Date().toISOString().slice(0, 16),
+        ngayXayRa: new Date().toISOString().slice(0, 16), // Format cho datetime-local: yyyy-MM-ddTHH:mm
         trangThai: 0, // 0: Đang xử lý, 1: Đã giải quyết
         ghiChu: '',
         hinhAnh: [],
@@ -111,8 +111,11 @@ const DeliveryIncidentModal = ({ isOpen, onClose, orderData, hoaDonId, onInciden
 
             // Chuẩn hóa định dạng ngày (datetime-local trả về yyyy-MM-ddTHH:mm)
             let ngayXayRa = incidentData.ngayXayRa;
-            // Backend hiện dùng pattern yyyy-MM-dd'T'HH:mm nên KHÔNG thêm giây vào (tránh 400)
-            // Nếu muốn hỗ trợ giây, đổi pattern trong backend thành yyyy-MM-dd'T'HH:mm:ss và thêm :00 tại đây.
+            // Backend hiện dùng pattern yyyy-MM-dd'T'HH:mm:ss nên cần thêm giây vào
+            if (ngayXayRa && (ngayXayRa.match(/:/g) || []).length === 1) {
+                // Nếu chỉ có 1 dấu : (HH:mm), thêm :00
+                ngayXayRa = ngayXayRa + ':00';
+            }
 
             // Map loại sự cố sang enum backend (đã dùng chính value trùng enum nên chỉ cần toUpperCase safeguard)
             const enumLoaiSuCo = (incidentData.loaiSuCo || '').toUpperCase();
@@ -159,13 +162,49 @@ const DeliveryIncidentModal = ({ isOpen, onClose, orderData, hoaDonId, onInciden
                         headers: { 'Content-Type': 'application/json' },
                     });
 
-                    safeStompSendLocal(`/app/user/${orderData.taiKhoan.id}/notifications`, {}, JSON.stringify(userNotification));
+                    safeStompSendLocal(
+                        `/app/user/${orderData.taiKhoan.id}/notifications`,
+                        {},
+                        JSON.stringify(userNotification),
+                    );
                 } catch (notificationError) {
                     console.error('Lỗi khi gửi thông báo:', notificationError);
                 }
 
                 swal('Thành công', 'Đã ghi nhận sự cố vận chuyển thành công', 'success');
-                onIncidentReported && onIncidentReported(response.data.result);
+                const created = response.data.result;
+
+                // Best-effort: write an audit entry into order history so there's a trace of who reported the incident
+                (async () => {
+                    try {
+                        const admin = JSON.parse(localStorage.getItem('admin')) || { id: 1 };
+                        const desc = `Ghi nhận sự cố: ${created.loaiSuCo} - ${created.moTa || ''}`;
+                        const params = new URLSearchParams({
+                            hoaDonId: (hoaDonId || created.hoaDonId || created.idHoaDon || 0).toString(),
+                            userId: admin.id.toString(),
+                            moTa: desc,
+                            trangThaiHoaDon: 'Có sự cố - Tạm dừng vận chuyển',
+                        });
+                        await axios.post(
+                            `http://localhost:8080/api/lich-su-don-hang/add-status-change?${params.toString()}`,
+                        );
+                    } catch (auditErr) {
+                        console.warn('Audit log creation failed (non-blocking):', auditErr);
+                    }
+                })();
+
+                // Send internal STOMP notice for teams
+                try {
+                    safeStompSendLocal(
+                        '/app/internal/incidents',
+                        {},
+                        JSON.stringify({ type: 'NEW_INCIDENT', data: created }),
+                    );
+                } catch (err) {
+                    console.warn('DeliveryIncidentModal: internal stomp send failed:', err);
+                }
+
+                onIncidentReported && onIncidentReported(created);
                 onClose();
             } else {
                 const msg = response.data?.message || response.headers['x-error-message'] || 'Tạo sự cố thất bại';

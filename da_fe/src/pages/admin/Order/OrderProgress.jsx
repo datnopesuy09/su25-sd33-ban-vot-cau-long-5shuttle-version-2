@@ -462,9 +462,16 @@ const OrderProgress = ({
                                         Số lượng sản phẩm đã được hoàn lại vào kho. Không thể thực hiện thêm thao tác
                                         nào trên đơn hàng này.
                                     </p>
-                                    <div className="mt-2 text-xs text-red-600">
-                                        <span className="font-medium">Lưu ý:</span> Chức năng Force hoàn kho đã bị vô
-                                        hiệu hóa
+                                    <div className="mt-2 text-xs text-red-600 space-y-1">
+                                        <div>
+                                            <span className="font-medium">Lưu ý:</span> Chức năng Force hoàn kho đã bị vô hiệu hóa
+                                        </div>
+                                        <div className="bg-red-100 p-2 rounded text-xs">
+                                            <span className="font-medium">Nếu đơn hàng bị hủy do sự cố vận chuyển:</span>
+                                            <br />• Quy trình hoàn tiền đã được khởi tạo tự động
+                                            <br />• Khách hàng sẽ nhận được thông báo chi tiết
+                                            <br />• Yêu cầu bồi thường với đơn vị vận chuyển đã được tạo
+                                        </div>
                                     </div>
                                 </div>
                             </div>

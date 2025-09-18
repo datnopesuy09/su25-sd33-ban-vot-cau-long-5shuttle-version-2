@@ -22,7 +22,7 @@ function parseJwt(token) {
                 .join(''),
         );
         return JSON.parse(jsonPayload);
-    } catch (e) {
+    } catch {
         return {};
     }
 }
@@ -37,7 +37,6 @@ export default function ProductDetail() {
     const [quantity, setQuantity] = useState(1);
     const [currentImages, setCurrentImages] = useState([]);
     const [mainImage, setMainImage] = useState('');
-    const [currentPrice, setCurrentPrice] = useState(0);
     const [currentQuantity, setCurrentQuantity] = useState(0);
     const { setCartItemCount } = useContext(CartContext);
     const { user } = useUserAuth();
@@ -62,8 +61,9 @@ export default function ProductDetail() {
                 const firstVariant = productData.variants.find(
                     (v) => v.mauSacTen === productData.mauSac[0] && v.trongLuongTen === productData.trongLuong[0],
                 );
+                // price is read directly from variant when rendering; no local currentPrice needed
                 if (firstVariant) {
-                    setCurrentPrice(firstVariant.giaKhuyenMai || firstVariant.donGia);
+                    // noop
                 }
             } catch (error) {
                 console.error('Lấy chi tiết sản phẩm thất bại', error);
@@ -84,7 +84,6 @@ export default function ProductDetail() {
             if (selectedVariant) {
                 setCurrentImages(selectedVariant.hinhAnhUrls);
                 setMainImage(selectedVariant.hinhAnhUrls[0]);
-                setCurrentPrice(selectedVariant.giaKhuyenMai || selectedVariant.donGia);
                 setCurrentQuantity(selectedVariant.soLuong);
                 setQuantity(1);
             }
@@ -185,8 +184,9 @@ export default function ProductDetail() {
                 const latestCartItem = cartResponse.data.find((item) => item.sanPhamCT.id === selectedVariant.id);
 
                 if (latestCartItem) {
-                    // Chuyển đến trang checkout với item đã chọn
-                    navigate('/gio-hang/checkout', {
+                    // Chuyển đến trang giỏ hàng với item đã được tích sẵn
+                    // Người dùng chỉ cần nhấn 'Tiến hành thanh toán' trên trang giỏ hàng
+                    navigate('/gio-hang', {
                         state: {
                             selectedItems: [latestCartItem.id],
                             buyNow: true,
@@ -484,9 +484,7 @@ export default function ProductDetail() {
                                                     if (foundVariant) {
                                                         setCurrentImages(foundVariant.hinhAnhUrls);
                                                         setMainImage(foundVariant.hinhAnhUrls[0]);
-                                                        setCurrentPrice(
-                                                            foundVariant.giaKhuyenMai || foundVariant.donGia,
-                                                        );
+                                                        // price is read directly from variant when rendering
                                                         setCurrentQuantity(foundVariant.soLuong);
                                                         setQuantity(1);
                                                     }
@@ -573,7 +571,7 @@ export default function ProductDetail() {
                                                             if (variant) {
                                                                 setCurrentImages(variant.hinhAnhUrls);
                                                                 setMainImage(variant.hinhAnhUrls[0]);
-                                                                setCurrentPrice(variant.giaKhuyenMai || variant.donGia);
+                                                                // price is read directly from variant when rendering
                                                                 setCurrentQuantity(variant.soLuong);
                                                                 setQuantity(1);
                                                             }

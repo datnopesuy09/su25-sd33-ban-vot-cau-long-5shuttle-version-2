@@ -3,6 +3,7 @@ package com.example.da_be.service;
 import com.example.da_be.entity.HoaDon;
 import com.example.da_be.entity.HoaDonCT;
 import com.example.da_be.entity.SanPhamCT;
+import com.example.da_be.entity.SuCoVanChuyen;
 import com.example.da_be.entity.ThongBao;
 import com.example.da_be.repository.HoaDonCTRepository;
 import com.example.da_be.repository.SanPhamCTRepository;
@@ -282,6 +283,109 @@ public class KhoHangService {
         } catch (Exception e) {
             log.error("Lỗi khi hoàn kho do trả hàng: {}", e.getMessage(), e);
             throw new RuntimeException("Lỗi khi hoàn kho do trả hàng: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Hoàn kho cho một sản phẩm cụ thể (dùng cho sự cố vận chuyển)
+     */
+    @Transactional
+    public void restoreStock(Integer sanPhamCTId, Integer soLuongHoan) {
+        try {
+            log.info("Bắt đầu hoàn kho cho sản phẩm ID: {}, Số lượng: {}", sanPhamCTId, soLuongHoan);
+
+            SanPhamCT sanPhamCT = sanPhamCTRepository.findById(sanPhamCTId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm với ID: " + sanPhamCTId));
+
+            int soLuongHienTai = sanPhamCT.getSoLuong();
+            int soLuongMoi = soLuongHienTai + soLuongHoan;
+
+            sanPhamCT.setSoLuong(soLuongMoi);
+            sanPhamCTRepository.save(sanPhamCT);
+
+            log.info("Hoàn kho thành công cho sản phẩm: {} - Số lượng từ {} thành {}", 
+                    sanPhamCT.getSanPham().getTen(), soLuongHienTai, soLuongMoi);
+
+        } catch (Exception e) {
+            log.error("Lỗi khi hoàn kho cho sản phẩm ID {}: {}", sanPhamCTId, e.getMessage(), e);
+            throw new RuntimeException("Lỗi khi hoàn kho: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Ghi nhận hàng không thể hoàn kho (hỏng/mất/sự cố) thay vì hoàn kho bình thường
+     * Để tracking cho mục đích kiểm toán và bảo hiểm
+     */
+    @Transactional
+    public void recordDamagedOrLostStock(HoaDon hoaDon, SuCoVanChuyen.LoaiSuCo loaiSuCo, String reason) {
+        try {
+            log.info("Ghi nhận hàng hỏng/mất cho đơn hàng: {} - Loại: {} - Lý do: {}", 
+                    hoaDon.getMa(), loaiSuCo, reason);
+
+            List<HoaDonCT> hoaDonCTList = hoaDonCTRepository.findByHoaDon(hoaDon);
+            
+            for (HoaDonCT hoaDonCT : hoaDonCTList) {
+                SanPhamCT sanPhamCT = hoaDonCT.getSanPhamCT();
+                Integer soLuongMat = hoaDonCT.getSoLuong();
+                
+                // Ghi log kho hàng hỏng/mất cho tracking
+                String logSql = "INSERT INTO lich_su_hoan_kho (hoa_don_id, san_pham_ct_id, so_luong_hoan, " +
+                               "loai_hoan_kho, ly_do, ngay_tao, trang_thai) VALUES (?, ?, ?, ?, ?, NOW(), ?)";
+                
+                // Xác định loại ghi nhận dựa trên sự cố
+                String loaiHoanKho;
+                switch (loaiSuCo) {
+                    case HANG_BI_HONG:
+                        loaiHoanKho = "HANG_BI_HONG";
+                        break;
+                    case HANG_BI_MAT:
+                        loaiHoanKho = "HANG_BI_MAT";
+                        break;
+                    case SU_CO_VAN_CHUYEN:
+                        loaiHoanKho = "SU_CO_VAN_CHUYEN";
+                        break;
+                    case KHAC:
+                        loaiHoanKho = "SU_CO_KHAC";
+                        break;
+                    default:
+                        loaiHoanKho = "KHONG_HOAN_KHO";
+                        break;
+                }
+                
+                String lyDo = String.format("Sự cố: %s - %s - Số lượng: %d - KHÔNG HOÀN KHO", loaiSuCo, reason, soLuongMat);
+                
+                jdbcTemplate.update(logSql, 
+                    hoaDon.getId(), 
+                    sanPhamCT.getId(), 
+                    soLuongMat,
+                    loaiHoanKho, 
+                    lyDo, 
+                    "RECORDED" // Chỉ ghi nhận, không hoàn kho
+                );
+                
+                log.info("Đã ghi nhận {} {} sản phẩm '{}' (ID: {}) - KHÔNG HOÀN KHO do: {}", 
+                        soLuongMat, loaiHoanKho, sanPhamCT.getSanPham().getTen(), sanPhamCT.getId(), loaiSuCo);
+            }
+
+            // Tạo thông báo nội bộ về hàng hỏng/mất để xử lý bảo hiểm
+            try {
+                ThongBao internalNotice = new ThongBao();
+                internalNotice.setTieuDe("Báo cáo sự cố không hoàn kho - Cần xử lý bồi thường");
+                internalNotice.setNoiDung(String.format(
+                    "Đơn hàng #%s: %s - %s. Hàng hóa KHÔNG được hoàn kho do sự cố. Cần liên hệ đơn vị vận chuyển để bồi thường.",
+                    hoaDon.getMa(), loaiSuCo, reason
+                ));
+                internalNotice.setTrangThai(0); // Chưa đọc
+                thongBaoRepository.save(internalNotice);
+                
+                log.info("Đã tạo thông báo nội bộ về hàng hỏng/mất cho đơn hàng {}", hoaDon.getMa());
+            } catch (Exception e) {
+                log.warn("Không thể tạo thông báo nội bộ: {}", e.getMessage());
+            }
+
+        } catch (Exception e) {
+            log.error("Lỗi khi ghi nhận hàng hỏng/mất cho đơn hàng {}: {}", hoaDon.getMa(), e.getMessage(), e);
+            throw new RuntimeException("Lỗi khi ghi nhận hàng hỏng/mất: " + e.getMessage());
         }
     }
 

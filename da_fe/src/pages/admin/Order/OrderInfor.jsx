@@ -36,7 +36,7 @@ const OrderInfo = ({
         huyen: '',
         xa: '',
     });
-
+console.log("checkout", checkOut)
     // State for address API
     const [provinces, setProvinces] = useState([]);
     const [districts, setDistricts] = useState([]);

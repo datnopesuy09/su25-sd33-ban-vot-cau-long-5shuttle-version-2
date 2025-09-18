@@ -1,7 +1,6 @@
 package com.example.da_be.controller;
 
-import com.example.da_be.dto.ThanhToanRequestDTO;
-import com.example.da_be.dto.UpdateDeliveryInfoRequest;
+import com.example.da_be.dto.*;
 import com.example.da_be.entity.HoaDon;
 import com.example.da_be.exception.ResourceNotFoundException;
 import com.example.da_be.service.HoaDonCTService;
@@ -65,6 +64,19 @@ public class HoaDonController {
         return ResponseEntity.notFound().build();
     }
 
+    /**
+     * Cập nhật trạng thái đơn hàng mà KHÔNG tự động hoàn kho
+     * Dùng cho trường hợp đã xử lý hoàn kho riêng (như sự cố vận chuyển)
+     */
+    @PutMapping("/{id}/status-no-restore")
+    public ResponseEntity<HoaDon> updateHoaDonStatusWithoutStockRestore(@PathVariable int id, @RequestBody int newStatus) {
+        HoaDon updatedHoaDon = hoaDonService.updateHoaDonStatusWithoutStockRestore(id, newStatus);
+        if (updatedHoaDon != null) {
+            return ResponseEntity.ok(updatedHoaDon);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
 
     @PostMapping("/thanh-toan")
     @Transactional
@@ -117,14 +129,56 @@ public class HoaDonController {
         }
     }
 
-}
+    /**
+     * Hủy đơn hàng do sự cố vận chuyển không thể giải quyết
+     */
+    @PutMapping("/{id}/cancel-due-to-incident")
+    public ResponseEntity<?> cancelOrderDueToIncident(@PathVariable int id, @RequestBody CancelIncidentRequest request) {
+        try {
+            HoaDon cancelledOrder = hoaDonService.cancelOrderDueToIncident(id, request);
+            return ResponseEntity.ok(cancelledOrder);
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi khi hủy đơn hàng do sự cố: " + e.getMessage());
+        }
+    }
 
-class ImportStockRequest {
-    private Integer sanPhamCTId;
-    private Integer quantity;
+    /**
+     * Xử lý hoàn tiền cho đơn hàng bị sự cố
+     */
+    @PostMapping("/{id}/process-incident-refund")
+    public ResponseEntity<?> processIncidentRefund(@PathVariable int id, @RequestBody IncidentRefundRequest request) {
+        try {
+            IncidentRefundResponse response = hoaDonService.processIncidentRefund(id, request);
+            return ResponseEntity.ok(response);
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi khi xử lý hoàn tiền do sự cố: " + e.getMessage());
+        }
+    }
 
-    public Integer getSanPhamCTId() { return sanPhamCTId; }
-    public void setSanPhamCTId(Integer sanPhamCTId) { this.sanPhamCTId = sanPhamCTId; }
-    public Integer getQuantity() { return quantity; }
-    public void setQuantity(Integer quantity) { this.quantity = quantity; }
+    /**
+     * Hoàn kho hàng do sự cố vận chuyển
+     */
+    @PostMapping("/{id}/restore-stock-incident")
+    public ResponseEntity<?> restoreStockIncident(@PathVariable int id, @RequestBody RestoreStockIncidentRequest request) {
+        try {
+            RestoreStockResponse response = hoaDonService.restoreStockDueToIncident(id, request);
+            return ResponseEntity.ok(response);
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi khi hoàn kho do sự cố: " + e.getMessage());
+        }
+    }
+
 }

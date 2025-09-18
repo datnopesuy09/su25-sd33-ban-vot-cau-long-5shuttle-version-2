@@ -131,6 +131,77 @@ function OrderStatus() {
         // Refresh incidents list by triggering re-fetch
         console.log('New incident reported:', newIncident);
         setIncidentRefreshTrigger((prev) => prev + 1);
+
+        // Try to mark the order as "on hold" due to incident.
+        // We'll use status code 10 for frontend-only "Có sự cố - Tạm dừng vận chuyển".
+        // Attempt to update backend; if it fails, keep local state so UI is locked until handled.
+        (async () => {
+            const incidentSummary = `${newIncident.loaiSuCo || 'SU_CO'} (ID:${newIncident.id})`;
+            try {
+                // Try to update backend to a special incident status (10). Backend may reject unknown codes.
+                const res = await fetch(`http://localhost:8080/api/hoa-don/${hoaDonId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(10),
+                });
+
+                if (res.ok) {
+                    console.log('Backend accepted incident status 10');
+                    setCurrentOrderStatus(10);
+                    await saveOrderHistory(10, `Ghi nhận sự cố: ${incidentSummary} - ${newIncident.moTa || ''}`);
+                } else {
+                    console.warn('Backend rejected incident status 10, using local on-hold state');
+                    // Keep local state: mark as on-hold so UI is locked and history recorded locally
+                    setCurrentOrderStatus(10);
+                    await saveOrderHistory(
+                        10,
+                        `Ghi nhận sự cố (local): ${incidentSummary} - ${newIncident.moTa || ''}`,
+                    );
+                }
+            } catch (err) {
+                console.warn('Error while trying to update order status for incident:', err);
+                // Fallback to local on-hold state and save history
+                setCurrentOrderStatus(10);
+                try {
+                    await saveOrderHistory(
+                        10,
+                        `Ghi nhận sự cố (local-error): ${incidentSummary} - ${newIncident.moTa || ''}`,
+                    );
+                } catch (err2) {
+                    console.error('Failed saving order history after incident:', err2);
+                }
+            }
+
+            // Send an internal notification via API (best-effort) and via STOMP topic for internal teams
+            const internalNotification = {
+                tieuDe: 'Sự cố vận chuyển nội bộ',
+                noiDung: `Đơn #${orderData.ma} gặp sự cố: ${newIncident.loaiSuCo}. Xem chi tiết trong mục Sự cố vận chuyển.`,
+                idRedirect: `/admin/hoa-don/${hoaDonId}`,
+                kieuThongBao: 'warning',
+                trangThai: 0,
+                meta: { incidentId: newIncident.id, hoaDonId: hoaDonId },
+            };
+
+            try {
+                // Best-effort POST; backend may accept generic notifications
+                await axios.post('http://localhost:8080/api/thong-bao', internalNotification, {
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            } catch (err) {
+                console.warn('Internal notification API failed (non-blocking):', err);
+            }
+
+            // Send STOMP message to an internal topic so connected services/users can react
+            try {
+                safeStompSend(
+                    '/app/internal/incidents',
+                    {},
+                    JSON.stringify({ type: 'NEW_INCIDENT', data: internalNotification }),
+                );
+            } catch (err) {
+                console.warn('STOMP internal incident send failed (non-blocking):', err);
+            }
+        })();
     };
 
     // Hàm để lưu lịch sử đơn hàng khi thay đổi trạng thái
@@ -182,7 +253,6 @@ function OrderStatus() {
             });
             setStompClient(client);
 
-
             return () => {
                 if (client) client.disconnect();
             };
@@ -199,18 +269,30 @@ function OrderStatus() {
         }
     }, [orderData.id]);
 
+    // Discount validation logic (same as CheckOut.jsx)
+    function validateDiscount(subtotal, voucher) {
+        if (!voucher) return 0;
+        if (subtotal < (voucher.dieuKienNhoNhat || 0)) return 0;
+        let discountAmount = (subtotal * (voucher.giaTri || 0)) / 100;
+        if (voucher.giaTriMax && discountAmount > voucher.giaTriMax) {
+            discountAmount = voucher.giaTriMax;
+        }
+        return discountAmount;
+    }
+
     useEffect(() => {
         const newSubtotal = orderDetailDatas.reduce((sum, item) => {
             return sum + item.sanPhamCT.donGia * item.soLuong;
         }, 0);
 
-        const newDiscountAmount = (newSubtotal * discountPercent) / 100;
+        let voucher = orderData.voucher || null;
+        const newDiscountAmount = validateDiscount(newSubtotal, voucher);
         const newTotal = newSubtotal - newDiscountAmount + shippingFee;
 
         setSubtotal(newSubtotal);
         setDiscountAmount(newDiscountAmount);
         setTotal(newTotal);
-    }, [orderDetailDatas, discountPercent]);
+    }, [orderDetailDatas, orderData.voucher]);
 
     useEffect(() => {
         if (orderData.voucher) {
@@ -301,6 +383,48 @@ function OrderStatus() {
         await updateQuantity(orderDetailId, newQuantity);
     };
 
+    const handleDeleteProduct = async (orderDetailId) => {
+        const currentItem = orderDetailDatas.find((item) => item.id === orderDetailId);
+        
+        if (!currentItem) {
+            toast.error('Không tìm thấy sản phẩm!');
+            return;
+        }
+
+        const isConfirmed = await swal({
+            title: 'Xác nhận xóa sản phẩm',
+            text: `Bạn có chắc chắn muốn xóa sản phẩm "${currentItem.sanPhamCT.ten}" khỏi đơn hàng?`,
+            icon: 'warning',
+            buttons: ['Hủy', 'Xóa'],
+            dangerMode: true,
+        });
+
+        if (isConfirmed) {
+            try {
+                const response = await axios.delete(`http://localhost:8080/api/hoa-don-ct/${orderDetailId}`);
+                
+                if (response.status === 200) {
+                    // Cập nhật danh sách sản phẩm
+                    const updatedOrderDetails = orderDetailDatas.filter((item) => item.id !== orderDetailId);
+                    setOrderDetailDatas(updatedOrderDetails);
+                    
+                    // Lưu lịch sử đơn hàng
+                    await saveOrderHistory(
+                        currentOrderStatus,
+                        `Xóa sản phẩm "${currentItem.sanPhamCT.ten}" khỏi đơn hàng`
+                    );
+                    
+                    toast.success('Xóa sản phẩm thành công!');
+                } else {
+                    throw new Error('Không thể xóa sản phẩm');
+                }
+            } catch (error) {
+                console.error('Lỗi khi xóa sản phẩm:', error);
+                toast.error(error.response?.data || 'Không thể xóa sản phẩm!');
+            }
+        }
+    };
+
     const handleOpenProductModal = () => {
         setShowProductModal(true);
     };
@@ -346,7 +470,11 @@ function OrderStatus() {
                 await axios.post('http://localhost:8080/api/thong-bao', userNotification, {
                     headers: { 'Content-Type': 'application/json' },
                 });
-                safeStompSend(`/app/user/${orderData.taiKhoan?.id}/notifications`, {}, JSON.stringify(userNotification));
+                safeStompSend(
+                    `/app/user/${orderData.taiKhoan?.id}/notifications`,
+                    {},
+                    JSON.stringify(userNotification),
+                );
             } catch (notificationError) {
                 console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
                 toast.warning('Không thể gửi thông báo đến người dùng.');
@@ -432,6 +560,8 @@ function OrderStatus() {
                 return { label: 'Trả hàng', color: 'bg-red-400 text-white' };
             case 9:
                 return { label: 'Chờ nhập hàng', color: 'bg-orange-200 text-orange-800' };
+            case 10:
+                return { label: 'Có sự cố - Tạm dừng vận chuyển', color: 'bg-yellow-100 text-yellow-800' };
             default:
                 return { label: 'Không xác định', color: 'bg-gray-200 text-gray-800' };
         }
@@ -457,6 +587,8 @@ function OrderStatus() {
                 return { label: 'Trả hàng', color: '#f54278', icon: RotateCcw };
             case 9:
                 return { label: 'Chờ nhập hàng', color: '#ff9800', icon: AlertCircle };
+            case 10:
+                return { label: 'Có sự cố - Tạm dừng vận chuyển', color: '#f59e0b', icon: AlertTriangle };
             default:
                 return { label: 'Không xác định', color: '#f54278', icon: AlertCircle };
         }
@@ -729,12 +861,11 @@ function OrderStatus() {
         try {
             const newPayment = {
                 hoaDon: { id: hoaDonId },
-                taiKhoan: { id: orderData.taiKhoan?.id || 1 },
-                nhanVienXacNhan: { id: admin?.id, hoTen: admin?.hoTen }, // Thêm thông tin nhân viên xác nhận
+                taiKhoan: { id: admin?.id, hoTen: admin?.hoTen },
                 ma: `PT-${Date.now()}`,
                 tongTien: total,
                 phuongThucThanhToan: paymentMethod,
-                ghiChu: note,
+                ghiChu: note || null,
                 trangThai: 1,
                 ngayTao: new Date().toISOString(),
             };
@@ -1007,6 +1138,7 @@ function OrderStatus() {
                     orderDetailDatas={orderDetailDatas}
                     handleOpenProductModal={handleOpenProductModal}
                     handleQuantityChange={handleQuantityChange}
+                    handleDeleteProduct={handleDeleteProduct}
                     isLiked={isLiked}
                     setIsLiked={setIsLiked}
                     isOrderInTransit={isOrderInTransit}
@@ -1121,7 +1253,7 @@ function OrderStatus() {
             </div>
 
             {/* Sự cố vận chuyển - chỉ hiển thị khi đơn hàng đang vận chuyển hoặc có sự cố */}
-            {(currentOrderStatus === 3 || currentOrderStatus === 4) && (
+            {(currentOrderStatus === 3 || currentOrderStatus === 4 || currentOrderStatus === 7 || currentOrderStatus === 10) && (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 max-w-5xl mx-auto mt-8">
                     <div className="p-6 border-b border-gray-200">
                         <div className="flex items-center justify-between">
@@ -1143,7 +1275,64 @@ function OrderStatus() {
                     </div>
 
                     <div className="p-6">
-                        <DeliveryIncidentList hoaDonId={hoaDonId} refreshTrigger={incidentRefreshTrigger} />
+                        <DeliveryIncidentList
+                            hoaDonId={hoaDonId}
+                            refreshTrigger={incidentRefreshTrigger}
+                            stompClient={stompClient}
+                            adminId={admin?.id}
+                            onIncidentResolved={async (incident) => {
+                                try {
+                                    if (incident.isUnresolvable) {
+                                        // Handle unresolvable incident - order should be cancelled
+                                        console.log('Handling unresolvable incident - order will be cancelled');
+                                        await updateOrderStatus(
+                                            7, // CANCELLED
+                                            `Đơn hàng bị hủy do sự cố vận chuyển không thể giải quyết (IncidentId=${incident.id})`,
+                                        );
+                                        
+                                        // Send additional notification about cancellation and refund
+                                        const cancellationNotification = {
+                                            khachHang: {
+                                                id: orderData.taiKhoan.id,
+                                            },
+                                            tieuDe: 'Đơn hàng đã được hủy và hoàn tiền',
+                                            noiDung: `Đơn hàng #${orderData.ma} đã bị hủy do sự cố vận chuyển không thể giải quyết. Chúng tôi đã bắt đầu quy trình hoàn tiền và sẽ liên hệ với bạn trong vòng 24h.`,
+                                            idRedirect: `/user/hoa-don/${hoaDonId}`,
+                                            kieuThongBao: 'error',
+                                            trangThai: 0,
+                                        };
+                                        
+                                        try {
+                                            await axios.post('http://localhost:8080/api/thong-bao', cancellationNotification, {
+                                                headers: { 'Content-Type': 'application/json' },
+                                            });
+                                            safeStompSend(
+                                                `/app/user/${orderData.taiKhoan.id}/notifications`,
+                                                {},
+                                                JSON.stringify(cancellationNotification),
+                                            );
+                                        } catch (notificationError) {
+                                            console.error('Lỗi khi gửi thông báo hủy đơn:', notificationError);
+                                        }
+                                        
+                                    } else {
+                                        // Handle normal resolved incident
+                                        if (currentOrderStatus === 10) {
+                                            await updateOrderStatus(
+                                                3,
+                                                `Gỡ khoá sau khi giải quyết sự cố (IncidentId=${incident.id})`,
+                                            );
+                                        }
+                                    }
+
+                                    // Refresh order details
+                                    fetchBillDetails(hoaDonId);
+                                    fetchOrderHistory();
+                                } catch (err) {
+                                    console.error('Error in onIncidentResolved handler:', err);
+                                }
+                            }}
+                        />
                     </div>
                 </div>
             )}
@@ -1164,6 +1353,7 @@ function OrderStatus() {
                 setDiscountPercent={setDiscountPercent}
                 total={total}
                 discountAmount={discountAmount}
+                subtotal={subtotal}
             />
             <PaymentModal
                 isOpen={isModalOpen}

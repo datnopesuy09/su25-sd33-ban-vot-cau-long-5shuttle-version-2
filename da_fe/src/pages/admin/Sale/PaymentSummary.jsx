@@ -114,9 +114,9 @@ const PaymentSummary = ({ total, selectedBill, setSelectedBill, updateBills }) =
                     <div className="flex-1 p-6 border-r border-gray-200">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-lg font-semibold text-gray-800">Khách hàng</h3>
-                            <button className="text-[#2f19ae] text-sm border border-[#2f19ae] px-3 py-1 rounded hover:bg-purple-50 transition-colors">
+                            {/* <button className="text-[#2f19ae] text-sm border border-[#2f19ae] px-3 py-1 rounded hover:bg-purple-50 transition-colors">
                                 CHỌN KHÁCH HÀNG
-                            </button>
+                            </button> */}
                         </div>
 
                         {/* Discount Section */}

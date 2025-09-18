@@ -70,7 +70,7 @@ function InStoreOrders() {
             setIsAnimating(false);
         }, 300);
     };
-
+console.log('orderitems', orderItems);
     const handlePrintInvoice = async (order) => {
         try {
             // Lấy chi tiết hóa đơn để in
@@ -172,8 +172,8 @@ function InStoreOrders() {
                                 <td>${item.sanPhamCT?.thuongHieu?.ten || 'Không xác định'}</td>
                                 <td>${item.sanPhamCT?.mauSac?.ten || 'Không xác định'}</td>
                                 <td>${item.soLuong}</td>
-                                <td>${item.giaBan ? item.giaBan.toLocaleString() + ' VNĐ' : 'Không xác định'}</td>
-                                <td>${item.giaBan && item.soLuong ? (item.giaBan * item.soLuong).toLocaleString() + ' VNĐ' : 'Không xác định'}</td>
+                                <td>${item.sanPhamCT.donGia ? item.sanPhamCT.donGia.toLocaleString() + ' VNĐ' : 'Không xác định'}</td>
+                                <td>${item.sanPhamCT.donGia && item.soLuong ? (item.sanPhamCT.donGia * item.soLuong).toLocaleString() + ' VNĐ' : 'Không xác định'}</td>
                             </tr>
                         `,
                             )
@@ -630,13 +630,13 @@ function InStoreOrders() {
                                                                 {item.soLuong}
                                                             </td>
                                                             <td className="py-3 px-4 text-sm text-gray-600">
-                                                                {item.giaBan
-                                                                    ? item.giaBan.toLocaleString() + ' VNĐ'
+                                                                {item.sanPhamCT.donGia
+                                                                    ? item.sanPhamCT.donGia.toLocaleString() + ' VNĐ'
                                                                     : 'Không xác định'}
                                                             </td>
                                                             <td className="py-3 px-4 text-sm font-medium text-gray-900">
-                                                                {item.giaBan && item.soLuong
-                                                                    ? (item.giaBan * item.soLuong).toLocaleString() +
+                                                                {item.sanPhamCT.donGia && item.soLuong
+                                                                    ? (item.sanPhamCT.donGia * item.soLuong).toLocaleString() +
                                                                       ' VNĐ'
                                                                     : 'Không xác định'}
                                                             </td>

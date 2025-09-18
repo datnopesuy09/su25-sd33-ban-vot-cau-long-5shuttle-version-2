@@ -113,8 +113,24 @@ public class DatHangController {
                 // Lấy voucher từ cơ sở dữ liệu
                 PhieuGiamGia voucher = phieuGiamGiaRepository.findById(orderRequest.getDiscountId())
                         .orElseThrow(() -> new ResourceNotFoundException("Voucher không tồn tại: " + orderRequest.getDiscountId()));
-                // Tính toán giá trị giảm giá
-                BigDecimal discountAmount = tongTien.multiply(BigDecimal.valueOf(voucher.getGiaTri())).divide(BigDecimal.valueOf(100));
+                
+                // Kiểm tra điều kiện áp dụng
+                if (tongTien.compareTo(BigDecimal.valueOf(voucher.getDieuKienNhoNhat())) < 0) {
+                    return ResponseEntity.badRequest().body("Tổng giá trị đơn hàng chưa đạt điều kiện tối thiểu để áp dụng voucher");
+                }
+                
+                // Tính toán giá trị giảm giá dựa trên kiểu giảm giá
+                BigDecimal discountAmount;
+                if (voucher.getKieuGiaTri() == 0) { // Phần trăm
+                    discountAmount = tongTien.multiply(BigDecimal.valueOf(voucher.getGiaTri())).divide(BigDecimal.valueOf(100));
+                    // Áp dụng giới hạn tối đa nếu có
+                    if (voucher.getGiaTriMax() != null && discountAmount.compareTo(BigDecimal.valueOf(voucher.getGiaTriMax())) > 0) {
+                        discountAmount = BigDecimal.valueOf(voucher.getGiaTriMax());
+                    }
+                } else { // Giá trị cố định
+                    discountAmount = BigDecimal.valueOf(voucher.getGiaTri());
+                }
+                
                 BigDecimal tongTienSauGiam = tongTien.subtract(discountAmount);
                 hoaDon.setTongTien(tongTienSauGiam); // Lưu tổng tiền sau khi giảm
                 voucher.setSoLuong(voucher.getSoLuong()-1);
