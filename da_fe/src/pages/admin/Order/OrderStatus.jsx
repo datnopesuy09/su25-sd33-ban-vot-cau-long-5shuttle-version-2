@@ -371,6 +371,48 @@ function OrderStatus() {
         await updateQuantity(orderDetailId, newQuantity);
     };
 
+    const handleDeleteProduct = async (orderDetailId) => {
+        const currentItem = orderDetailDatas.find((item) => item.id === orderDetailId);
+        
+        if (!currentItem) {
+            toast.error('Không tìm thấy sản phẩm!');
+            return;
+        }
+
+        const isConfirmed = await swal({
+            title: 'Xác nhận xóa sản phẩm',
+            text: `Bạn có chắc chắn muốn xóa sản phẩm "${currentItem.sanPhamCT.ten}" khỏi đơn hàng?`,
+            icon: 'warning',
+            buttons: ['Hủy', 'Xóa'],
+            dangerMode: true,
+        });
+
+        if (isConfirmed) {
+            try {
+                const response = await axios.delete(`http://localhost:8080/api/hoa-don-ct/${orderDetailId}`);
+                
+                if (response.status === 200) {
+                    // Cập nhật danh sách sản phẩm
+                    const updatedOrderDetails = orderDetailDatas.filter((item) => item.id !== orderDetailId);
+                    setOrderDetailDatas(updatedOrderDetails);
+                    
+                    // Lưu lịch sử đơn hàng
+                    await saveOrderHistory(
+                        currentOrderStatus,
+                        `Xóa sản phẩm "${currentItem.sanPhamCT.ten}" khỏi đơn hàng`
+                    );
+                    
+                    toast.success('Xóa sản phẩm thành công!');
+                } else {
+                    throw new Error('Không thể xóa sản phẩm');
+                }
+            } catch (error) {
+                console.error('Lỗi khi xóa sản phẩm:', error);
+                toast.error(error.response?.data || 'Không thể xóa sản phẩm!');
+            }
+        }
+    };
+
     const handleOpenProductModal = () => {
         setShowProductModal(true);
     };
@@ -1084,6 +1126,7 @@ function OrderStatus() {
                     orderDetailDatas={orderDetailDatas}
                     handleOpenProductModal={handleOpenProductModal}
                     handleQuantityChange={handleQuantityChange}
+                    handleDeleteProduct={handleDeleteProduct}
                     isLiked={isLiked}
                     setIsLiked={setIsLiked}
                     isOrderInTransit={isOrderInTransit}

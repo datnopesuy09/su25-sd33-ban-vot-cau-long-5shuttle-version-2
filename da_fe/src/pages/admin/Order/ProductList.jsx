@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Minus, Star, Heart, RotateCcw } from 'lucide-react';
+import { Plus, Minus, Star, Heart, RotateCcw, Trash2 } from 'lucide-react';
 import axios from 'axios';
 import swal from 'sweetalert';
 
@@ -7,6 +7,7 @@ const ProductList = ({
     orderDetailDatas,
     handleOpenProductModal,
     handleQuantityChange,
+    handleDeleteProduct,
     isLiked,
     setIsLiked,
     isOrderInTransit,
@@ -245,13 +246,21 @@ const ProductList = ({
                                             </button>
                                         </div>
                                         <button
+                                            onClick={() => handleDeleteProduct(orderDetail.id)}
+                                            disabled={currentOrderStatus >= 3 || isOrderOnHold}
+                                            className={`p-2 bg-red-100 rounded-full hover:bg-red-200 transition-colors duration-200 ${currentOrderStatus >= 3 || isOrderOnHold ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            title="Xóa sản phẩm"
+                                        >
+                                            <Trash2 size={16} className="text-red-600" />
+                                        </button>
+                                        {/* <button
                                             onClick={() => handleOpenReturnModal(orderDetail)}
                                             disabled={!canReturn || isOrderOnHold}
                                             className={`p-2 bg-red-100 rounded-full hover:bg-red-200 transition-colors duration-200 ${!canReturn || isOrderOnHold ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             title="Trả hàng"
                                         >
                                             <RotateCcw size={16} className="text-red-600" />
-                                        </button>
+                                        </button> */}
                                     </div>
                                 </div>
                             </div>
