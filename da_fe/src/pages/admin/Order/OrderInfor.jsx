@@ -15,6 +15,7 @@ import {
     Hash,
     FileText,
     Calendar,
+    Truck,
 } from 'lucide-react';
 
 const OrderInfo = ({
@@ -35,6 +36,7 @@ const OrderInfo = ({
         tinh: '',
         huyen: '',
         xa: '',
+        phiShip: orderData.phiShip || 30000, // Thêm field phí ship với giá trị mặc định
     });
 console.log("checkout", checkOut)
     // State for address API
@@ -270,6 +272,7 @@ console.log("checkout", checkOut)
             tenNguoiNhan: formData.tenNguoiNhan,
             sdtNguoiNhan: formData.sdtNguoiNhan,
             diaChiNguoiNhan: fullAddress,
+            phiShip: parseFloat(formData.phiShip) || 0, // Thêm phí ship vào data gửi lên server
         };
 
         if (onUpdateDeliveryInfo) {
@@ -322,7 +325,7 @@ console.log("checkout", checkOut)
             {/* Order Information */}
             <div className="p-6">
                 {/* Basic Info Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                     {/* Mã đơn hàng */}
                     <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
                         <div className="flex items-center gap-3">
@@ -362,6 +365,24 @@ console.log("checkout", checkOut)
                                 >
                                     {orderData.loaiHoaDon}
                                 </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Phí ship */}
+                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-orange-100 rounded-lg p-2">
+                                <Truck className="w-5 h-5 text-orange-600" />
+                            </div>
+                            <div>
+                                <div className="text-gray-500 text-sm">Phí giao hàng</div>
+                                <div className="text-gray-800 font-semibold">
+                                    {orderData.phiShip 
+                                        ? `${orderData.phiShip.toLocaleString('vi-VN')}đ`
+                                        : '30,000đ'
+                                    }
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -707,6 +728,34 @@ console.log("checkout", checkOut)
                                             </p>
                                         </div>
                                     )}
+                                </div>
+
+                                {/* Shipping Fee Section */}
+                                <div className="space-y-4">
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                                        <Truck className="w-4 h-4 text-orange-500" />
+                                        Phí giao hàng
+                                    </label>
+                                    
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                                            Phí ship (VNĐ) *
+                                        </label>
+                                        <input
+                                            type="number"
+                                            name="phiShip"
+                                            value={formData.phiShip}
+                                            onChange={handleInputChange}
+                                            min="0"
+                                            step="1000"
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
+                                            placeholder="Nhập phí giao hàng"
+                                            required
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Phí giao hàng hiện tại: {formData.phiShip ? `${parseInt(formData.phiShip).toLocaleString('vi-VN')}đ` : '0đ'}
+                                        </p>
+                                    </div>
                                 </div>
                             </form>
                         </div>

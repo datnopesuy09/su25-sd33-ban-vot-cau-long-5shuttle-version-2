@@ -166,6 +166,11 @@ public class HoaDonService {
         if (request.getDiaChiNguoiNhan() != null) {
             hoaDon.setDiaChiNguoiNhan(request.getDiaChiNguoiNhan());
         }
+        
+        // Cập nhật phí ship nếu có
+        if (request.getPhiShip() != null) {
+            hoaDon.setPhiShip(request.getPhiShip());
+        }
 
         hoaDon.setNgaySua(new Date());
         return hoaDonRepository.save(hoaDon);

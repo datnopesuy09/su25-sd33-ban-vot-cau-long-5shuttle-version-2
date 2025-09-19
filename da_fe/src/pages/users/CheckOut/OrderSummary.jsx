@@ -133,7 +133,7 @@ import {
                             </div>
                         )}
                         
-                        <div className="flex justify-between text-sm">
+                        {/* <div className="flex justify-between text-sm">
                             <span className="text-gray-600 flex items-center gap-1">
                                 <Truck className="w-3 h-3" />
                                 Phí vận chuyển:
@@ -145,13 +145,13 @@ import {
                                 )}
                             </span>
                             <span className="font-medium">{shippingFee.toLocaleString()}₫</span>
-                        </div>
+                        </div> */}
                         
                         <div className="border-t border-gray-200 pt-2">
                             <div className="flex justify-between items-center">
                                 <span className="font-semibold text-gray-900">Tổng cộng:</span>
                                 <span className="font-bold text-lg text-blue-600">
-                                    {((promoDiscount > 0 ? discountedPrice : totalPrice) + shippingFee).toLocaleString()}₫
+                                    {((promoDiscount > 0 ? discountedPrice : totalPrice)).toLocaleString()}₫
                                 </span>
                             </div>
                         </div>

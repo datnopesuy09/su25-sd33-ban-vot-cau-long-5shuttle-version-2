@@ -34,7 +34,7 @@ const CartSummary = ({
                                 <span className="font-medium">{totalPrice.toLocaleString()} ₫</span>
                             </div>
 
-                            <div className="flex justify-between text-gray-600">
+                            {/* <div className="flex justify-between text-gray-600">
                                 <span className="flex items-center gap-1">
                                     <Truck className="w-4 h-4" />
                                     Phí vận chuyển
@@ -42,7 +42,7 @@ const CartSummary = ({
                                 <span className={`font-medium ${shipping === 0 ? 'text-green-600' : ''}`}>
                                     {shipping === 0 ? 'Miễn phí' : `${shipping.toLocaleString()} ₫`}
                                 </span>
-                            </div>
+                            </div> */}
 
                             {promoDiscount > 0 && (
                                 <div className="flex justify-between text-green-600">

@@ -47,7 +47,7 @@ function OrderStatus() {
     const [showImportModal, setShowImportModal] = useState(false);
     const [importQuantity, setImportQuantity] = useState(1);
     const [selectedProductId, setSelectedProductId] = useState(null);
-    const shippingFee = 30000;
+    const shippingFee = orderData.phiShip || 30000; // Sử dụng phí ship từ database, fallback về 30000 nếu không có
     const [stompClient, setStompClient] = useState(null);
     const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [orderHistory, setOrderHistory] = useState([]);
@@ -527,6 +527,12 @@ function OrderStatus() {
             if (response.status === 200) {
                 // Cập nhật orderData với thông tin mới
                 Object.assign(orderData, deliveryInfo);
+                
+                // Nếu có phí ship mới, cập nhật lại subtotal và total
+                if (deliveryInfo.phiShip !== undefined) {
+                    // Trigger recalculation của subtotal và total
+                    fetchBillDetails(orderData.id);
+                }
 
                 toast.success('Cập nhật thông tin người nhận thành công!');
             }
@@ -1379,6 +1385,7 @@ function OrderStatus() {
                 total={total}
                 discountAmount={discountAmount}
                 subtotal={subtotal}
+                shippingFee={shippingFee}
             />
             <PaymentModal
                 isOpen={isModalOpen}

@@ -10,6 +10,7 @@ const PaymentDetails = ({
     total,
     discountAmount,
     subtotal,
+    shippingFee = 30000,
 }) => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
@@ -101,7 +102,7 @@ const PaymentDetails = ({
 
                                         <div className="flex justify-between items-center text-sm border-b border-orange-200 pb-2">
                                             <span className="text-gray-700">Phí vận chuyển:</span>
-                                            <span className="font-semibold text-gray-900">+30.000 VNĐ</span>
+                                            <span className="font-semibold text-gray-900">{`+${Number(shippingFee).toLocaleString('vi-VN')} VNĐ`}</span>
                                         </div>
 
                                         <div className="bg-gradient-to-r from-red-500 to-pink-500 rounded-lg p-3 mt-4">
