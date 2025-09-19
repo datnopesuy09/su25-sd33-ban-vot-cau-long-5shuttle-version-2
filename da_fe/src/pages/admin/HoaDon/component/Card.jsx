@@ -61,6 +61,14 @@ const StatisticCard = ({ title, icon, amount, stats, color, customWidth }) => {
                     </Box>
                     <Box textAlign="center" flex="1" p={0.5}>
                         <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+                            Sản phẩm trả
+                        </Typography>
+                        <Typography variant="subtitle1" sx={{ fontSize: '1rem' }}>
+                            {stats.returnProducts}
+                        </Typography>
+                    </Box>
+                    <Box textAlign="center" flex="1" p={0.5}>
+                        <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
                             Thành công
                         </Typography>
                         <Typography variant="subtitle1" sx={{ fontSize: '1rem' }}>

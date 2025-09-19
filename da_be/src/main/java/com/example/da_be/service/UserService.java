@@ -1,24 +1,21 @@
 package com.example.da_be.service;
 
+import com.example.da_be.cloudinary.CloudinaryImage;
 import com.example.da_be.dto.request.User.UserCreationRequest;
 import com.example.da_be.dto.request.User.UserUpdateRequest;
 import com.example.da_be.dto.response.HoaDonCTResponse;
 import com.example.da_be.dto.response.HoaDonResponse;
+import com.example.da_be.dto.response.PhieuTraHangChiTietResponse;
 import com.example.da_be.dto.response.UserResponse;
-import com.example.da_be.entity.HoaDon;
-import com.example.da_be.entity.HoaDonCT;
-import com.example.da_be.entity.Role;
-import com.example.da_be.entity.User;
+import com.example.da_be.entity.*;
 import com.example.da_be.enums.LoaiHoaDon;
 import com.example.da_be.exception.AppException;
 import com.example.da_be.exception.ErrorCode;
 import com.example.da_be.mapper.HoaDonChiTietMapper;
 import com.example.da_be.mapper.HoaDonMapper;
+import com.example.da_be.mapper.PhieuTraHangChiTietMapper;
 import com.example.da_be.mapper.UserMapper;
-import com.example.da_be.repository.HoaDonCTRepository;
-import com.example.da_be.repository.HoaDonRepository;
-import com.example.da_be.repository.RoleRepository;
-import com.example.da_be.repository.UserRepository;
+import com.example.da_be.repository.*;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -49,7 +46,11 @@ UserService {
     HoaDonMapper hoaDonMapper;
     HoaDonCTRepository hoaDonCTRepository;
     HoaDonChiTietMapper hoaDonCTMapper;
-    com.example.da_be.repository.HinhAnhRepository hinhAnhRepository;
+    HinhAnhRepository hinhAnhRepository;
+    PhieuTraHangRepository phieuTraHangRepository;
+    PhieuTraHangChiTietRepository phieuTraHangChiTietRepository;
+    PhieuTraHangChiTietMapper phieuTraHangChiTietMapper;
+    CloudinaryImage cloudinaryImage;
 
     public UserResponse createUser(UserCreationRequest request){
         if(userRepository.existsByEmail(request.getEmail()))
@@ -88,8 +89,10 @@ UserService {
         userMapper.updateUser(user, request);
 
         if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
-            String fileName = request.getAvatar().getOriginalFilename();
-            user.setAvatar(fileName);
+            String avatarUrl = cloudinaryImage.uploadAvatar(request.getAvatar());
+            if (avatarUrl != null) {
+                user.setAvatar(avatarUrl);
+            }
         }
 
         userRepository.save(user);
@@ -133,25 +136,27 @@ UserService {
 
     public List<HoaDonCTResponse> getMyOdersDetails(Integer idHoaDon) {
 
-//        var context = SecurityContextHolder.getContext();
-//        var email = context.getAuthentication().getName();
-//
-//        Integer idUser = userRepository.findIdByEmail(email);
-//
-//        List<HoaDon> hoaDon = hoaDonRepository.findHoaDonByTaiKhoan_IdAndLoaiHoaDon(idUser, LoaiHoaDon.ONLINE.getName());
+        List<HoaDonCT> hdctList = hoaDonCTRepository.findByHoaDonId(idHoaDon);
 
-        List<HoaDonCT> hdct = hoaDonCTRepository.findByHoaDonId(idHoaDon);
+        return hdctList.stream().map(hdct -> {
+            // Map hóa đơn chi tiết cơ bản
+            HoaDonCTResponse resp = hoaDonCTMapper.toHoaDonChiTietResponse(hdct);
 
-        return hdct.stream().map(hd -> {
-            var resp = hoaDonCTMapper.toHoaDonChiTietResponse(hd);
+            // Thêm ảnh
             try {
-                Integer spctId = hd.getSanPhamCT().getId();
+                Integer spctId = hdct.getSanPhamCT().getId();
                 String url = hinhAnhRepository.findFirstBySanPhamCT_Id(spctId)
-                        .map(com.example.da_be.entity.HinhAnh::getLink)
+                        .map(HinhAnh::getLink)
                         .orElse(null);
                 resp.setHinhAnhUrl(url);
-            } catch (Exception ignored) {
+            } catch (Exception ignored) {}
+            List<PhieuTraHangChiTiet> traList = phieuTraHangChiTietRepository.findByHoaDonChiTiet_Id(hdct.getId());
+            if (!traList.isEmpty()) {
+                List<PhieuTraHangChiTietResponse> traResponses =
+                        traList.stream().map(phieuTraHangChiTietMapper::toResponse).toList();
+                resp.setPhieuTraHangChiTietResponses(traResponses);
             }
+
             return resp;
         }).toList();
     }

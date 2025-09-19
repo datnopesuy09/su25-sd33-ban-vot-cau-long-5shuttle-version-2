@@ -1,7 +1,3 @@
-// =============================
-// Trang Thống kê tổng quan cho Admin
-// =============================
-
 import React, { useState, useEffect } from 'react';
 import { Box, Grid, Typography, Skeleton } from '@mui/material';
 import dayjs from 'dayjs';
@@ -105,6 +101,7 @@ const ThongKe = () => {
                                 success: data.tongDonThanhCong || 0,
                                 cancel: data.tongDonHuy || 0,
                                 return: data.tongDonTra || 0,
+                                returnProducts: data.tongSanPhamTra || 0, // Thêm tổng sản phẩm trả
                             },
                             color: COLOR_CARDS[filter.value],
                             customWidth: filter.value === 'Tùy chỉnh' ? 1180 : 575,
@@ -116,7 +113,7 @@ const ThongKe = () => {
                             title: `Tổng quan ${filter.value.toLowerCase()}`,
                             icon: ICONS[filter.value],
                             amount: 0,
-                            stats: { products: 0, success: 0, cancel: 0, return: 0 },
+                            stats: { products: 0, success: 0, cancel: 0, return: 0, returnProducts: 0 }, // Thêm returnProducts
                             color: COLOR_CARDS[filter.value],
                             customWidth: filter.value === 'Tùy chỉnh' ? 1180 : 575,
                         };

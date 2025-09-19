@@ -55,8 +55,6 @@ public class KhachHangService {
         roles.add(roleName);
         khachHang.setRoles(roles);
 
-        khachHang.setUserType(request.getUserType());
-
         khachHang.setTrangThai(1);
 
         khachHang = khachHangRepository.save(khachHang);

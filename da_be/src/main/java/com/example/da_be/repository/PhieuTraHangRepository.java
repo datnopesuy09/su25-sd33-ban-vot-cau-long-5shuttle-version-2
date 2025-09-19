@@ -59,4 +59,7 @@ public interface PhieuTraHangRepository extends JpaRepository<PhieuTraHang, Inte
     """)
     PhieuTraHang findByHoaDonIdWithDetails(Integer orderId);
 
+    List<PhieuTraHang> findByHoaDon_Id(Integer hoaDonId);
+
+    boolean existsByHoaDonId(Integer hoaDonId);
 }

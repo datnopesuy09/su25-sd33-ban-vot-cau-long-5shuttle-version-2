@@ -1,6 +1,5 @@
 package com.example.da_be.entity;
 
-import com.example.da_be.enums.UserType;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
@@ -50,10 +49,6 @@ public class User {
 
     @Column(name = "CCCD") // Ánh xạ đến cột "CCCD"
     String cccd;
-
-    @Enumerated(EnumType.ORDINAL) // Lưu số (0,1,2)
-    @Column(name = "UserType")
-    UserType userType;
 
     @Column(name = "TrangThai") // Ánh xạ đến cột "TrangThai"
     Integer trangThai;

@@ -61,6 +61,7 @@ import SpctDetail from '../pages/admin/Product/SpctDetail.jsx';
 import InStoreOrders from '../pages/admin/Sale/InStoreOrders.jsx';
 import OrderReturn from '../pages/users/TaiKhoan/orderReturn.jsx';
 import BulkOrderManagement from '../pages/admin/BulkOrder/BulkOrderManagement.jsx';
+import PolicyPage from '../pages/users/Policy/policy.jsx';
 // Public routes
 const publicRoutes = [
     { path: '/', component: Home },
@@ -123,8 +124,9 @@ const publicRoutes = [
     { path: '/forgot-password', component: ForgotPassword },
     { path: '/admin/thong-ke', component: ThongKe, layout: AdminLayout },
     { path: '/admin/tra-hang', component: ReturnOrders, layout: AdminLayout },
-
+    { path: '/gioi-thieu' , component: PolicyPage, layout: null},
     { path: '/test', component: ResponsiveAppBar, layout: null },
+
 ];
 
 const privateRoutes = [];

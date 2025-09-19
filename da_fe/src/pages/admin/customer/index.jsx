@@ -83,11 +83,6 @@ function CustomerList() {
             filtered = filtered.filter((c) => c.trangThai === parseInt(status));
         }
 
-        // Apply customer type filter
-        if (customerType) {
-            filtered = filtered.filter((c) => c.userType === customerType);
-        }
-
         setFilteredCustomers(filtered);
         setTotalPages(Math.ceil(filtered.length / itemsPerPage));
         setPage(0); // Reset to first page when filters change
@@ -162,20 +157,6 @@ function CustomerList() {
                             <option value="0">Không hoạt động</option>
                         </select>
                     </div>
-
-                    <div>
-                        <label className="mr-2">Loại KH:</label>
-                        <select
-                            value={customerType}
-                            onChange={(e) => setCustomerType(e.target.value)}
-                            className="border p-2 rounded"
-                        >
-                            <option value="">Tất cả</option>
-                            <option value="CA_NHAN">Cá nhân</option>
-                            <option value="DOANH_NGHIEP">Doanh nghiệp</option>
-                            <option value="VIP">VIP</option>
-                        </select>
-                    </div>
                 </div>
             </div>
 
@@ -190,7 +171,6 @@ function CustomerList() {
                             <th className="px-3 py-2">SĐT</th>
                             <th className="px-3 py-2">Ngày sinh</th>
                             <th className="px-3 py-2">Giới tính</th>
-                            <th className="px-3 py-2">Loại KH</th>
                             <th className="px-3 py-2">Trạng thái</th>
                             <th className="px-3 py-2 text-center">Hành động</th>
                         </tr>
@@ -213,15 +193,7 @@ function CustomerList() {
                                     <td className="px-3 py-2">
                                         {c.gioiTinh === 0 ? 'Nam' : c.gioiTinh === 1 ? 'Nữ' : '—'}
                                     </td>
-                                    <td className="px-3 py-2">
-                                        {c.userType === 'CA_NHAN'
-                                            ? 'Cá nhân'
-                                            : c.userType === 'DOANH_NGHIEP'
-                                              ? 'Doanh nghiệp'
-                                              : c.userType === 'VIP'
-                                                ? 'VIP'
-                                                : '—'}
-                                    </td>
+
                                     <td className="px-3 py-2">
                                         <span
                                             className={`px-2 py-1 text-xs rounded-full ${

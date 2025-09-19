@@ -28,6 +28,7 @@ public enum ErrorCode {
     INVALID_ORDER_STATUS(1011, "Invalid order status", HttpStatus.BAD_REQUEST),
     PRODUCT_NOT_EXISTS(1012, "Product does not exist", HttpStatus.NOT_FOUND),
     PRODUCT_ID_NOT_EXISTS(1013, "Product does not exist", HttpStatus.NOT_FOUND),
+    RETURN_EXISTS(1014, "Hóa đơn này đã được tạo phiếu trả hàng, không thể tạo thêm.", HttpStatus.BAD_REQUEST),
     ;
 
 //    ErrorCode(int code, String message, HttpStatus httpStatus) {
