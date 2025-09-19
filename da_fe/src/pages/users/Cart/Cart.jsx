@@ -374,11 +374,11 @@ const Cart = () => {
                                 </div>
                             </div>
 
-                            <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <InfoCard icon={<Truck />} title="Miễn phí vận chuyển" desc="Đơn hàng từ 1.000.000đ" />
                                 <InfoCard icon={<Shield />} title="Bảo hành chính hãng" desc="Đổi trả trong 30 ngày" />
                                 <InfoCard icon={<Gift />} title="Quà tặng hấp dẫn" desc="Cho đơn hàng lớn" />
-                            </div>
+                            </div> */}
                         </div>
 
                         <CartSummary

@@ -125,7 +125,7 @@ Cảm ơn!`;
                 {/* Content */}
                 <div className="p-6">
                     {/* Benefits */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 mb-6">
+                    {/* <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 mb-6">
                         <h4 className="font-semibold text-gray-800 text-center mb-3">
                             🎉 Ưu đãi đặc biệt cho khách hàng VIP
                         </h4>
@@ -137,10 +137,10 @@ Cảm ơn!`;
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </div> */}
 
                     {/* Customer Info Form */}
-                    <div className="mb-6">
+                    {/* <div className="mb-6">
                         <h4 className="font-medium text-gray-800 mb-3">Thông tin liên hệ (tùy chọn):</h4>
                         <div className="grid grid-cols-2 gap-3 mb-3">
                             <input
@@ -172,7 +172,7 @@ Cảm ơn!`;
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                             rows="2"
                         />
-                    </div>
+                    </div> */}
 
                     {/* Contact Methods */}
                     <div className="mb-6">

@@ -65,7 +65,7 @@ const CartSummary = ({
 
 
                         {/* Promo Code */}
-                        <div className="mt-6 p-4 bg-gray-50 rounded-xl">
+                        {/* <div className="mt-6 p-4 bg-gray-50 rounded-xl">
                             <div className="flex items-center gap-2 mb-2">
                                 <Tag className="w-4 h-4 text-gray-600" />
                                 <span className="text-sm font-medium text-gray-700">Mã giảm giá</span>
@@ -85,7 +85,7 @@ const CartSummary = ({
                                     Chọn
                                 </button>
                             </div>
-                        </div>
+                        </div> */}
 
                         {/* Checkout Button */}
                         <Button
@@ -125,7 +125,7 @@ const CartSummary = ({
                 </div>
 
                 {/* Payment Methods */}
-                <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                {/* <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                     <h4 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
                         <CreditCard className="w-5 h-5" />
                         Phương thức thanh toán
@@ -147,7 +147,7 @@ const CartSummary = ({
                             </div>
                         ))}
                     </div>
-                </div>
+                </div> */}
             </div>
         </div>
     );

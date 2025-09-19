@@ -39,6 +39,32 @@ function OrderDetail() {
 
     const formatCurrency = (money) => numeral(money).format('0,0') + ' ₫';
 
+    // Try to resolve original and discounted prices from different possible fields
+    const resolvePrices = (item) => {
+        // possible original price fields
+        const candidatesOriginal = [
+            item.giaBan,
+            item.giaGoc,
+            item.sanPhamCT?.donGia,
+            item.sanPhamCT?.sanPham?.donGia,
+            item.thongTinSanPhamTra?.giaBan,
+        ];
+
+        // possible discounted price fields
+        const candidatesDiscounted = [
+            item.giaKhuyenMai,
+            item.sanPhamCT?.giaKhuyenMai,
+            item.sanPhamCT?.sanPham?.giaKhuyenMai,
+            item.thongTinSanPhamTra?.giaKhuyenMai,
+            item.thongTinSanPhamTra?.giaBan,
+        ];
+
+        const originalPrice = candidatesOriginal.find((v) => v !== undefined && v !== null) ?? 0;
+        const discountedPrice = candidatesDiscounted.find((v) => v !== undefined && v !== null) ?? originalPrice;
+
+        return { originalPrice: Number(originalPrice), discountedPrice: Number(discountedPrice) };
+    };
+
     const fetchData = async () => {
         try {
             const token = localStorage.getItem('userToken');
@@ -120,8 +146,9 @@ console.log(billDetail);
     };
 
     const totalAmount = billDetail.reduce((total, item) => {
-        const price = item.giaKhuyenMai || item.giaBan;
-        return total + price * item.soLuong;
+        const { discountedPrice, originalPrice } = resolvePrices(item);
+        const priceToUse = discountedPrice ?? originalPrice ?? 0;
+        return total + priceToUse * (item.soLuong || 0);
     }, 0);
 
     const discountAmount = !voucher
@@ -186,41 +213,60 @@ console.log(billDetail);
 
             {/* Product list */}
             <div style={{ display: 'grid', gap: 12 }}>
-                {billDetail.map((bill, index) => (
-                    <Paper key={index} sx={{ p: 2.5, borderRadius: 2 }} elevation={0}>
-                        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                            <Avatar
-                                variant="rounded"
-                                src={bill.hinhAnh || bill.hinhAnhUrl || ''}
-                                alt={bill.sanPhamCT?.sanPham?.ten}
-                                sx={{ width: 96, height: 96, borderRadius: 2 }}
-                            />
+                {billDetail.map((bill, index) => {
+                    // For each billed item, compute display prices using resolvePrices helper
+                    const { originalPrice, discountedPrice } = resolvePrices(bill);
+                    const unitPrice = discountedPrice;
+                    const quantity = bill.soLuong || 0;
+                    const lineTotal = unitPrice * quantity;
+                    const discountPercent = originalPrice > 0 && originalPrice > discountedPrice
+                        ? Math.round(((originalPrice - discountedPrice) / originalPrice) * 100)
+                        : 0;
 
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                                <Typography fontWeight={700} noWrap>{bill.sanPhamCT?.sanPham?.ten}</Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }} noWrap>
-                                    {`Phân loại: ${bill.sanPhamCT?.mauSac?.ten || '-'}, ${bill.sanPhamCT?.trongLuong?.ten || '-'}, ${bill.sanPhamCT?.doCung?.ten || '-'}`}
-                                </Typography>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                        <Typography variant="body2" color="text.secondary">Số lượng: {bill.soLuong}</Typography>
-                                    </div>
+                    return (
+                        <Paper key={index} sx={{ p: 2.5, borderRadius: 2 }} elevation={0}>
+                            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                                <Avatar
+                                    variant="rounded"
+                                    src={bill.hinhAnh || bill.hinhAnhUrl || bill.sanPhamCT?.hinhAnhUrl || ''}
+                                    alt={bill.sanPhamCT?.sanPham?.ten}
+                                    sx={{ width: 96, height: 96, borderRadius: 2 }}
+                                />
 
-                                    <div style={{ textAlign: 'right' }}>
-                                        {bill.giaKhuyenMai ? (
-                                            <div>
-                                                <Typography variant="body2" sx={{ textDecoration: 'line-through', color: 'gray' }}>{formatCurrency(bill.giaBan)}</Typography>
-                                                <Typography color="error" fontWeight={700}>{formatCurrency(bill.giaKhuyenMai)}</Typography>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <Typography fontWeight={700} noWrap>{bill.sanPhamCT?.sanPham?.ten || bill.ten || 'Sản phẩm'}</Typography>
+                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }} noWrap>
+                                        {`Phân loại: ${bill.sanPhamCT?.mauSac?.ten || bill.mauSac?.ten || '-'}, ${bill.sanPhamCT?.trongLuong?.ten || bill.trongLuong?.ten || '-'}, ${bill.sanPhamCT?.doCung?.ten || bill.doCung?.ten || '-'}`}
+                                    </Typography>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                            <Typography variant="body2" color="text.secondary">Số lượng: {quantity}</Typography>
+                                        </div>
+
+                                        <div style={{ textAlign: 'right', minWidth: 160 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center' }}>
+                                                <div style={{ fontSize: 13, color: '#666' }}>Đơn giá:</div>
+                                                <div style={{ fontWeight: 700, color: '#d32f2f' }}>{formatCurrency(unitPrice)}</div>
+                                                {discountPercent > 0 && (
+                                                    <div style={{ fontSize: 12, color: '#159895', background: '#ecfdf7', padding: '2px 8px', borderRadius: 8 }}>
+                                                        -{discountPercent}%
+                                                    </div>
+                                                )}
                                             </div>
-                                        ) : (
-                                            <Typography fontWeight={700}>{formatCurrency(bill.giaBan)}</Typography>
-                                        )}
+
+                                            {discountPercent > 0 && (
+                                                <div style={{ marginTop: 6, fontSize: 13, color: '#888', textDecoration: 'line-through' }}>{formatCurrency(originalPrice)}</div>
+                                            )}
+
+                                            <div style={{ marginTop: 8, fontSize: 13, color: '#666' }}>Tổng:</div>
+                                            <div style={{ fontSize: 18, fontWeight: 800 }}>{formatCurrency(lineTotal)}</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </Paper>
-                ))}
+                        </Paper>
+                    );
+                })}
             </div>
 
             {/* Summary */}

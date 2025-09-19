@@ -468,11 +468,27 @@ function UserOrder() {
 
                 {currentBills.length > 0 ? (
                     <>
-                        {currentBills.map((item) => (
-                            <div
-                                key={item.id}
-                                className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
-                            >
+                        {currentBills.map((item) => {
+                            // build product list and compute subtotal from per-item line totals (unit after-discount * qty)
+                            const productsList = (item.trangThai === 8 ? item.returnDetails : item.chiTiet) || [];
+                            const subtotalFromProducts = productsList.reduce((sum, sp) => {
+                                const isReturn = item.trangThai === 8;
+                                const quantity = isReturn ? sp?.soLuongTra || 0 : sp?.soLuong || 0;
+                                const sanPhamCT = isReturn ? sp?.thongTinSanPhamTra?.sanPhamCT : sp?.sanPhamCT;
+
+                                const originalPrice = sanPhamCT?.donGia ?? sp?.giaGoc ?? (isReturn ? sp?.thongTinSanPhamTra?.giaBan : sp?.giaBan) ?? 0;
+                                const discountedPrice = sanPhamCT?.giaKhuyenMai ?? (isReturn ? sp?.thongTinSanPhamTra?.giaBan : sp?.giaBan) ?? originalPrice;
+
+                                const unitPrice = discountedPrice;
+                                const lineTotal = unitPrice * quantity;
+                                return sum + lineTotal;
+                            }, 0);
+
+                            return (
+                                <div
+                                    key={item.id}
+                                    className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+                                >
                                 {/* Order Header */}
                                 <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-100">
                                     <div className="flex items-center justify-between">
@@ -503,67 +519,99 @@ function UserOrder() {
                                 {/* Products */}
                                 <div className="p-6">
                                     <div className="space-y-4">
-                                        {(item.trangThai === 8 ? item.returnDetails : item.chiTiet)?.map((sp, idx) => (
-                                            <div
-                                                key={idx}
-                                                className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
-                                            >
-                                                {/* Product Image */}
-                                                <div className="flex-shrink-0">
-                                                    <img
-                                                        src={
-                                                            sp?.hinhAnhUrl ||
-                                                            sp?.sanPhamCT?.hinhAnhUrl ||
-                                                            sp?.sanPhamCT?.hinhAnh ||
-                                                            'https://via.placeholder.com/80'
-                                                        }
-                                                        alt={
-                                                            item.trangThai === 8
+                                        {(item.trangThai === 8 ? item.returnDetails : item.chiTiet)?.map((sp, idx) => {
+                                            const isReturn = item.trangThai === 8;
+                                            const quantity = isReturn ? sp?.soLuongTra || 0 : sp?.soLuong || 0;
+
+                                            // Try to extract variant/product pricing
+                                            const sanPhamCT = isReturn ? sp?.thongTinSanPhamTra?.sanPhamCT : sp?.sanPhamCT;
+
+                                            const originalPrice = sanPhamCT?.donGia ?? sp?.giaGoc ?? (isReturn ? sp?.thongTinSanPhamTra?.giaBan : sp?.giaBan) ?? 0;
+                                            const discountedPrice = sanPhamCT?.giaKhuyenMai ?? (isReturn ? sp?.thongTinSanPhamTra?.giaBan : sp?.giaBan) ?? originalPrice;
+
+                                            const unitPrice = discountedPrice;
+                                            const lineTotal = unitPrice * quantity;
+
+                                            const discountPercent = originalPrice > 0 && originalPrice > discountedPrice
+                                                ? Math.round(((originalPrice - discountedPrice) / originalPrice) * 100)
+                                                : 0;
+
+                                            return (
+                                                <div
+                                                    key={idx}
+                                                    className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                                                >
+                                                    {/* Product Image */}
+                                                    <div className="flex-shrink-0">
+                                                        <img
+                                                            src={
+                                                                sp?.hinhAnhUrl ||
+                                                                sp?.sanPhamCT?.hinhAnhUrl ||
+                                                                sp?.sanPhamCT?.hinhAnh ||
+                                                                sp?.thongTinSanPhamTra?.hinhAnhUrl ||
+                                                                'https://via.placeholder.com/80'
+                                                            }
+                                                            alt={
+                                                                isReturn
+                                                                    ? sp?.thongTinSanPhamTra?.tenSanPham
+                                                                    : sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'
+                                                            }
+                                                            className="w-20 h-20 object-cover rounded-xl border border-gray-200"
+                                                        />
+                                                    </div>
+
+                                                    {/* Product Info */}
+                                                    <div className="flex-grow min-w-0">
+                                                        <h4 className="font-medium text-gray-800 text-base line-clamp-2 mb-2">
+                                                            {isReturn
                                                                 ? sp?.thongTinSanPhamTra?.tenSanPham
-                                                                : sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'
-                                                        }
-                                                        className="w-20 h-20 object-cover rounded-xl border border-gray-200"
-                                                    />
-                                                </div>
+                                                                : sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'}
+                                                        </h4>
 
-                                                {/* Product Info */}
-                                                <div className="flex-grow min-w-0">
-                                                    <h4 className="font-medium text-gray-800 text-base line-clamp-2 mb-2">
-                                                        {item.trangThai === 8
-                                                            ? sp?.thongTinSanPhamTra?.tenSanPham
-                                                            : sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'}
-                                                    </h4>
-
-                                                    <div className="flex items-center gap-4 text-sm text-gray-600">
-                                                        <div className="flex items-center gap-1">
-                                                            <Tag className="w-3 h-3" />
-                                                            <span>
-                                                                {item.trangThai === 8
-                                                                    ? `${sp?.thongTinSanPhamTra?.tenMauSac}, ${sp?.thongTinSanPhamTra?.tenTrongLuong}, ${sp?.thongTinSanPhamTra?.tenDoCung}`
-                                                                    : `${sp?.sanPhamCT?.mauSac?.ten}, ${sp?.sanPhamCT?.trongLuong?.ten}, ${sp?.sanPhamCT?.doCung?.ten}`}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex items-center gap-1">
-                                                            <Package className="w-3 h-3" />
-                                                            <span>
-                                                                x{item.trangThai === 8 ? sp.soLuongTra : sp.soLuong}
-                                                            </span>
+                                                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                                                            <div className="flex items-center gap-1">
+                                                                <Tag className="w-3 h-3" />
+                                                                <span>
+                                                                    {isReturn
+                                                                        ? `${sp?.thongTinSanPhamTra?.tenMauSac || ''}, ${sp?.thongTinSanPhamTra?.tenTrongLuong || ''}, ${sp?.thongTinSanPhamTra?.tenDoCung || ''}`
+                                                                        : `${sp?.sanPhamCT?.mauSac?.ten || ''}, ${sp?.sanPhamCT?.trongLuong?.ten || ''}, ${sp?.sanPhamCT?.doCung?.ten || ''}`}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                <Package className="w-3 h-3" />
+                                                                <span>
+                                                                    x{quantity}
+                                                                </span>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
 
-                                                {/* Price */}
-                                                <div className="text-right">
-                                                    <div className="text-lg font-semibold text-gray-800">
-                                                        {formatCurrency(
-                                                            item.trangThai === 8
-                                                                ? sp?.thongTinSanPhamTra?.giaBan
-                                                                : sp?.giaBan,
+                                                    {/* Price */}
+                                                    <div className="text-right min-w-[140px]">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <div className="text-sm text-gray-500">Đơn giá:</div>
+                                                            <div className="text-md font-semibold text-red-600">
+                                                                {formatCurrency(unitPrice)}
+                                                            </div>
+                                                            {discountPercent > 0 && (
+                                                                <div className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                                                                    -{discountPercent}%
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {discountPercent > 0 && (
+                                                            <div className="text-xs text-gray-500 line-through mt-1">
+                                                                {formatCurrency(originalPrice)}
+                                                            </div>
                                                         )}
+
+                                                        <div className="text-sm text-gray-600 mt-2">Tổng:</div>
+                                                        <div className="text-lg font-bold text-gray-800">{formatCurrency(lineTotal)}</div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
 
@@ -578,7 +626,7 @@ function UserOrder() {
                                         <div className="flex items-center gap-4">
                                             <div className="text-right">
                                                 <div className="text-xl font-bold text-red-600">
-                                                    {formatCurrency(item.tongTien)}
+                                                    {formatCurrency(subtotalFromProducts)}
                                                 </div>
                                             </div>
 
@@ -593,7 +641,8 @@ function UserOrder() {
                                     </div>
                                 </div>
                             </div>
-                        ))}
+                        );
+                        })}
 
                         {/* Pagination */}
                         {filteredBills.length > 0 && <Pagination />}

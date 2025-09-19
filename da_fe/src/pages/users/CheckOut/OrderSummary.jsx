@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+        
 import { 
     ShoppingCart, 
     Edit3, 
@@ -9,10 +10,9 @@ import {
     Percent,
     Gift,
     CheckCircle,
-    Clock
-} from 'lucide-react';
-
-const OrderSummary = ({
+    Clock,
+    Calculator 
+} from 'lucide-react';const OrderSummary = ({
     carts,
     totalPrice,
     selectedPaymentMethod,
@@ -23,7 +23,9 @@ const OrderSummary = ({
     promoDiscount,
     discountedPrice,
     selectedDiscount,
-    setShowModal
+    setShowModal,
+    shippingFee = 0,
+    isSmartShipping = false
 }) => {
     const navigate = useNavigate();
     
@@ -131,11 +133,25 @@ const OrderSummary = ({
                             </div>
                         )}
                         
+                        <div className="flex justify-between text-sm">
+                            <span className="text-gray-600 flex items-center gap-1">
+                                <Truck className="w-3 h-3" />
+                                Phí vận chuyển:
+                                {isSmartShipping && (
+                                    <span className="ml-1 px-1 py-0.5 text-xs bg-green-100 text-green-700 rounded">
+                                        <Calculator  className="w-2 h-2 inline mr-0.5" />
+                                        Thông minh
+                                    </span>
+                                )}
+                            </span>
+                            <span className="font-medium">{shippingFee.toLocaleString()}₫</span>
+                        </div>
+                        
                         <div className="border-t border-gray-200 pt-2">
                             <div className="flex justify-between items-center">
                                 <span className="font-semibold text-gray-900">Tổng cộng:</span>
                                 <span className="font-bold text-lg text-blue-600">
-                                    {(promoDiscount > 0 ? discountedPrice : totalPrice).toLocaleString()}₫
+                                    {((promoDiscount > 0 ? discountedPrice : totalPrice) + shippingFee).toLocaleString()}₫
                                 </span>
                             </div>
                         </div>
@@ -216,7 +232,7 @@ const OrderSummary = ({
                             </div>
                         </label>
                         
-                        <label className="cursor-pointer">
+                        {/* <label className="cursor-pointer">
                             <div className={`flex items-center p-3 rounded-lg border transition-colors ${
                                 selectedPaymentMethod === 'vnpay' 
                                     ? 'border-blue-400 bg-blue-50' 
@@ -237,7 +253,7 @@ const OrderSummary = ({
                                     <CheckCircle className="w-4 h-4 text-blue-600 ml-auto" />
                                 )}
                             </div>
-                        </label>
+                        </label> */}
                     </div>
                 </div>
 

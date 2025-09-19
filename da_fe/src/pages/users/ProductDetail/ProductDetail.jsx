@@ -517,7 +517,7 @@ export default function ProductDetail() {
                                                 </div>
                                                 <div className="flex flex-col flex-1">
                                                     <span className="text-sm font-medium text-gray-900">{color}</span>
-                                                    <span className="text-lg font-bold text-red-600">
+                                                    {/* <span className="text-lg font-bold text-red-600">
                                                         {product.variants
                                                             .find((v) => v.mauSacTen === color)
                                                             ?.giaKhuyenMai?.toLocaleString() ||
@@ -534,7 +534,7 @@ export default function ProductDetail() {
                                                                 ?.donGia.toLocaleString() || ''}
                                                             <span className="text-sm ml-1">₫</span>
                                                         </span>
-                                                    )}
+                                                    )} */}
                                                 </div>
                                             </div>
                                         ))}
