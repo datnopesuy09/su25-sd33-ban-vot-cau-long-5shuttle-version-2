@@ -138,8 +138,24 @@ public class HoaDonCTService {
         return hoaDonCTRepository.save(hoaDonCT);
     }
 
+    @Transactional
     public void deleteHoaDonCTById(int id) {
-        hoaDonCTRepository.deleteById(id);
+        HoaDonCT hoaDonCT = hoaDonCTRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hóa đơn chi tiết với ID: " + id));
+
+        try {
+            SanPhamCT sanPhamCT = hoaDonCT.getSanPhamCT();
+            int soLuongHoan = hoaDonCT.getSoLuong() != null ? hoaDonCT.getSoLuong() : 0;
+            if (sanPhamCT != null && soLuongHoan > 0) {
+                // Use KhoHangService to restore stock consistently and record logs
+                khoHangService.restoreStock(sanPhamCT.getId(), soLuongHoan);
+            }
+
+            // Finally delete the HoaDonCT record
+            hoaDonCTRepository.deleteById(id);
+        } catch (Exception e) {
+            throw new RuntimeException("Lỗi khi xóa chi tiết hóa đơn: " + e.getMessage(), e);
+        }
     }
 
     public List<HoaDonCT> getHoaDonCTByHoaDonId(int hoaDonId) {
