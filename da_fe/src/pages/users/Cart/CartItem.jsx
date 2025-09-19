@@ -17,6 +17,13 @@ const CartItem = ({
     const totalPrice =
         (cart.sanPhamCT.giaKhuyenMai || cart.sanPhamCT.donGia) * quantity;
 
+            // Tính phần trăm giảm giá nếu có giá khuyến mãi
+            const discountPercent = cart.sanPhamCT.giaKhuyenMai
+                    ? Math.round(
+                            ((cart.sanPhamCT.donGia - cart.sanPhamCT.giaKhuyenMai) / cart.sanPhamCT.donGia) * 100
+                        )
+                    : 0;
+
     const handleQuantityChange = (e) => {
         const newValue = e.target.value;
         if (/^\d*$/.test(newValue)) {
@@ -156,9 +163,14 @@ const CartItem = ({
                         <span className="text-xs text-gray-500">Đơn giá</span>
                         {cart.sanPhamCT.giaKhuyenMai ? (
                             <>
-                                <span className="text-md font-medium text-red-600">
-                                    {cart.sanPhamCT.giaKhuyenMai.toLocaleString()}₫
-                                </span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-md font-medium text-red-600">
+                                        {cart.sanPhamCT.giaKhuyenMai.toLocaleString()}₫
+                                    </span>
+                                    <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded">
+                                        -{discountPercent}%
+                                    </span>
+                                </div>
                                 <span className="text-xs text-gray-500 line-through">
                                     {cart.sanPhamCT.donGia.toLocaleString()}₫
                                 </span>

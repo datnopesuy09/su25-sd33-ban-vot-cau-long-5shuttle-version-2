@@ -20,14 +20,10 @@ public class WebConfig implements WebMvcConfigurer {
     // vì header 'Access-Control-Allow-Origin' không thể set '*'. Điều này gây ra IllegalArgumentException 400.
     // Chỉ liệt kê rõ các origin frontend hợp lệ. Nếu cần mở rộng động, dùng cấu hình qua application.properties.
     registry.addMapping("/**")
-        .allowedOriginPatterns(
-            "http://localhost:3000",  // React default port
-            "http://localhost:5173"   // Vite default port
-            // Không thêm '*' ở đây khi allowCredentials = true
-        )
+        .allowedOriginPatterns("*")  // Temporary: allow all origins for testing
         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
         .allowedHeaders("*")
-        .allowCredentials(true)
+        .allowCredentials(false)  // Must be false when using wildcard
         .maxAge(3600);
     }
 

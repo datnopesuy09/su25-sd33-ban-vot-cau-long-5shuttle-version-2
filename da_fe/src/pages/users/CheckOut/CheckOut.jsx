@@ -42,11 +42,16 @@ const CheckOut = () => {
     // Giả sử idTaiKhoan được truyền qua location.state hoặc dùng giá trị mặc định
     const { user } = useUserAuth();
     const { admin } = useAdminAuth();
-    const token = user?.token || localStorage.getItem('userToken');
-    const token2 = admin?.token || localStorage.getItem('userToken');
-    const idTaiKhoan = user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
-    const idAdmin = admin?.id || parseJwt(token2)?.sub || parseJwt(token2)?.id;
+    
+    // Cải thiện logic lấy token
+    const userToken = user?.token || localStorage.getItem('userToken') || localStorage.getItem('token');
+    const adminToken = admin?.token || localStorage.getItem('adminToken');
+    
+    const idTaiKhoan = user?.id || parseJwt(userToken)?.sub || parseJwt(userToken)?.id || localStorage.getItem('idKhachHang');
+    const idAdmin = admin?.id || parseJwt(adminToken)?.sub || parseJwt(adminToken)?.id;
+    
     console.log('iduser checkout: ', idTaiKhoan);
+    console.log('userToken: ', userToken);
     console.log('idadmin checkout: ', idAdmin);
 
     const { setCartItemCount } = useContext(CartContext);
@@ -76,7 +81,12 @@ const CheckOut = () => {
     const [discountedPrice, setDiscountedPrice] = useState(0);
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
     const [showModal, setShowModal] = useState(false);
-    const [shippingFee, setShippingFee] = useState(0);
+    const [shippingFee, setShippingFee] = useState(30000);
+    const [smartShippingData, setSmartShippingData] = useState({
+        districtId: null,
+        wardCode: null,
+        quantity: 0
+    });
     const [showAddressForm, setShowAddressForm] = useState(false);
     const [defaultAddress, setDefaultAddress] = useState(null);
     const [showAddressModal, setShowAddressModal] = useState(false);
@@ -142,6 +152,88 @@ const CheckOut = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [idTaiKhoan]);
 
+    // Effect để tự động tính phí ship khi có thông tin địa chỉ
+    useEffect(() => {
+        console.log('SmartShippingData changed:', smartShippingData);
+        if (smartShippingData.districtId && smartShippingData.wardCode && smartShippingData.quantity > 0) {
+            console.log('Tính phí ship với:', {
+                districtId: smartShippingData.districtId,
+                wardCode: smartShippingData.wardCode,
+                quantity: smartShippingData.quantity
+            });
+            calculateShippingFee(smartShippingData.districtId, smartShippingData.wardCode, smartShippingData.quantity);
+        } else {
+            console.log('Thiếu thông tin để tính phí ship, sử dụng mặc định');
+            setShippingFee(30000);
+        }
+    }, [smartShippingData.districtId, smartShippingData.wardCode, smartShippingData.quantity]);
+
+    // Effect để cập nhật discountedPrice khi shippingFee hoặc promoDiscount thay đổi
+    useEffect(() => {
+        setDiscountedPrice(totalPrice - promoDiscount + shippingFee);
+    }, [totalPrice, promoDiscount, shippingFee]);
+
+    // Effect để cập nhật thông tin shipping từ địa chỉ mặc định
+    useEffect(() => {
+        if (defaultAddress) {
+            // Nếu có district/ward code từ địa chỉ mặc định
+            const districtId = defaultAddress.districtCode || null;
+            const wardCode = defaultAddress.wardCode || null;
+            
+            setSmartShippingData(prev => ({
+                ...prev,
+                districtId,
+                wardCode
+            }));
+
+            // Nếu không có code, thử tìm kiếm dựa trên tên
+            if (!districtId || !wardCode) {
+                findDistrictAndWardCodes(defaultAddress.tinh, defaultAddress.huyen, defaultAddress.xa);
+            }
+        }
+    }, [defaultAddress]);
+
+    // Hàm tìm district và ward code từ tên
+    const findDistrictAndWardCodes = async (provinceName, districtName, wardName) => {
+        try {
+            // Tìm province code
+            const provincesRes = await axios.get('https://provinces.open-api.vn/api/p/');
+            const province = provincesRes.data.find(p => 
+                p.name.toLowerCase().includes(provinceName.toLowerCase()) ||
+                provinceName.toLowerCase().includes(p.name.toLowerCase())
+            );
+
+            if (province) {
+                // Tìm district code
+                const districtsRes = await axios.get(`https://provinces.open-api.vn/api/p/${province.code}?depth=2`);
+                const district = districtsRes.data.districts.find(d => 
+                    d.name.toLowerCase().includes(districtName.toLowerCase()) ||
+                    districtName.toLowerCase().includes(d.name.toLowerCase())
+                );
+
+                if (district) {
+                    // Tìm ward code
+                    const wardsRes = await axios.get(`https://provinces.open-api.vn/api/d/${district.code}?depth=2`);
+                    const ward = wardsRes.data.wards.find(w => 
+                        w.name.toLowerCase().includes(wardName.toLowerCase()) ||
+                        wardName.toLowerCase().includes(w.name.toLowerCase())
+                    );
+
+                    if (ward) {
+                        setSmartShippingData(prev => ({
+                            ...prev,
+                            districtId: district.code,
+                            wardCode: ward.code
+                        }));
+                        console.log('Đã tìm thấy district code:', district.code, 'ward code:', ward.code);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Lỗi khi tìm district/ward code:', error);
+        }
+    };
+
     const fetchCart = async () => {
         try {
             const res = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}`);
@@ -157,6 +249,13 @@ const CheckOut = () => {
 
             setTotalPrice(total);
             setDiscountedPrice(total);
+            
+            // Cập nhật số lượng sản phẩm cho shipping
+            const totalQuantity = filteredCarts.reduce((sum, item) => sum + item.soLuong, 0);
+            setSmartShippingData(prev => ({
+                ...prev,
+                quantity: totalQuantity
+            }));
         } catch (err) {
             console.error('Không thể lấy giỏ hàng', err);
             swal('Lỗi', 'Không thể lấy giỏ hàng', 'error');
@@ -168,12 +267,13 @@ const CheckOut = () => {
         try {
             const res = await axios.get('http://localhost:8080/dia-chi/mac-dinh', {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('userToken')}`, // nếu cần
+                    Authorization: `Bearer ${userToken}`,
                 },
             });
             setDefaultAddress(res.data.result);
         } catch (err) {
             console.error('Không thể lấy địa chỉ mặc định:', err);
+            console.error('Token used:', userToken);
             setDefaultAddress(null);
         } finally {
             setIsLoadingAddress(false);
@@ -184,13 +284,14 @@ const CheckOut = () => {
         try {
             const res = await axios.get('http://localhost:8080/dia-chi/getMyAddress', {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('userToken')}`,
+                    Authorization: `Bearer ${userToken}`,
                 },
             });
             setUserAddresses(res.data.result);
             // setIsFirstAddress(res.data.result.length === 0);
         } catch (err) {
             console.error('Không thể lấy danh sách địa chỉ:', err);
+            console.error('Token used:', userToken);
         }
     };
 
@@ -282,7 +383,7 @@ const CheckOut = () => {
             setPromoDiscount(discountAmount);
             setPromoCode(discount.ma);
             setShowModal(false);
-            setDiscountedPrice(totalPrice - discountAmount + shippingFee);
+            // discountedPrice sẽ được cập nhật tự động qua useEffect
         }
     };
 
@@ -290,7 +391,7 @@ const CheckOut = () => {
         setSelectedDiscount(null);
         setPromoDiscount(0);
         setPromoCode('');
-        setDiscountedPrice(totalPrice + shippingFee);
+        // discountedPrice sẽ được cập nhật tự động qua useEffect
     };
 
     const handleInputChange = (e) => {
@@ -309,8 +410,21 @@ const CheckOut = () => {
                 newFormData.districtName = districts.find((d) => d.code === value)?.name || '';
                 setWards([]);
                 fetchWards(value);
+                
+                // Cập nhật thông tin shipping
+                setSmartShippingData(prev => ({
+                    ...prev,
+                    districtId: value,
+                    wardCode: null
+                }));
             } else if (name === 'ward') {
                 newFormData.wardName = wards.find((w) => w.code === value)?.name || '';
+                
+                // Cập nhật thông tin shipping
+                setSmartShippingData(prev => ({
+                    ...prev,
+                    wardCode: value
+                }));
             }
             return newFormData;
         });
@@ -336,6 +450,42 @@ const CheckOut = () => {
         return Object.keys(newErrors).length === 0;
     };
 
+    // Callback để cập nhật phí ship từ SmartShippingFee component (không còn sử dụng)
+    const handleShippingFeeChange = (newShippingFee) => {
+        setShippingFee(newShippingFee);
+        // discountedPrice sẽ được cập nhật tự động qua useEffect
+    };
+
+    // Tính phí ship tự động
+    const calculateShippingFee = async (districtId, wardCode, quantity) => {
+        console.log('===== DEBUG SHIPPING FEE =====');
+        console.log('districtId:', districtId, 'type:', typeof districtId);
+        console.log('wardCode:', wardCode, 'type:', typeof wardCode);
+        console.log('quantity:', quantity, 'type:', typeof quantity);
+        
+        if (!districtId || !wardCode || quantity <= 0) {
+            console.log('Thiếu thông tin, sử dụng phí mặc định');
+            setShippingFee(30000); // Phí mặc định
+            return;
+        }
+
+        try {
+            console.log('Sending request to shipping API with:', { districtId, wardCode, quantity });
+            const result = await shippingService.calculateShippingFee(districtId, wardCode, quantity);
+            console.log('API response:', result);
+            if (result && result.shippingFee) {
+                setShippingFee(result.shippingFee);
+                console.log('Đã tính phí ship thông minh:', result.shippingFee);
+            } else {
+                setShippingFee(30000);
+                console.log('Sử dụng phí ship mặc định');
+            }
+        } catch (error) {
+            console.error('Lỗi khi tính phí ship:', error);
+            setShippingFee(30000); // Fallback về phí mặc định
+        }
+    };
+
     const handleSubmit = async () => {
         if (carts.length === 0) {
             swal('Lỗi', 'Giỏ hàng của bạn đang trống!', 'error');
@@ -354,6 +504,9 @@ const CheckOut = () => {
                 xa: formData.wardName,
                 huyen: formData.districtName,
                 tinh: formData.provinceName,
+                // Thêm district và ward code để tính phí ship
+                districtCode: formData.district,
+                wardCode: formData.ward,
             };
         } else {
             if (!defaultAddress) {
@@ -368,6 +521,9 @@ const CheckOut = () => {
                 xa: defaultAddress.xa,
                 huyen: defaultAddress.huyen,
                 tinh: defaultAddress.tinh,
+                // Thêm district và ward code nếu có
+                districtCode: defaultAddress.districtCode || smartShippingData.districtId,
+                wardCode: defaultAddress.wardCode || smartShippingData.wardCode,
             };
         }
 
@@ -469,7 +625,7 @@ const CheckOut = () => {
         try {
             const res = await axios.post('http://localhost:8080/dia-chi/create', data, {
                 headers: {
-                    Authorization: `Bearer ${localStorage.getItem('userToken')}`,
+                    Authorization: `Bearer ${userToken}`,
                 },
             });
 
@@ -478,6 +634,13 @@ const CheckOut = () => {
             const newAddress = res.data.result;
 
             setDefaultAddress(newAddress);
+
+            // Cập nhật thông tin shipping với địa chỉ mới
+            setSmartShippingData(prev => ({
+                ...prev,
+                districtId: formData.district,
+                wardCode: formData.ward
+            }));
 
             setShowAddressForm(false);
             setIsDefaultAddress(false);
@@ -497,6 +660,7 @@ const CheckOut = () => {
             // fetchDefaultAddress();
         } catch (error) {
             console.error('Lỗi khi thêm địa chỉ mới:', error);
+            console.error('Token used:', userToken);
             toast.error('Không thể thêm địa chỉ mới');
         }
     };
@@ -679,6 +843,7 @@ const CheckOut = () => {
                     shippingFee={shippingFee}
                     promoDiscount={promoDiscount}
                     selectedDiscount={selectedDiscount}
+                    isSmartShipping={smartShippingData.districtId && smartShippingData.wardCode}
                 />
             </div>
 

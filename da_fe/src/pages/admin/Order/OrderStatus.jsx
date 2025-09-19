@@ -280,9 +280,34 @@ function OrderStatus() {
         return discountAmount;
     }
 
+    // Resolve possible price fields for an order detail item and return unit original/discounted prices
+    const resolvePrices = (item) => {
+        // Prefer variant-level prices when available (these are unit prices)
+        const variantOriginal = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia;
+        const variantDiscounted = item.sanPhamCT?.giaKhuyenMai ?? item.sanPhamCT?.sanPham?.giaKhuyenMai;
+
+        if (variantOriginal !== undefined && variantOriginal !== null) {
+            const originalPrice = Number(variantOriginal);
+            const discountedPrice = variantDiscounted !== undefined && variantDiscounted !== null ? Number(variantDiscounted) : originalPrice;
+            return { originalPrice, discountedPrice };
+        }
+
+        // Fallback: order-level fields may be totals (giaBan/giaKhuyenMai) — divide by quantity to get unit price
+        const qty = Number(item.soLuong) || 1;
+        const orderGiaBan = item.giaBan;
+        const orderGiaKhuyenMai = item.giaKhuyenMai;
+
+        const originalFromOrder = orderGiaBan !== undefined && orderGiaBan !== null ? Number(orderGiaBan) / qty : 0;
+        const discountedFromOrder = orderGiaKhuyenMai !== undefined && orderGiaKhuyenMai !== null ? Number(orderGiaKhuyenMai) / qty : originalFromOrder;
+
+        return { originalPrice: originalFromOrder, discountedPrice: discountedFromOrder };
+    };
+
     useEffect(() => {
         const newSubtotal = orderDetailDatas.reduce((sum, item) => {
-            return sum + item.sanPhamCT.donGia * item.soLuong;
+            const { discountedPrice } = resolvePrices(item);
+            const qty = Number(item.soLuong) || 0;
+            return sum + discountedPrice * qty;
         }, 0);
 
         let voucher = orderData.voucher || null;

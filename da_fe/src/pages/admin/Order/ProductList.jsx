@@ -96,6 +96,31 @@ const ProductList = ({
         }).format(amount);
     };
 
+    // Resolve possible price fields and return original and discounted prices
+    const resolvePrices = (item) => {
+        // Prefer unit prices from sanPhamCT (variant) — these should be immutable unit prices.
+        const variantOriginal = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia;
+        const variantDiscounted = item.sanPhamCT?.giaKhuyenMai ?? item.sanPhamCT?.sanPham?.giaKhuyenMai;
+
+        if (variantOriginal !== undefined && variantOriginal !== null) {
+            const originalPrice = Number(variantOriginal);
+            const discountedPrice = variantDiscounted !== undefined && variantDiscounted !== null ? Number(variantDiscounted) : originalPrice;
+            return { originalPrice, discountedPrice };
+        }
+
+        // If variant-level price not available, try order-level fields. Sometimes backend stores line total in giaBan/giaKhuyenMai
+        // after quantity updates; to get unit price, divide by soLuong when appropriate.
+        const qty = Number(item.soLuong) || 1;
+
+        const orderGiaBan = item.giaBan;
+        const orderGiaKhuyenMai = item.giaKhuyenMai;
+
+        const originalFromOrder = orderGiaBan !== undefined && orderGiaBan !== null ? Number(orderGiaBan) / qty : 0;
+        const discountedFromOrder = orderGiaKhuyenMai !== undefined && orderGiaKhuyenMai !== null ? Number(orderGiaKhuyenMai) / qty : originalFromOrder;
+
+        return { originalPrice: originalFromOrder, discountedPrice: discountedFromOrder };
+    };
+
     const canReturn = [4, 5].includes(currentOrderStatus);
 
     const isOrderOnHold = currentOrderStatus === 10; // 10 = Có sự cố - Tạm dừng vận chuyển (frontend)
@@ -180,9 +205,30 @@ const ProductList = ({
                                             {orderDetail.sanPhamCT.ten}
                                         </h3>
                                         <div className="flex items-center gap-2 mb-2">
-                                            <span className="text-sm text-red-500 font-medium">
-                                                {formatCurrency(orderDetail.sanPhamCT.donGia)}
-                                            </span>
+                                            {(() => {
+                                                const { originalPrice, discountedPrice } = resolvePrices(orderDetail);
+                                                const discountPercent = originalPrice > 0 && originalPrice > discountedPrice
+                                                    ? Math.round(((originalPrice - discountedPrice) / originalPrice) * 100)
+                                                    : 0;
+
+                                                return (
+                                                    <>
+                                                        <span className="text-sm text-red-500 font-medium">
+                                                            {formatCurrency(discountedPrice)}
+                                                        </span>
+                                                        {discountPercent > 0 && (
+                                                            <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded">
+                                                                -{discountPercent}%
+                                                            </span>
+                                                        )}
+                                                        {discountPercent > 0 && (
+                                                            <span className="text-xs text-gray-500 line-through ml-2">
+                                                                {formatCurrency(originalPrice)}
+                                                            </span>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
                                         </div>
                                         <div className="flex items-center gap-1 mb-3">
                                             {[...Array(5)].map((_, i) => (
@@ -218,7 +264,10 @@ const ProductList = ({
 
                                     <div className="text-right">
                                         <div className="text-2xl font-bold text-red-600 mb-4">
-                                            {formatCurrency(orderDetail.giaBan)}
+                                            {(() => {
+                                                const { discountedPrice } = resolvePrices(orderDetail);
+                                                return formatCurrency(discountedPrice);
+                                            })()}
                                         </div>
                                         <div className="flex items-center gap-3 mb-4">
                                             <button
@@ -253,6 +302,7 @@ const ProductList = ({
                                         >
                                             <Trash2 size={16} className="text-red-600" />
                                         </button>
+                                        <div className="mt-2 text-sm text-gray-600">Tổng: <span className="font-semibold text-gray-800">{formatCurrency(resolvePrices(orderDetail).discountedPrice * (orderDetail.soLuong || 0))}</span></div>
                                         {/* <button
                                             onClick={() => handleOpenReturnModal(orderDetail)}
                                             disabled={!canReturn || isOrderOnHold}
