@@ -7,7 +7,7 @@ import axios from 'axios';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
 import ProductModal from './ProductModal';
-import ProductList from './ProductList';
+import ProductList from '../Order/ProductList';
 import PaymentSummary from './PaymentSummary';
 
 function OfflineSale() {

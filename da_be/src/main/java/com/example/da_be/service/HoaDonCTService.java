@@ -9,6 +9,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -66,7 +67,13 @@ public class HoaDonCTService {
         HoaDonCTDTO dto = new HoaDonCTDTO();
         dto.setId(hoaDonCT.getId());
         dto.setSoLuong(hoaDonCT.getSoLuong());
-        dto.setGiaBan(hoaDonCT.getSoLuong() * hoaDonCT.getSanPhamCT().getDonGia());
+        // Tính tổng giá bán = giaBan (stored as BigDecimal) nếu có, ngược lại tính từ đơn giá * số lượng
+        if (hoaDonCT.getGiaBan() != null) {
+            dto.setGiaBan(hoaDonCT.getGiaBan().doubleValue());
+        } else {
+            double unit = hoaDonCT.getSanPhamCT().getDonGia();
+            dto.setGiaBan(unit * hoaDonCT.getSoLuong());
+        }
         dto.setTrangThaiHoaDon(hoaDonCT.getHoaDon().getTrangThai());
         SanPhamCT sanPhamCT = hoaDonCT.getSanPhamCT();
         SanPhamCTDTO sanPhamCTDTO = new SanPhamCTDTO();
@@ -114,7 +121,15 @@ public class HoaDonCTService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hóa đơn chi tiết với ID: " + hoaDonCTId));
         SanPhamCT sanPhamCT = hoaDonCT.getSanPhamCT();
         int oldQuantity = hoaDonCT.getSoLuong();
+        // Cập nhật số lượng và tính lại giaBan = unitPrice * newQuantity
         hoaDonCT.setSoLuong(newQuantity);
+        BigDecimal unitPrice;
+        if (sanPhamCT.getGiaKhuyenMai() != null && sanPhamCT.getGiaKhuyenMai() < sanPhamCT.getDonGia()) {
+            unitPrice = BigDecimal.valueOf(sanPhamCT.getGiaKhuyenMai());
+        } else {
+            unitPrice = BigDecimal.valueOf(sanPhamCT.getDonGia());
+        }
+        hoaDonCT.setGiaBan(unitPrice.multiply(BigDecimal.valueOf(newQuantity)));
         hoaDonCTRepository.save(hoaDonCT);
         int quantityDifference = newQuantity - oldQuantity;
         int updatedStock = sanPhamCT.getSoLuong() - quantityDifference;
@@ -266,9 +281,17 @@ public class HoaDonCTService {
                     hoaDonCT.setHoaDon(hoaDon);
                     hoaDonCT.setSanPhamCT(sanPhamCT);
                     hoaDonCT.setSoLuong(preOrder.getSoLuong());
-//                    hoaDonCT.setGiaBan(sanPhamCT.getGiaKhuyenMai() != null && sanPhamCT.getGiaKhuyenMai().compareTo(sanPhamCT.getDonGia()) < 0
-//                            ? sanPhamCT.getGiaKhuyenMai()
-//                            : sanPhamCT.getDonGia());
+                    
+                    // Set giá bán: ưu tiên giá khuyến mãi nếu có và nhỏ hơn giá gốc
+                    BigDecimal giaBan;
+                    if (sanPhamCT.getGiaKhuyenMai() != null && 
+                        sanPhamCT.getGiaKhuyenMai() < sanPhamCT.getDonGia()) {
+                        giaBan = BigDecimal.valueOf(sanPhamCT.getGiaKhuyenMai());
+                    } else {
+                        giaBan = BigDecimal.valueOf(sanPhamCT.getDonGia());
+                    }
+                    hoaDonCT.setGiaBan(giaBan);
+                    
                     hoaDonCT.setTrangThai(1);
                 } else {
                     hoaDonCT.setSoLuong(hoaDonCT.getSoLuong() + preOrder.getSoLuong());

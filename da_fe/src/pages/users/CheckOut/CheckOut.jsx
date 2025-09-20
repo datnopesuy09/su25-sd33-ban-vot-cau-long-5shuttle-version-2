@@ -153,20 +153,20 @@ const CheckOut = () => {
     }, [idTaiKhoan]);
 
     // Effect để tự động tính phí ship khi có thông tin địa chỉ
-    useEffect(() => {
-        console.log('SmartShippingData changed:', smartShippingData);
-        if (smartShippingData.districtId && smartShippingData.wardCode && smartShippingData.quantity > 0) {
-            console.log('Tính phí ship với:', {
-                districtId: smartShippingData.districtId,
-                wardCode: smartShippingData.wardCode,
-                quantity: smartShippingData.quantity
-            });
-            calculateShippingFee(smartShippingData.districtId, smartShippingData.wardCode, smartShippingData.quantity);
-        } else {
-            console.log('Thiếu thông tin để tính phí ship, sử dụng mặc định');
-            setShippingFee(30000);
-        }
-    }, [smartShippingData.districtId, smartShippingData.wardCode, smartShippingData.quantity]);
+    // useEffect(() => {
+    //     console.log('SmartShippingData changed:', smartShippingData);
+    //     if (smartShippingData.districtId && smartShippingData.wardCode && smartShippingData.quantity > 0) {
+    //         console.log('Tính phí ship với:', {
+    //             districtId: smartShippingData.districtId,
+    //             wardCode: smartShippingData.wardCode,
+    //             quantity: smartShippingData.quantity
+    //         });
+    //         calculateShippingFee(smartShippingData.districtId, smartShippingData.wardCode, smartShippingData.quantity);
+    //     } else {
+    //         console.log('Thiếu thông tin để tính phí ship, sử dụng mặc định');
+    //         setShippingFee(30000);
+    //     }
+    // }, [smartShippingData.districtId, smartShippingData.wardCode, smartShippingData.quantity]);
 
     // Effect để cập nhật discountedPrice khi shippingFee hoặc promoDiscount thay đổi
     useEffect(() => {
@@ -457,34 +457,34 @@ const CheckOut = () => {
     };
 
     // Tính phí ship tự động
-    const calculateShippingFee = async (districtId, wardCode, quantity) => {
-        console.log('===== DEBUG SHIPPING FEE =====');
-        console.log('districtId:', districtId, 'type:', typeof districtId);
-        console.log('wardCode:', wardCode, 'type:', typeof wardCode);
-        console.log('quantity:', quantity, 'type:', typeof quantity);
+    // const calculateShippingFee = async (districtId, wardCode, quantity) => {
+    //     console.log('===== DEBUG SHIPPING FEE =====');
+    //     console.log('districtId:', districtId, 'type:', typeof districtId);
+    //     console.log('wardCode:', wardCode, 'type:', typeof wardCode);
+    //     console.log('quantity:', quantity, 'type:', typeof quantity);
         
-        if (!districtId || !wardCode || quantity <= 0) {
-            console.log('Thiếu thông tin, sử dụng phí mặc định');
-            setShippingFee(30000); // Phí mặc định
-            return;
-        }
+    //     if (!districtId || !wardCode || quantity <= 0) {
+    //         console.log('Thiếu thông tin, sử dụng phí mặc định');
+    //         setShippingFee(30000); // Phí mặc định
+    //         return;
+    //     }
 
-        try {
-            console.log('Sending request to shipping API with:', { districtId, wardCode, quantity });
-            const result = await shippingService.calculateShippingFee(districtId, wardCode, quantity);
-            console.log('API response:', result);
-            if (result && result.shippingFee) {
-                setShippingFee(result.shippingFee);
-                console.log('Đã tính phí ship thông minh:', result.shippingFee);
-            } else {
-                setShippingFee(30000);
-                console.log('Sử dụng phí ship mặc định');
-            }
-        } catch (error) {
-            console.error('Lỗi khi tính phí ship:', error);
-            setShippingFee(30000); // Fallback về phí mặc định
-        }
-    };
+    //     try {
+    //         console.log('Sending request to shipping API with:', { districtId, wardCode, quantity });
+    //         const result = await shippingService.calculateShippingFee(districtId, wardCode, quantity);
+    //         console.log('API response:', result);
+    //         if (result && result.shippingFee) {
+    //             setShippingFee(result.shippingFee);
+    //             console.log('Đã tính phí ship thông minh:', result.shippingFee);
+    //         } else {
+    //             setShippingFee(30000);
+    //             console.log('Sử dụng phí ship mặc định');
+    //         }
+    //     } catch (error) {
+    //         console.error('Lỗi khi tính phí ship:', error);
+    //         setShippingFee(30000); // Fallback về phí mặc định
+    //     }
+    // };
 
     const handleSubmit = async () => {
         if (carts.length === 0) {

@@ -15,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -220,9 +221,18 @@ public class HoaDonCTController {
                 hoaDonCT.setHoaDon(hoaDon);
                 hoaDonCT.setSanPhamCT(sanPhamCT);
                 hoaDonCT.setSoLuong(request.getSoLuong());
-//                hoaDonCT.setGiaBan(sanPhamCT.getGiaKhuyenMai() != null && sanPhamCT.getGiaKhuyenMai().compareTo(sanPhamCT.getDonGia()) < 0
-//                        ? sanPhamCT.getGiaKhuyenMai()
-//                        : sanPhamCT.getDonGia());
+                
+                // Set giá bán tổng: unitPrice * soLuong (ưu tiên giá khuyến mãi nếu có và nhỏ hơn giá gốc)
+                BigDecimal unitPrice;
+                if (sanPhamCT.getGiaKhuyenMai() != null &&
+                    sanPhamCT.getGiaKhuyenMai() < sanPhamCT.getDonGia()) {
+                    unitPrice = BigDecimal.valueOf(sanPhamCT.getGiaKhuyenMai());
+                } else {
+                    unitPrice = BigDecimal.valueOf(sanPhamCT.getDonGia());
+                }
+                BigDecimal totalPrice = unitPrice.multiply(BigDecimal.valueOf(request.getSoLuong()));
+                hoaDonCT.setGiaBan(totalPrice);
+                
                 hoaDonCT.setTrangThai(1); // Trạng thái hoạt động
                 hoaDonCTService.saveOrUpdateHoaDonCT(hoaDonCT);
             }
