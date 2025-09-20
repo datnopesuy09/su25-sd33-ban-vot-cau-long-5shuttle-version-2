@@ -4,7 +4,7 @@ server:
     context-path:
 spring:
   datasource:
-    url: "jdbc:mysql://localhost:3306/5SHUTTLE"
+    url: "jdbc:mysql://localhost:3306/5SHUTTLE?useSSL=false&serverTimezone=Asia/Ho_Chi_Minh"
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver

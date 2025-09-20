@@ -12,11 +12,14 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 //import org.springframework.security.access.prepost.PreAuthorize;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
+@Slf4j
 @Service
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @RequiredArgsConstructor
@@ -28,6 +31,9 @@ public class ThongKeService {
 
     public ThongKeResponse getThongKeByDate(){
         OrderStatsProjection stats = thongKeRepository.getStatsByCurrentDate();
+        Map<String, Object> timeInfo = thongKeRepository.getServerDate();
+        log.info("NOW()     (MySQL) = {}", timeInfo.get("nowTime"));
+        log.info("CURDATE() (MySQL) = {}", timeInfo.get("curDate"));
         return thongKeMapper.toThongKeResponse(stats);
     }
 

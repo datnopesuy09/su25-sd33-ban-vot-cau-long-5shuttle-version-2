@@ -8,13 +8,14 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Repository
 public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
 
     @Query(value = """
-        SELECT
+SELECT
             COALESCE(SUM(hdct.SoLuong * hdct.GiaBan), 0)
               - COALESCE(SUM(ptrct.SoLuongPheDuyet * hdct.GiaBan), 0) AS tongTien,
             COALESCE(SUM(hdct.SoLuong), 0)
@@ -60,7 +61,6 @@ public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
         WHERE hdct.TrangThai = 6
           AND h.NgayTao >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
           AND h.NgayTao < DATE_ADD(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL 7 DAY);
-        
     """, nativeQuery = true)
     OrderStatsProjection getStatsByCurrentWeek();
 
@@ -281,4 +281,7 @@ public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
         LIMIT 5;
     """, nativeQuery = true)
     List<ProductsOutOfStockProjection> findProductsOutOfStock();
+
+    @Query(value = "SELECT NOW() AS nowTime, CURDATE() AS curDate", nativeQuery = true)
+    Map<String, Object> getServerDate();
 }
