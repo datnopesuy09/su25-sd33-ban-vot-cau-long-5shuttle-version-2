@@ -24,7 +24,8 @@ public class DiaChiResponse {
     String xa;
 
     String diaChiCuThe;
-
     Integer loai;
+
+    com.example.da_be.entity.User taiKhoan;
 
 }
