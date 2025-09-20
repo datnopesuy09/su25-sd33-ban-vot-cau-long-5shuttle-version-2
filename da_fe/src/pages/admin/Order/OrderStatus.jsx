@@ -517,7 +517,9 @@ function OrderStatus() {
                             const newTotal = newSubtotal - newDiscountAmount + (orderData.phiShip || 0);
                             const ok = await persistHoaDonTotal(newTotal);
                             if (!ok) {
-                                toast.warning('Xóa sản phẩm thành công, nhưng không thể cập nhật tổng tiền trên server');
+                                toast.warning(
+                                    'Xóa sản phẩm thành công, nhưng không thể cập nhật tổng tiền trên server',
+                                );
                             }
                         }
                     } catch (err) {

@@ -666,8 +666,8 @@ function UserOrder() {
                                             <div className="flex items-center gap-4">
                                                 <div className="text-right">
                                                     <div className="text-xl font-bold text-red-600">
-                                                            {formatCurrency(item.tongTien ?? subtotalFromProducts)}
-                                                        </div>
+                                                        {formatCurrency(item.tongTien ?? subtotalFromProducts)}
+                                                    </div>
                                                 </div>
 
                                                 <Link
