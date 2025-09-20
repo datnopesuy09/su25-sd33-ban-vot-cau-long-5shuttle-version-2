@@ -37,6 +37,8 @@ public class DatHangRequestDTO {
         private String xa;
         private String huyen;
         private String tinh;
+        private Integer districtId; // ID quận/huyện để tính phí ship
+        private String wardCode;   // Mã phường/xã để tính phí ship
 
         // Getters & Setters
         public String getHoTen() {
@@ -93,6 +95,22 @@ public class DatHangRequestDTO {
 
         public void setTinh(String tinh) {
             this.tinh = tinh;
+        }
+
+        public Integer getDistrictId() {
+            return districtId;
+        }
+
+        public void setDistrictId(Integer districtId) {
+            this.districtId = districtId;
+        }
+
+        public String getWardCode() {
+            return wardCode;
+        }
+
+        public void setWardCode(String wardCode) {
+            this.wardCode = wardCode;
         }
     }
 

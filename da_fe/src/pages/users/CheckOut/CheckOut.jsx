@@ -505,6 +505,70 @@ const CheckOut = () => {
         return Object.keys(newErrors).length === 0;
     };
 
+    // Function để tính phí ship
+    const calculateShippingFee = async (districtId, wardCode, quantity, totalValue) => {
+        try {
+            console.log('Calculating shipping fee with:', { districtId, wardCode, quantity, totalValue });
+
+            const response = await axios.post('http://localhost:8080/api/dat-hang/calculate-shipping-fee', {
+                districtId: parseInt(districtId),
+                wardCode: wardCode,
+                quantity: quantity,
+                insuranceValue: totalValue,
+            });
+
+            if (response.status === 200 && response.data.shippingFee) {
+                const fee = response.data.shippingFee;
+                console.log('Phí ship từ API:', fee);
+                setShippingFee(fee);
+                return fee;
+            }
+        } catch (error) {
+            console.error('Lỗi khi tính phí ship:', error);
+            console.log('Sử dụng phí ship mặc định: 30000');
+            setShippingFee(30000);
+            return 30000;
+        }
+    };
+
+    // Effect để tự động tính phí ship khi có đủ thông tin
+    useEffect(() => {
+        const calculateShippingFeeAuto = async () => {
+            if (carts.length === 0) return;
+
+            let districtId = null;
+            let wardCode = null;
+            let totalQuantity = carts.reduce((sum, item) => sum + item.soLuong, 0);
+
+            // Lấy thông tin từ địa chỉ đang chọn
+            if (showAddressForm && formData.district && formData.ward) {
+                districtId = formData.district;
+                wardCode = formData.ward;
+            } else if (defaultAddress && defaultAddress.districtCode && defaultAddress.wardCode) {
+                districtId = defaultAddress.districtCode;
+                wardCode = defaultAddress.wardCode;
+            } else if (smartShippingData.districtId && smartShippingData.wardCode) {
+                districtId = smartShippingData.districtId;
+                wardCode = smartShippingData.wardCode;
+            }
+
+            if (districtId && wardCode && totalQuantity > 0) {
+                await calculateShippingFee(districtId, wardCode, totalQuantity, totalPrice);
+            }
+        };
+
+        calculateShippingFeeAuto();
+    }, [
+        formData.district,
+        formData.ward,
+        defaultAddress,
+        carts,
+        totalPrice,
+        showAddressForm,
+        smartShippingData.districtId,
+        smartShippingData.wardCode,
+    ]);
+
     const handleSubmit = async () => {
         if (carts.length === 0) {
             swal('Lỗi', 'Giỏ hàng của bạn đang trống!', 'error');
@@ -524,7 +588,7 @@ const CheckOut = () => {
                 huyen: formData.districtName,
                 tinh: formData.provinceName,
                 // Thêm district và ward code để tính phí ship
-                districtCode: formData.district,
+                districtId: parseInt(formData.district),
                 wardCode: formData.ward,
             };
         } else {
@@ -541,7 +605,7 @@ const CheckOut = () => {
                 huyen: defaultAddress.huyen,
                 tinh: defaultAddress.tinh,
                 // Thêm district và ward code nếu có
-                districtCode: defaultAddress.districtCode || smartShippingData.districtId,
+                districtId: defaultAddress.districtCode || smartShippingData.districtId,
                 wardCode: defaultAddress.wardCode || smartShippingData.wardCode,
             };
         }
@@ -639,6 +703,9 @@ const CheckOut = () => {
             xa: formData.wardName,
             diaChiCuThe: formData.diaChiCuThe,
             isMacDinh: isDefaultAddress,
+            // Thêm district và ward code để tính phí ship
+            districtCode: formData.district,
+            wardCode: formData.ward,
         };
 
         try {
