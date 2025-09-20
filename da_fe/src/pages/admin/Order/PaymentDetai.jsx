@@ -1,5 +1,5 @@
 // PaymentDetails.js
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Percent, Calculator, Receipt } from 'lucide-react';
 
 const PaymentDetails = ({
@@ -12,6 +12,22 @@ const PaymentDetails = ({
     subtotal,
     shippingFee = 0,
 }) => {
+    // Local state for inputs so we don't overwrite parent values
+    const [localDiscountCode, setLocalDiscountCode] = useState(discountCode || '');
+    const [localDiscountPercent, setLocalDiscountPercent] = useState(discountPercent || 0);
+
+    // Sync local inputs when discount becomes active or inactive
+    useEffect(() => {
+        if (Number(discountAmount) > 0) {
+            // restore from props when discount applies
+            setLocalDiscountCode(discountCode || '');
+            setLocalDiscountPercent(discountPercent || 0);
+        } else {
+            // clear inputs when discount not applied
+            setLocalDiscountCode('');
+            setLocalDiscountPercent(0);
+        }
+    }, [discountAmount, discountCode, discountPercent]);
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
             <div className="max-w-7xl mx-auto">
@@ -43,9 +59,12 @@ const PaymentDetails = ({
                                             </label>
                                             <input
                                                 type="text"
-                                                value={discountCode}
-                                                disabled
-                                                onChange={(e) => setDiscountCode(e.target.value)}
+                                                value={localDiscountCode}
+                                                onChange={(e) => {
+                                                    setLocalDiscountCode(e.target.value);
+                                                    if (typeof setDiscountCode === 'function')
+                                                        setDiscountCode(e.target.value);
+                                                }}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm"
                                                 placeholder="Nhập mã"
                                             />
@@ -58,11 +77,13 @@ const PaymentDetails = ({
                                             <div className="relative">
                                                 <input
                                                     type="number"
-                                                    value={discountPercent}
-                                                    onChange={(e) =>
-                                                        setDiscountPercent(Math.max(0, Math.min(100, e.target.value)))
-                                                    }
-                                                    disabled
+                                                    value={localDiscountPercent}
+                                                    onChange={(e) => {
+                                                        const val = Math.max(0, Math.min(100, Number(e.target.value)));
+                                                        setLocalDiscountPercent(val);
+                                                        if (typeof setDiscountPercent === 'function')
+                                                            setDiscountPercent(val);
+                                                    }}
                                                     className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm"
                                                     placeholder="0"
                                                     min="0"
