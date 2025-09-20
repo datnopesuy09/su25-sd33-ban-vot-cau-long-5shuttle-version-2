@@ -38,7 +38,7 @@ const OrderInfo = ({
         xa: '',
         phiShip: orderData.phiShip || 0, // Thêm field phí ship với giá trị mặc định
     });
-console.log("checkout", checkOut)
+    console.log('checkout', checkOut);
     // State for address API
     const [provinces, setProvinces] = useState([]);
     const [districts, setDistricts] = useState([]);
@@ -70,8 +70,8 @@ console.log("checkout", checkOut)
             if (provinces.length > 0) {
                 const foundProvince = provinces.find(
                     (p) =>
-                        p.name.toLowerCase().includes(tinh.toLowerCase()) ||
-                        tinh.toLowerCase().includes(p.name.toLowerCase()),
+                        p.ProvinceName.toLowerCase().includes(tinh.toLowerCase()) ||
+                        tinh.toLowerCase().includes(p.ProvinceName.toLowerCase()),
                 );
 
                 if (foundProvince) {
@@ -80,15 +80,24 @@ console.log("checkout", checkOut)
                     // Fetch districts for this province
                     try {
                         const res = await axios.get(
-                            `https://provinces.open-api.vn/api/p/${foundProvince.code}?depth=2`,
+                            'https://online-gateway.ghn.vn/shiip/public-api/master-data/district',
+                            {
+                                headers: {
+                                    Token: '04ae91c9-b3a5-11ef-b074-aece61c107bd',
+                                    'Content-Type': 'application/json',
+                                },
+                                params: {
+                                    province_id: foundProvince.ProvinceID,
+                                },
+                            },
                         );
-                        setDistricts(res.data.districts);
+                        setDistricts(res.data.data);
 
                         // Try to find district
-                        const foundDistrict = res.data.districts.find(
+                        const foundDistrict = res.data.data.find(
                             (d) =>
-                                d.name.toLowerCase().includes(huyen.toLowerCase()) ||
-                                huyen.toLowerCase().includes(d.name.toLowerCase()),
+                                d.DistrictName.toLowerCase().includes(huyen.toLowerCase()) ||
+                                huyen.toLowerCase().includes(d.DistrictName.toLowerCase()),
                         );
 
                         if (foundDistrict) {
@@ -97,15 +106,24 @@ console.log("checkout", checkOut)
                             // Fetch wards for this district
                             try {
                                 const wardRes = await axios.get(
-                                    `https://provinces.open-api.vn/api/d/${foundDistrict.code}?depth=2`,
+                                    'https://online-gateway.ghn.vn/shiip/public-api/master-data/ward',
+                                    {
+                                        headers: {
+                                            Token: '04ae91c9-b3a5-11ef-b074-aece61c107bd',
+                                            'Content-Type': 'application/json',
+                                        },
+                                        params: {
+                                            district_id: foundDistrict.DistrictID,
+                                        },
+                                    },
                                 );
-                                setWards(wardRes.data.wards);
+                                setWards(wardRes.data.data);
 
                                 // Try to find ward
-                                const foundWard = wardRes.data.wards.find(
+                                const foundWard = wardRes.data.data.find(
                                     (w) =>
-                                        w.name.toLowerCase().includes(xa.toLowerCase()) ||
-                                        xa.toLowerCase().includes(w.name.toLowerCase()),
+                                        w.WardName.toLowerCase().includes(xa.toLowerCase()) ||
+                                        xa.toLowerCase().includes(w.WardName.toLowerCase()),
                                 );
 
                                 if (foundWard) {
@@ -126,8 +144,13 @@ console.log("checkout", checkOut)
     // Fetch provinces
     const fetchProvinces = async () => {
         try {
-            const res = await axios.get('https://provinces.open-api.vn/api/p/');
-            setProvinces(res.data);
+            const res = await axios.get('https://online-gateway.ghn.vn/shiip/public-api/master-data/province', {
+                headers: {
+                    Token: '04ae91c9-b3a5-11ef-b074-aece61c107bd',
+                    'Content-Type': 'application/json',
+                },
+            });
+            setProvinces(res.data.data);
         } catch (error) {
             console.error('Error fetching provinces:', error);
         }
@@ -141,8 +164,16 @@ console.log("checkout", checkOut)
             setSelectedDistrict(null);
             setSelectedWard(null);
 
-            const res = await axios.get(`https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`);
-            setDistricts(res.data.districts);
+            const res = await axios.get('https://online-gateway.ghn.vn/shiip/public-api/master-data/district', {
+                headers: {
+                    Token: '04ae91c9-b3a5-11ef-b074-aece61c107bd',
+                    'Content-Type': 'application/json',
+                },
+                params: {
+                    province_id: provinceCode,
+                },
+            });
+            setDistricts(res.data.data);
         } catch (error) {
             console.error('Error fetching districts:', error);
         }
@@ -154,8 +185,16 @@ console.log("checkout", checkOut)
             setWards([]);
             setSelectedWard(null);
 
-            const res = await axios.get(`https://provinces.open-api.vn/api/d/${districtCode}?depth=2`);
-            setWards(res.data.wards);
+            const res = await axios.get('https://online-gateway.ghn.vn/shiip/public-api/master-data/ward', {
+                headers: {
+                    Token: '04ae91c9-b3a5-11ef-b074-aece61c107bd',
+                    'Content-Type': 'application/json',
+                },
+                params: {
+                    district_id: districtCode,
+                },
+            });
+            setWards(res.data.data);
         } catch (error) {
             console.error('Error fetching wards:', error);
         }
@@ -213,7 +252,7 @@ console.log("checkout", checkOut)
 
     const handleProvinceChange = (e) => {
         const provinceCode = e.target.value;
-        const province = provinces.find((p) => p.code === parseInt(provinceCode));
+        const province = provinces.find((p) => p.ProvinceID === parseInt(provinceCode));
 
         setSelectedProvince(province);
         setSelectedDistrict(null);
@@ -223,19 +262,19 @@ console.log("checkout", checkOut)
 
         setFormData((prev) => ({
             ...prev,
-            tinh: province ? province.name : '',
+            tinh: province ? province.ProvinceName : '',
             huyen: '',
             xa: '',
         }));
 
         if (province) {
-            fetchDistricts(province.code);
+            fetchDistricts(province.ProvinceID);
         }
     };
 
     const handleDistrictChange = (e) => {
         const districtCode = e.target.value;
-        const district = districts.find((d) => d.code === parseInt(districtCode));
+        const district = districts.find((d) => d.DistrictID === parseInt(districtCode));
 
         setSelectedDistrict(district);
         setSelectedWard(null);
@@ -243,23 +282,23 @@ console.log("checkout", checkOut)
 
         setFormData((prev) => ({
             ...prev,
-            huyen: district ? district.name : '',
+            huyen: district ? district.DistrictName : '',
             xa: '',
         }));
 
         if (district) {
-            fetchWards(district.code);
+            fetchWards(district.DistrictID);
         }
     };
 
     const handleWardChange = (e) => {
         const wardCode = e.target.value;
-        const ward = wards.find((w) => w.code === parseInt(wardCode));
+        const ward = wards.find((w) => w.WardCode === wardCode);
 
         setSelectedWard(ward);
         setFormData((prev) => ({
             ...prev,
-            xa: ward ? ward.name : '',
+            xa: ward ? ward.WardName : '',
         }));
     };
 
@@ -378,10 +417,7 @@ console.log("checkout", checkOut)
                             </div>
                             <div>
                                 <div className="text-gray-500 text-sm">Phí giao hàng</div>
-                                <div className="text-gray-800 font-semibold">
-                                    {orderData.phiShip}
-                                      
-                                </div>
+                                <div className="text-gray-800 font-semibold">{orderData.phiShip}</div>
                             </div>
                         </div>
                     </div>
@@ -564,9 +600,9 @@ console.log("checkout", checkOut)
                     {/* Backdrop */}
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleCloseModal} />
 
-                    <div className="relative bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+                    <div className="relative bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
                         {/* Header */}
-                        <div className="bg-gray-50 px-6 py-5 border-b border-gray-200">
+                        <div className="bg-gray-50 px-6 py-5 border-b border-gray-200 flex-none">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                     <div className="bg-blue-100 rounded-xl p-2">
@@ -587,8 +623,8 @@ console.log("checkout", checkOut)
                             </div>
                         </div>
 
-                        {/* Content */}
-                        <div className="p-6">
+                        {/* Content (scrollable) */}
+                        <div className="p-6 overflow-y-auto flex-1">
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 {/* Personal Info Section */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -641,15 +677,15 @@ console.log("checkout", checkOut)
                                                 Tỉnh/Thành phố *
                                             </label>
                                             <select
-                                                value={selectedProvince?.code || ''}
+                                                value={selectedProvince?.ProvinceID || ''}
                                                 onChange={handleProvinceChange}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 text-sm"
                                                 required
                                             >
                                                 <option value="">Chọn Tỉnh/Thành phố</option>
                                                 {provinces.map((province) => (
-                                                    <option key={province.code} value={province.code}>
-                                                        {province.name}
+                                                    <option key={province.ProvinceID} value={province.ProvinceID}>
+                                                        {province.ProvinceName}
                                                     </option>
                                                 ))}
                                             </select>
@@ -661,7 +697,7 @@ console.log("checkout", checkOut)
                                                 Quận/Huyện *
                                             </label>
                                             <select
-                                                value={selectedDistrict?.code || ''}
+                                                value={selectedDistrict?.DistrictID || ''}
                                                 onChange={handleDistrictChange}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 text-sm"
                                                 disabled={!selectedProvince}
@@ -669,8 +705,8 @@ console.log("checkout", checkOut)
                                             >
                                                 <option value="">Chọn Quận/Huyện</option>
                                                 {districts.map((district) => (
-                                                    <option key={district.code} value={district.code}>
-                                                        {district.name}
+                                                    <option key={district.DistrictID} value={district.DistrictID}>
+                                                        {district.DistrictName}
                                                     </option>
                                                 ))}
                                             </select>
@@ -682,7 +718,7 @@ console.log("checkout", checkOut)
                                                 Phường/Xã *
                                             </label>
                                             <select
-                                                value={selectedWard?.code || ''}
+                                                value={selectedWard?.WardCode || ''}
                                                 onChange={handleWardChange}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 text-sm"
                                                 disabled={!selectedDistrict}
@@ -690,8 +726,8 @@ console.log("checkout", checkOut)
                                             >
                                                 <option value="">Chọn Phường/Xã</option>
                                                 {wards.map((ward) => (
-                                                    <option key={ward.code} value={ward.code}>
-                                                        {ward.name}
+                                                    <option key={ward.WardCode} value={ward.WardCode}>
+                                                        {ward.WardName}
                                                     </option>
                                                 ))}
                                             </select>
@@ -735,7 +771,7 @@ console.log("checkout", checkOut)
                                         <Truck className="w-4 h-4 text-orange-500" />
                                         Phí giao hàng
                                     </label>
-                                    
+
                                     <div>
                                         <label className="block text-xs font-medium text-gray-600 mb-1">
                                             Phí ship (VNĐ) *
@@ -752,7 +788,10 @@ console.log("checkout", checkOut)
                                             required
                                         />
                                         <p className="text-xs text-gray-500 mt-1">
-                                            Phí giao hàng hiện tại: {formData.phiShip ? `${parseInt(formData.phiShip).toLocaleString('vi-VN')}đ` : '0đ'}
+                                            Phí giao hàng hiện tại:{' '}
+                                            {formData.phiShip
+                                                ? `${parseInt(formData.phiShip).toLocaleString('vi-VN')}đ`
+                                                : '0đ'}
                                         </p>
                                     </div>
                                 </div>
@@ -760,7 +799,7 @@ console.log("checkout", checkOut)
                         </div>
 
                         {/* Footer */}
-                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex-none">
                             <div className="flex gap-3">
                                 <button
                                     type="button"

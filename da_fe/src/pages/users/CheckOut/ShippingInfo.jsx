@@ -1,4 +1,5 @@
 import React from 'react';
+import swal from 'sweetalert';
 import {
     Dialog,
     DialogTitle,
@@ -8,7 +9,7 @@ import {
     Grid,
     TextField,
     MenuItem,
-    Typography
+    Typography,
 } from '@mui/material';
 import { Checkbox, FormControlLabel } from '@mui/material';
 
@@ -30,14 +31,14 @@ const ShippingInfo = ({
             <DialogTitle>Thêm địa chỉ mới</DialogTitle>
             <DialogContent dividers>
                 <Grid spacing={2}>
-                    <Grid className='grid grid-cols-2 gap-4 mb-5'>
+                    <Grid className="grid grid-cols-2 gap-4 mb-5">
                         <Grid item xs={12} md={6}>
                             {/* <Typography sx={{ mb: 1 }}>Họ tên</Typography> */}
                             <TextField
-                                label='Họ tên'
+                                label="Họ tên"
                                 name="ten"
                                 fullWidth
-                                size='small'
+                                size="small"
                                 value={formData.ten}
                                 onChange={handleInputChange}
                                 error={!!errors.addressName}
@@ -49,7 +50,7 @@ const ShippingInfo = ({
                                 label="Số điện thoại"
                                 name="sdt"
                                 fullWidth
-                                size='small'
+                                size="small"
                                 value={formData.sdt}
                                 onChange={handleInputChange}
                                 error={!!errors.mobile}
@@ -62,7 +63,7 @@ const ShippingInfo = ({
                             select
                             label="Tỉnh/Thành phố"
                             name="province"
-                            size='small'
+                            size="small"
                             value={formData.province}
                             onChange={handleInputChange}
                             fullWidth
@@ -71,8 +72,8 @@ const ShippingInfo = ({
                         >
                             <MenuItem value="">Chọn tỉnh/thành phố</MenuItem>
                             {provinces.map((province) => (
-                                <MenuItem key={province.code} value={province.code}>
-                                    {province.name}
+                                <MenuItem key={province.ProvinceID} value={province.ProvinceID}>
+                                    {province.ProvinceName}
                                 </MenuItem>
                             ))}
                         </TextField>
@@ -85,14 +86,14 @@ const ShippingInfo = ({
                             value={formData.district}
                             onChange={handleInputChange}
                             fullWidth
-                            size='small'
+                            size="small"
                             error={!!errors.district}
                             helperText={errors.district}
                         >
                             <MenuItem value="">Chọn quận/huyện</MenuItem>
                             {districts.map((district) => (
-                                <MenuItem key={district.code} value={district.code}>
-                                    {district.name}
+                                <MenuItem key={district.DistrictID} value={district.DistrictID}>
+                                    {district.DistrictName}
                                 </MenuItem>
                             ))}
                         </TextField>
@@ -105,14 +106,14 @@ const ShippingInfo = ({
                             value={formData.ward}
                             onChange={handleInputChange}
                             fullWidth
-                            size='small'
+                            size="small"
                             error={!!errors.ward}
                             helperText={errors.ward}
                         >
                             <MenuItem value="">Chọn xã/phường</MenuItem>
                             {wards.map((ward) => (
-                                <MenuItem key={ward.code} value={ward.code}>
-                                    {ward.name}
+                                <MenuItem key={ward.WardCode} value={ward.WardCode}>
+                                    {ward.WardName}
                                 </MenuItem>
                             ))}
                         </TextField>
@@ -122,7 +123,7 @@ const ShippingInfo = ({
                             label="Địa chỉ chi tiết"
                             name="diaChiCuThe"
                             fullWidth
-                            size='small'
+                            size="small"
                             value={formData.diaChiCuThe}
                             onChange={handleInputChange}
                             error={!!errors.addressDetail}
