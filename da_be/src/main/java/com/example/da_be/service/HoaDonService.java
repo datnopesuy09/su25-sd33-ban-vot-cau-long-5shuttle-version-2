@@ -64,6 +64,47 @@ public class HoaDonService {
     }
 
 
+    /**
+     * Xác nhận đơn hàng và trừ stock thực tế
+     * Thay đổi trạng thái từ "Chờ xác nhận" (1) sang "Đã xác nhận" (2)
+     */
+    @Transactional
+    public HoaDon confirmOrder(int id) {
+        HoaDon hoaDon = hoaDonRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hóa đơn"));
+        
+        // Kiểm tra trạng thái hiện tại
+        if (hoaDon.getTrangThai() != 1) {
+            throw new IllegalArgumentException("Chỉ có thể xác nhận đơn hàng có trạng thái 'Chờ xác nhận'");
+        }
+        
+        try {
+            // Trừ số lượng stock thực tế
+            khoHangService.confirmOrderAndReduceStock(hoaDon);
+            
+            // Cập nhật trạng thái
+            hoaDon.setTrangThai(2); // 2 = Đã xác nhận
+            hoaDon.setNgaySua(new Date());
+            
+            // Tạo thông báo cho khách hàng
+            if (hoaDon.getTaiKhoan() != null) {
+                ThongBao thongBao = new ThongBao();
+                thongBao.setKhachHang(hoaDon.getTaiKhoan());
+                thongBao.setTieuDe("Đơn hàng đã được xác nhận");
+                thongBao.setNoiDung("Đơn hàng #" + hoaDon.getMa() + " đã được xác nhận và đang chuẩn bị.");
+                thongBao.setTrangThai(1);
+                thongBaoRepository.save(thongBao);
+            }
+            
+            log.info("Đã xác nhận đơn hàng thành công: {}", hoaDon.getMa());
+            return hoaDonRepository.save(hoaDon);
+            
+        } catch (Exception e) {
+            log.error("Lỗi khi xác nhận đơn hàng {}: {}", hoaDon.getMa(), e.getMessage());
+            throw new RuntimeException("Không thể xác nhận đơn hàng: " + e.getMessage());
+        }
+    }
+
     @Transactional
     public HoaDon updateHoaDonStatus(int id, int newStatus) {
         HoaDon hoaDon = hoaDonRepository.findById(id).orElse(null);
@@ -71,11 +112,17 @@ public class HoaDonService {
             int oldStatus = hoaDon.getTrangThai();
             hoaDon.setTrangThai(newStatus);
             
-            // Xử lý hoàn kho khi hủy đơn hàng (chỉ cho hủy thông thường, không phải do sự cố)
+            // Xử lý hoàn kho khi hủy đơn hàng
             if (newStatus == 7 && oldStatus != 7) { // Trạng thái 7 = Đã hủy
                 try {
-                    khoHangService.restoreStockOnCancelOrder(hoaDon);
-                    log.info("Đã hoàn kho thành công cho đơn hàng bị hủy (thông thường): {}", hoaDon.getMa());
+                    // CHỈ hoàn kho nếu đơn hàng đã được xác nhận (trangThai >= 2)
+                    // Vì đơn hàng ở trạng thái 1 chưa bị trừ stock thực tế
+                    if (oldStatus >= 2) {
+                        khoHangService.restoreStockOnCancelOrder(hoaDon);
+                        log.info("Đã hoàn kho thành công cho đơn hàng bị hủy: {} (trạng thái cũ: {})", hoaDon.getMa(), oldStatus);
+                    } else {
+                        log.info("Không cần hoàn kho cho đơn hàng chưa xác nhận: {} (trạng thái cũ: {})", hoaDon.getMa(), oldStatus);
+                    }
                 } catch (Exception e) {
                     log.error("Lỗi khi hoàn kho cho đơn hàng bị hủy: {} - {}", hoaDon.getMa(), e.getMessage());
                     // Không ném exception để không làm gián đoạn flow chính

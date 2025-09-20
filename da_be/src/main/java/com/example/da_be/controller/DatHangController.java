@@ -169,9 +169,9 @@ public class DatHangController {
                 hoaDonCTList.add(hoaDonCT);
             }
 
-            // 5. Trừ số lượng tồn kho sử dụng KhoHangService
+            // 5. Chỉ kiểm tra tồn kho và tạo reservation (KHÔNG trừ số lượng thực)
             try {
-                khoHangService.reserveStock(hoaDon, hoaDonCTList);
+                khoHangService.checkAndCreateReservation(hoaDon, hoaDonCTList);
             } catch (RuntimeException e) {
                 // Nếu không đủ hàng, xóa hóa đơn đã tạo
                 hoaDonCTRepository.deleteAll(hoaDonCTList);

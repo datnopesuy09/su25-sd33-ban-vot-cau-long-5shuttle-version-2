@@ -390,6 +390,78 @@ public class KhoHangService {
     }
 
     /**
+     * Chỉ kiểm tra tồn kho và tạo reservation (KHÔNG trừ số lượng thực)
+     * Dùng cho đặt hàng online - sẽ trừ thực khi admin xác nhận
+     */
+    @Transactional
+    public void checkAndCreateReservation(HoaDon hoaDon, List<HoaDonCT> hoaDonCTList) {
+        try {
+            log.info("Kiểm tra tồn kho và tạo reservation cho hóa đơn: {}", hoaDon.getMa());
+
+            for (HoaDonCT hoaDonCT : hoaDonCTList) {
+                SanPhamCT sanPhamCT = hoaDonCT.getSanPhamCT();
+                int soLuongDat = hoaDonCT.getSoLuong();
+                int soLuongHienTai = sanPhamCT.getSoLuong();
+                
+                if (soLuongHienTai < soLuongDat) {
+                    throw new RuntimeException("Không đủ hàng trong kho cho sản phẩm: " + 
+                                             sanPhamCT.getSanPham().getTen());
+                }
+                
+                // CHỈ LOG - KHÔNG TRỪ SỐ LƯỢNG
+                log.info("Reservation được tạo cho: {} - Số lượng có: {}, Số lượng đặt: {}", 
+                        sanPhamCT.getSanPham().getTen(), soLuongHienTai, soLuongDat);
+            }
+            
+            log.info("Tạo reservation thành công cho hóa đơn: {} (Chưa trừ stock thực tế)", hoaDon.getMa());
+            
+        } catch (Exception e) {
+            log.error("Lỗi khi tạo reservation cho hóa đơn {}: {}", hoaDon.getMa(), e.getMessage(), e);
+            throw new RuntimeException("Lỗi khi kiểm tra tồn kho: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Xác nhận đơn hàng và trừ số lượng thực tế
+     * Dùng khi admin click "Xác nhận đơn hàng"
+     */
+    @Transactional
+    public void confirmOrderAndReduceStock(HoaDon hoaDon) {
+        try {
+            log.info("Bắt đầu xác nhận đơn hàng và trừ stock cho: {}", hoaDon.getMa());
+
+            List<HoaDonCT> hoaDonCTList = hoaDonCTRepository.findByHoaDon(hoaDon);
+            
+            for (HoaDonCT hoaDonCT : hoaDonCTList) {
+                SanPhamCT sanPhamCT = hoaDonCT.getSanPhamCT();
+                int soLuongDat = hoaDonCT.getSoLuong();
+                int soLuongHienTai = sanPhamCT.getSoLuong();
+                
+                // Kiểm tra lại tồn kho (có thể đã thay đổi từ lúc đặt hàng)
+                if (soLuongHienTai < soLuongDat) {
+                    throw new RuntimeException("Không đủ hàng trong kho cho sản phẩm: " + 
+                                             sanPhamCT.getSanPham().getTen() + 
+                                             " (Có: " + soLuongHienTai + ", Cần: " + soLuongDat + ")");
+                }
+                
+                // TRỪ SỐ LƯỢNG THỰC TẾ
+                int soLuongMoi = soLuongHienTai - soLuongDat;
+                sanPhamCT.setSoLuong(soLuongMoi);
+                sanPhamCTRepository.save(sanPhamCT);
+                
+                log.info("Đã trừ stock thực tế: {} - Số lượng từ {} thành {}", 
+                        sanPhamCT.getSanPham().getTen(), soLuongHienTai, soLuongMoi);
+            }
+            
+            log.info("Xác nhận đơn hàng và trừ stock thành công cho: {}", hoaDon.getMa());
+            
+        } catch (Exception e) {
+            log.error("Lỗi khi xác nhận đơn hàng {}: {}", hoaDon.getMa(), e.getMessage(), e);
+            throw new RuntimeException("Lỗi khi xác nhận đơn hàng: " + e.getMessage());
+        }
+    }
+
+    /**
      * Đặt trước kho (reserve stock) khi đặt hàng
      */
     @Transactional

@@ -55,6 +55,25 @@ public class HoaDonController {
     }
 
 
+    /**
+     * Xác nhận đơn hàng và trừ stock thực tế
+     * API mới cho yêu cầu thay đổi luồng xử lý
+     */
+    @PutMapping("/{id}/confirm")
+    public ResponseEntity<?> confirmOrder(@PathVariable int id) {
+        try {
+            HoaDon confirmedOrder = hoaDonService.confirmOrder(id);
+            return ResponseEntity.ok(confirmedOrder);
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi khi xác nhận đơn hàng: " + e.getMessage());
+        }
+    }
+
     @PutMapping("/{id}/status")
     public ResponseEntity<HoaDon> updateHoaDonStatus(@PathVariable int id, @RequestBody int newStatus) {
         HoaDon updatedHoaDon = hoaDonService.updateHoaDonStatus(id, newStatus);

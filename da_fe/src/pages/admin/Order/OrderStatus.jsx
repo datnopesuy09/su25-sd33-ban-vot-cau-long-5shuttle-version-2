@@ -737,6 +737,60 @@ function OrderStatus() {
         }
     };
 
+    // Function xác nhận đơn hàng mới - trừ stock thực tế
+    const confirmOrder = async (description = 'Xác nhận đơn hàng') => {
+        console.log('confirmOrder called');
+
+        try {
+            const response = await fetch(`http://localhost:8080/api/hoa-don/${hoaDonId}/confirm`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            console.log('Confirm API response status:', response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Không thể xác nhận đơn hàng');
+            }
+
+            // Cập nhật state thành trạng thái "Đã xác nhận" (2)
+            console.log('Setting currentOrderStatus to: 2');
+            setCurrentOrderStatus(2);
+
+            // Lưu lịch sử đơn hàng
+            console.log('Saving order history...');
+            await saveOrderHistory(2, description);
+
+            // Gửi thông báo đến người dùng
+            const userNotification = {
+                khachHang: {
+                    id: orderData.taiKhoan.id,
+                },
+                tieuDe: 'Đơn hàng đã được xác nhận',
+                noiDung: `Đơn hàng #${hoaDonId} đã được xác nhận và đang chuẩn bị.`,
+                kieuThongBao: 'success',
+                trangThai: 0,
+            };
+            try {
+                await axios.post('http://localhost:8080/api/thong-bao', userNotification, {
+                    headers: { 'Content-Type': 'application/json' },
+                });
+                safeStompSend(`/app/user/${orderData.taiKhoan.id}/notifications`, {}, JSON.stringify(userNotification));
+            } catch (notificationError) {
+                console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
+                toast.warning('Không thể gửi thông báo đến người dùng.');
+            }
+
+            toast.success('Xác nhận đơn hàng thành công! Số lượng sản phẩm đã được trừ khỏi kho.');
+        } catch (error) {
+            console.error('Lỗi khi xác nhận đơn hàng:', error);
+            toast.error('Không thể xác nhận đơn hàng: ' + error.message);
+        }
+    };
+
     // Function để quay lại trạng thái trước
     const revertOrderStatus = async (description = '') => {
         const previousStatus = getPreviousStatus(currentOrderStatus);
@@ -832,7 +886,15 @@ function OrderStatus() {
             // Nếu có newStatus được truyền từ OrderProgress
             console.log('Processing newStatus from OrderProgress:', newStatus);
 
-            // Xử lý các trường hợp đặc biệt
+            // Xử lý trạng thái 1 -> 2 (Chờ xác nhận -> Đã xác nhận) đặc biệt
+            if (newStatus === 2 && currentOrderStatus === 1) {
+                // Gọi API xác nhận đơn hàng mới
+                console.log('Confirming order with new API');
+                confirmOrder(description || 'Xác nhận đơn hàng');
+                return;
+            }
+
+            // Xử lý các trường hợp đặc biệt khác
             // Trước khi chuyển sang trạng thái 3 (Đang vận chuyển), yêu cầu phí ship phải được nhập (>0)
             if (newStatus === 3) {
                 const fee = Number(orderData?.phiShip ?? 0);
@@ -859,6 +921,15 @@ function OrderStatus() {
         } else {
             // Logic cũ khi không có newStatus (gọi từ các nơi khác)
             console.log('Using old logic, currentOrderStatus:', currentOrderStatus);
+            
+            // Xử lý trạng thái 1 đặc biệt
+            if (currentOrderStatus === 1) {
+                // Gọi API xác nhận đơn hàng mới
+                console.log('Confirming order with new API (old logic)');
+                confirmOrder(description || 'Xác nhận đơn hàng');
+                return;
+            }
+            
             if (currentOrderStatus === 3) {
                 // chuyển từ 3 -> 4 (Đang vận chuyển -> Đã giao hàng) là bình thường
                 updateOrderStatus(4, description);
