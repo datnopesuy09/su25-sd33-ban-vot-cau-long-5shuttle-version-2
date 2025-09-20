@@ -1,8 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {
-    Box, Typography, Paper, Button, Stack, Avatar, Grid,
-    Divider, Chip
-} from '@mui/material';
+import { Box, Typography, Paper, Button, Stack, Avatar, Grid, Divider, Chip } from '@mui/material';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import numeral from 'numeral';
@@ -39,9 +36,9 @@ function OrderDetail() {
 
     const formatCurrency = (money) => numeral(money).format('0,0') + ' ₫';
 
-    // Try to resolve original and discounted prices from different possible fields
+    // Try to resolve original, discounted and per-unit prices from different possible fields
     const resolvePrices = (item) => {
-        // possible original price fields
+        // possible original price fields (per-unit)
         const candidatesOriginal = [
             item.giaBan,
             item.giaGoc,
@@ -50,7 +47,7 @@ function OrderDetail() {
             item.thongTinSanPhamTra?.giaBan,
         ];
 
-        // possible discounted price fields
+        // possible discounted price fields (could be per-unit or sometimes a line total depending on backend)
         const candidatesDiscounted = [
             item.giaKhuyenMai,
             item.sanPhamCT?.giaKhuyenMai,
@@ -59,29 +56,54 @@ function OrderDetail() {
             item.thongTinSanPhamTra?.giaBan,
         ];
 
-        const originalPrice = candidatesOriginal.find((v) => v !== undefined && v !== null) ?? 0;
+        const originalPrice = candidatesOriginal.find((v) => v !== undefined && v !== null);
         const discountedPrice = candidatesDiscounted.find((v) => v !== undefined && v !== null) ?? originalPrice;
 
-        return { originalPrice: Number(originalPrice), discountedPrice: Number(discountedPrice) };
+        // Determine per-unit price. Prefer explicit per-unit fields if present. If backend provided a line total
+        // (e.g. `thanhTien`), divide by quantity to get unit price.
+        let unitPrice = discountedPrice ?? originalPrice ?? 0;
+
+        const perUnitCandidates = [
+            item.donGia,
+            item.donGiaBan,
+            item.sanPhamCT?.donGia,
+            item.sanPhamCT?.sanPham?.donGia,
+            item.thongTinSanPhamTra?.donGia,
+        ];
+        const explicitUnit = perUnitCandidates.find((v) => v !== undefined && v !== null);
+        if (explicitUnit !== undefined && explicitUnit !== null) {
+            unitPrice = Number(explicitUnit);
+        } else if (item.thanhTien && item.soLuong) {
+            // common backend field for line total -> convert to per-unit
+            unitPrice = Number(item.thanhTien) / Number(item.soLuong);
+        } else if (item.thanhTienHang && item.soLuong) {
+            unitPrice = Number(item.thanhTienHang) / Number(item.soLuong);
+        }
+
+        return {
+            originalPrice: Number(originalPrice ?? 0),
+            discountedPrice: Number(discountedPrice ?? 0),
+            unitPrice: Number(unitPrice ?? 0),
+        };
     };
 
-    const fetchData = async () => {
+    const fetchData = React.useCallback(async () => {
         try {
             const token = localStorage.getItem('userToken');
             const res = await axios.get(`http://localhost:8080/users/myOderDetail/${id}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            setBillDetail(res.data.result);
-            setVoucher(res.data.result[0]?.hoaDon?.voucher || null);
+            setBillDetail(res.data.result || []);
+            setVoucher(res.data.result?.[0]?.hoaDon?.voucher || null);
         } catch (err) {
             toast.error('Không thể tải dữ liệu đơn hàng');
             console.error(err);
         }
-    };
+    }, [id]);
 
     useEffect(() => {
         if (id) fetchData();
-    }, [id]);
+    }, [id, fetchData]);
 
     useEffect(() => {
         const socket = new SockJS('http://localhost:8080/ws');
@@ -103,8 +125,8 @@ function OrderDetail() {
         return () => {
             stompClient.deactivate();
         };
-    }, [id]);
-console.log(billDetail);
+    }, [id, fetchData]);
+    console.log(billDetail);
     const handleHuyDonHang = (hoaDonId) => {
         swal({
             title: 'Xác nhận hủy đơn hàng?',
@@ -146,16 +168,15 @@ console.log(billDetail);
     };
 
     const totalAmount = billDetail.reduce((total, item) => {
-        const { discountedPrice, originalPrice } = resolvePrices(item);
-        const priceToUse = discountedPrice ?? originalPrice ?? 0;
-        return total + priceToUse * (item.soLuong || 0);
+        const { unitPrice } = resolvePrices(item);
+        return total + unitPrice * (item.soLuong || 0);
     }, 0);
 
     const discountAmount = !voucher
         ? 0
         : voucher.kieuGiaTri === 0
-            ? Math.min((totalAmount * voucher.giaTri) / 100, voucher.giaTriMax || Infinity)
-            : voucher.giaTri;
+          ? Math.min((totalAmount * voucher.giaTri) / 100, voucher.giaTriMax || Infinity)
+          : voucher.giaTri;
 
     const hoaDon = billDetail[0]?.hoaDon;
     const phiShip = hoaDon?.phiShip || 0;
@@ -164,7 +185,16 @@ console.log(billDetail);
     return (
         <Box>
             {/* Header similar to order.jsx */}
-            <Paper sx={{ p: 4, mb: 3, borderRadius: 3, background: 'linear-gradient(90deg, #f0f7ff 0%, #eef4ff 100%)', border: '1px solid #e6f0ff' }} elevation={0}>
+            <Paper
+                sx={{
+                    p: 4,
+                    mb: 3,
+                    borderRadius: 3,
+                    background: 'linear-gradient(90deg, #f0f7ff 0%, #eef4ff 100%)',
+                    border: '1px solid #e6f0ff',
+                }}
+                elevation={0}
+            >
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                     <div style={{ background: '#e8f3ff', padding: 12, borderRadius: 12 }}>
                         <Avatar sx={{ bgcolor: '#dff2ff' }}>
@@ -172,8 +202,12 @@ console.log(billDetail);
                         </Avatar>
                     </div>
                     <div>
-                        <Typography variant="h5" fontWeight={700}>Chi tiết đơn hàng</Typography>
-                        <Typography color="text.secondary">Xem thông tin, trạng thái và các sản phẩm trong đơn</Typography>
+                        <Typography variant="h5" fontWeight={700}>
+                            Chi tiết đơn hàng
+                        </Typography>
+                        <Typography color="text.secondary">
+                            Xem thông tin, trạng thái và các sản phẩm trong đơn
+                        </Typography>
                     </div>
                 </div>
             </Paper>
@@ -183,9 +217,13 @@ console.log(billDetail);
                 <Paper sx={{ p: 3, mb: 3, borderRadius: 2 }} elevation={1}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                         <div>
-                            <Typography variant="subtitle1" fontWeight={700}>{hoaDon.ma || `#${hoaDon.id}`}</Typography>
+                            <Typography variant="subtitle1" fontWeight={700}>
+                                {hoaDon.ma || `#${hoaDon.id}`}
+                            </Typography>
                             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                                {hoaDon.trangThai === 7 ? `Hủy: ${dayjs(hoaDon.ngaySua).format('DD/MM/YYYY HH:mm')}` : `Đặt: ${dayjs(hoaDon.ngayTao).format('DD/MM/YYYY HH:mm')}`}
+                                {hoaDon.trangThai === 7
+                                    ? `Hủy: ${dayjs(hoaDon.ngaySua).format('DD/MM/YYYY HH:mm')}`
+                                    : `Đặt: ${dayjs(hoaDon.ngayTao).format('DD/MM/YYYY HH:mm')}`}
                             </Typography>
                         </div>
 
@@ -200,12 +238,18 @@ console.log(billDetail);
             {/* Address card */}
             {hoaDon && (
                 <Paper sx={{ p: 2, mb: 3, borderRadius: 2 }} elevation={0}>
-                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Địa chỉ nhận hàng</Typography>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                        Địa chỉ nhận hàng
+                    </Typography>
                     <Stack direction="row" spacing={2} alignItems="flex-start">
                         <LocationOnIcon color="action" />
                         <div>
-                            <Typography fontWeight={600}>{hoaDon.tenNguoiNhan} <span style={{ color: '#666' }}>| {hoaDon.sdtNguoiNhan}</span></Typography>
-                            <Typography variant="body2" color="text.secondary">{hoaDon.diaChiNguoiNhan}</Typography>
+                            <Typography fontWeight={600}>
+                                {hoaDon.tenNguoiNhan} <span style={{ color: '#666' }}>| {hoaDon.sdtNguoiNhan}</span>
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                                {hoaDon.diaChiNguoiNhan}
+                            </Typography>
                         </div>
                     </Stack>
                 </Paper>
@@ -215,13 +259,13 @@ console.log(billDetail);
             <div style={{ display: 'grid', gap: 12 }}>
                 {billDetail.map((bill, index) => {
                     // For each billed item, compute display prices using resolvePrices helper
-                    const { originalPrice, discountedPrice } = resolvePrices(bill);
-                    const unitPrice = discountedPrice;
+                    const { originalPrice, discountedPrice, unitPrice } = resolvePrices(bill);
                     const quantity = bill.soLuong || 0;
                     const lineTotal = unitPrice * quantity;
-                    const discountPercent = originalPrice > 0 && originalPrice > discountedPrice
-                        ? Math.round(((originalPrice - discountedPrice) / originalPrice) * 100)
-                        : 0;
+                    const discountPercent =
+                        originalPrice > 0 && originalPrice > discountedPrice
+                            ? Math.round(((originalPrice - discountedPrice) / originalPrice) * 100)
+                            : 0;
 
                     return (
                         <Paper key={index} sx={{ p: 2.5, borderRadius: 2 }} elevation={0}>
@@ -234,32 +278,71 @@ console.log(billDetail);
                                 />
 
                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                    <Typography fontWeight={700} noWrap>{bill.sanPhamCT?.sanPham?.ten || bill.ten || 'Sản phẩm'}</Typography>
+                                    <Typography fontWeight={700} noWrap>
+                                        {bill.sanPhamCT?.sanPham?.ten || bill.ten || 'Sản phẩm'}
+                                    </Typography>
                                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }} noWrap>
                                         {`Phân loại: ${bill.sanPhamCT?.mauSac?.ten || bill.mauSac?.ten || '-'}, ${bill.sanPhamCT?.trongLuong?.ten || bill.trongLuong?.ten || '-'}, ${bill.sanPhamCT?.doCung?.ten || bill.doCung?.ten || '-'}`}
                                     </Typography>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                                    <div
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            marginTop: 8,
+                                        }}
+                                    >
                                         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                            <Typography variant="body2" color="text.secondary">Số lượng: {quantity}</Typography>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Số lượng: {quantity}
+                                            </Typography>
                                         </div>
 
                                         <div style={{ textAlign: 'right', minWidth: 160 }}>
-                                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center' }}>
+                                            <div
+                                                style={{
+                                                    display: 'flex',
+                                                    justifyContent: 'flex-end',
+                                                    gap: 8,
+                                                    alignItems: 'center',
+                                                }}
+                                            >
                                                 <div style={{ fontSize: 13, color: '#666' }}>Đơn giá:</div>
-                                                <div style={{ fontWeight: 700, color: '#d32f2f' }}>{formatCurrency(unitPrice)}</div>
+                                                <div style={{ fontWeight: 700, color: '#d32f2f' }}>
+                                                    {formatCurrency(unitPrice)}
+                                                </div>
                                                 {discountPercent > 0 && (
-                                                    <div style={{ fontSize: 12, color: '#159895', background: '#ecfdf7', padding: '2px 8px', borderRadius: 8 }}>
+                                                    <div
+                                                        style={{
+                                                            fontSize: 12,
+                                                            color: '#159895',
+                                                            background: '#ecfdf7',
+                                                            padding: '2px 8px',
+                                                            borderRadius: 8,
+                                                        }}
+                                                    >
                                                         -{discountPercent}%
                                                     </div>
                                                 )}
                                             </div>
 
                                             {discountPercent > 0 && (
-                                                <div style={{ marginTop: 6, fontSize: 13, color: '#888', textDecoration: 'line-through' }}>{formatCurrency(originalPrice)}</div>
+                                                <div
+                                                    style={{
+                                                        marginTop: 6,
+                                                        fontSize: 13,
+                                                        color: '#888',
+                                                        textDecoration: 'line-through',
+                                                    }}
+                                                >
+                                                    {formatCurrency(originalPrice)}
+                                                </div>
                                             )}
 
                                             <div style={{ marginTop: 8, fontSize: 13, color: '#666' }}>Tổng:</div>
-                                            <div style={{ fontSize: 18, fontWeight: 800 }}>{formatCurrency(lineTotal)}</div>
+                                            <div style={{ fontSize: 18, fontWeight: 800 }}>
+                                                {formatCurrency(lineTotal)}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -279,7 +362,7 @@ console.log(billDetail);
                     </div>
                     <div style={{ textAlign: 'right' }}>
                         <div style={{ marginBottom: 6 }}>{formatCurrency(totalAmount)}</div>
-                        <div style={{ marginBottom: 6 }}>{formatCurrency(phiShip)}</div>
+                        <div style={{ marginBottom: 6 }}>+{formatCurrency(phiShip)}</div>
                         <div style={{ marginBottom: 6 }}>-{formatCurrency(discountAmount)}</div>
                     </div>
                 </div>
@@ -288,7 +371,9 @@ console.log(billDetail);
                     <div />
                     <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: 14, color: '#666' }}>Thành tiền</div>
-                        <div style={{ fontSize: 20, fontWeight: 800, color: '#d32f2f' }}>{formatCurrency(tongThanhToan)}</div>
+                        <div style={{ fontSize: 20, fontWeight: 800, color: '#d32f2f' }}>
+                            {formatCurrency(tongThanhToan)}
+                        </div>
                     </div>
                 </div>
             </Paper>
@@ -308,8 +393,12 @@ console.log(billDetail);
                 gap={1}
             >
                 <div>
-                    <Typography fontSize={13}>Phương thức thanh toán: <strong>{hoaDon?.phuongThucThanhToan}</strong></Typography>
-                    <Typography fontSize={13}>Thời gian đặt: {dayjs(hoaDon?.ngayTao).format('DD/MM/YYYY HH:mm')}</Typography>
+                    <Typography fontSize={13}>
+                        Phương thức thanh toán: <strong>{hoaDon?.phuongThucThanhToan}</strong>
+                    </Typography>
+                    <Typography fontSize={13}>
+                        Thời gian đặt: {dayjs(hoaDon?.ngayTao).format('DD/MM/YYYY HH:mm')}
+                    </Typography>
                 </div>
 
                 <Stack direction="row" spacing={1}>

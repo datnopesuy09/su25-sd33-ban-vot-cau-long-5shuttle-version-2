@@ -69,9 +69,29 @@ function OrderStatus() {
         try {
             const response = await axios.get(`http://localhost:8080/api/hoa-don-ct/hoa-don/${idHoaDon}`);
             setOrderDetailDatas(response.data);
+            return response.data;
         } catch (error) {
             console.error('Lỗi khi lấy chi tiết hóa đơn:', error);
             toast.error('Không thể lấy chi tiết hóa đơn!');
+            return null;
+        }
+    };
+
+    // Persist hoaDon.tongTien on server
+    const persistHoaDonTotal = async (newTotal) => {
+        if (!hoaDonId) return false;
+        try {
+            const hoaDonRes = await axios.get(`http://localhost:8080/api/hoa-don/${hoaDonId}`);
+            const hoaDonObj = hoaDonRes.data || {};
+            hoaDonObj.tongTien = newTotal;
+
+            await axios.put(`http://localhost:8080/api/hoa-don/${hoaDonId}`, hoaDonObj, {
+                headers: { 'Content-Type': 'application/json' },
+            });
+            return true;
+        } catch (err) {
+            console.error('Không thể cập nhật tổng tiền hóa đơn trên server:', err);
+            return false;
         }
     };
 
@@ -288,7 +308,10 @@ function OrderStatus() {
 
         if (variantOriginal !== undefined && variantOriginal !== null) {
             const originalPrice = Number(variantOriginal);
-            const discountedPrice = variantDiscounted !== undefined && variantDiscounted !== null ? Number(variantDiscounted) : originalPrice;
+            const discountedPrice =
+                variantDiscounted !== undefined && variantDiscounted !== null
+                    ? Number(variantDiscounted)
+                    : originalPrice;
             return { originalPrice, discountedPrice };
         }
 
@@ -298,7 +321,10 @@ function OrderStatus() {
         const orderGiaKhuyenMai = item.giaKhuyenMai;
 
         const originalFromOrder = orderGiaBan !== undefined && orderGiaBan !== null ? Number(orderGiaBan) / qty : 0;
-        const discountedFromOrder = orderGiaKhuyenMai !== undefined && orderGiaKhuyenMai !== null ? Number(orderGiaKhuyenMai) / qty : originalFromOrder;
+        const discountedFromOrder =
+            orderGiaKhuyenMai !== undefined && orderGiaKhuyenMai !== null
+                ? Number(orderGiaKhuyenMai) / qty
+                : originalFromOrder;
 
         return { originalPrice: originalFromOrder, discountedPrice: discountedFromOrder };
     };
@@ -352,7 +378,26 @@ function OrderStatus() {
                     toast.success('Thêm sản phẩm vào hóa đơn thành công!');
                 }
                 setShowProductModal(false);
-                fetchBillDetails(orderData.id);
+
+                // Refresh details and recalc/persist total
+                try {
+                    const updatedDetails = await fetchBillDetails(orderData.id);
+                    if (updatedDetails) {
+                        const newSubtotal = updatedDetails.reduce((sum, item) => {
+                            const { discountedPrice } = resolvePrices(item);
+                            const qty = Number(item.soLuong) || 0;
+                            return sum + discountedPrice * qty;
+                        }, 0);
+                        const newDiscountAmount = validateDiscount(newSubtotal, orderData.voucher);
+                        const newTotal = newSubtotal - newDiscountAmount + (orderData.phiShip || 0);
+                        const ok = await persistHoaDonTotal(newTotal);
+                        if (!ok) {
+                            toast.warning('Thêm sản phẩm thành công, nhưng không thể cập nhật tổng tiền trên server');
+                        }
+                    }
+                } catch (err) {
+                    console.error('Lỗi khi cập nhật tổng tiền sau khi thêm sản phẩm:', err);
+                }
             }
         } catch (error) {
             console.error('Lỗi khi thêm sản phẩm:', error);
@@ -384,6 +429,7 @@ function OrderStatus() {
                 throw new Error('Không thể cập nhật số lượng');
             }
 
+            // Update local list with new quantity and line total (giaBan)
             const updatedOrderDetails = orderDetailDatas.map((item) => {
                 if (item.id === orderDetailId) {
                     return {
@@ -396,6 +442,31 @@ function OrderStatus() {
             });
 
             setOrderDetailDatas(updatedOrderDetails);
+
+            // Recalculate invoice totals from updated details
+            const newSubtotal = updatedOrderDetails.reduce((sum, item) => {
+                // reuse resolvePrices to get unit discounted price
+                const { discountedPrice } = resolvePrices(item);
+                const qty = Number(item.soLuong) || 0;
+                return sum + discountedPrice * qty;
+            }, 0);
+
+            const newDiscountAmount = validateDiscount(newSubtotal, orderData.voucher);
+            const newTotal = newSubtotal - newDiscountAmount + (orderData.phiShip || 0);
+
+            // Persist updated tongTien to backend HoaDon record
+            try {
+                const ok = await persistHoaDonTotal(newTotal);
+                if (!ok) {
+                    toast.warning('Cập nhật số lượng thành công, nhưng không thể cập nhật tổng tiền trên server');
+                } else {
+                    // Refresh bill details to keep client in sync (best-effort)
+                    fetchBillDetails(hoaDonId);
+                }
+            } catch (err) {
+                console.error('Không thể cập nhật tổng tiền hóa đơn trên server:', err);
+                toast.warning('Cập nhật số lượng thành công, nhưng không thể cập nhật tổng tiền trên server');
+            }
         } catch (error) {
             console.error('Error updating quantity:', error);
             toast.error('Không thể cập nhật số lượng!');
@@ -410,7 +481,7 @@ function OrderStatus() {
 
     const handleDeleteProduct = async (orderDetailId) => {
         const currentItem = orderDetailDatas.find((item) => item.id === orderDetailId);
-        
+
         if (!currentItem) {
             toast.error('Không tìm thấy sản phẩm!');
             return;
@@ -427,18 +498,38 @@ function OrderStatus() {
         if (isConfirmed) {
             try {
                 const response = await axios.delete(`http://localhost:8080/api/hoa-don-ct/${orderDetailId}`);
-                
+
                 if (response.status === 200) {
                     // Cập nhật danh sách sản phẩm
                     const updatedOrderDetails = orderDetailDatas.filter((item) => item.id !== orderDetailId);
                     setOrderDetailDatas(updatedOrderDetails);
-                    
+
+                    // Recalc and persist HoaDon.tongTien
+                    try {
+                        const updatedDetails = await fetchBillDetails(hoaDonId);
+                        if (updatedDetails) {
+                            const newSubtotal = updatedDetails.reduce((sum, item) => {
+                                const { discountedPrice } = resolvePrices(item);
+                                const qty = Number(item.soLuong) || 0;
+                                return sum + discountedPrice * qty;
+                            }, 0);
+                            const newDiscountAmount = validateDiscount(newSubtotal, orderData.voucher);
+                            const newTotal = newSubtotal - newDiscountAmount + (orderData.phiShip || 0);
+                            const ok = await persistHoaDonTotal(newTotal);
+                            if (!ok) {
+                                toast.warning('Xóa sản phẩm thành công, nhưng không thể cập nhật tổng tiền trên server');
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Lỗi khi cập nhật tổng tiền sau khi xóa sản phẩm:', err);
+                    }
+
                     // Lưu lịch sử đơn hàng
                     await saveOrderHistory(
                         currentOrderStatus,
-                        `Xóa sản phẩm "${currentItem.sanPhamCT.ten}" khỏi đơn hàng`
+                        `Xóa sản phẩm "${currentItem.sanPhamCT.ten}" khỏi đơn hàng`,
                     );
-                    
+
                     toast.success('Xóa sản phẩm thành công!');
                 } else {
                     throw new Error('Không thể xóa sản phẩm');
@@ -527,7 +618,7 @@ function OrderStatus() {
             if (response.status === 200) {
                 // Cập nhật orderData với thông tin mới
                 Object.assign(orderData, deliveryInfo);
-                
+
                 // Nếu có phí ship mới, cập nhật lại subtotal và total
                 if (deliveryInfo.phiShip !== undefined) {
                     // Trigger recalculation của subtotal và total
@@ -746,7 +837,7 @@ function OrderStatus() {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                }
+                },
             });
 
             console.log('Confirm API response status:', response.status);
@@ -921,7 +1012,7 @@ function OrderStatus() {
         } else {
             // Logic cũ khi không có newStatus (gọi từ các nơi khác)
             console.log('Using old logic, currentOrderStatus:', currentOrderStatus);
-            
+
             // Xử lý trạng thái 1 đặc biệt
             if (currentOrderStatus === 1) {
                 // Gọi API xác nhận đơn hàng mới
@@ -929,7 +1020,7 @@ function OrderStatus() {
                 confirmOrder(description || 'Xác nhận đơn hàng');
                 return;
             }
-            
+
             if (currentOrderStatus === 3) {
                 // chuyển từ 3 -> 4 (Đang vận chuyển -> Đã giao hàng) là bình thường
                 updateOrderStatus(4, description);
@@ -1384,7 +1475,10 @@ function OrderStatus() {
             </div>
 
             {/* Sự cố vận chuyển - chỉ hiển thị khi đơn hàng đang vận chuyển hoặc có sự cố */}
-            {(currentOrderStatus === 3 || currentOrderStatus === 4 || currentOrderStatus === 7 || currentOrderStatus === 10) && (
+            {(currentOrderStatus === 3 ||
+                currentOrderStatus === 4 ||
+                currentOrderStatus === 7 ||
+                currentOrderStatus === 10) && (
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 max-w-5xl mx-auto mt-8">
                     <div className="p-6 border-b border-gray-200">
                         <div className="flex items-center justify-between">
@@ -1420,7 +1514,7 @@ function OrderStatus() {
                                             7, // CANCELLED
                                             `Đơn hàng bị hủy do sự cố vận chuyển không thể giải quyết (IncidentId=${incident.id})`,
                                         );
-                                        
+
                                         // Send additional notification about cancellation and refund
                                         const cancellationNotification = {
                                             khachHang: {
@@ -1432,11 +1526,15 @@ function OrderStatus() {
                                             kieuThongBao: 'error',
                                             trangThai: 0,
                                         };
-                                        
+
                                         try {
-                                            await axios.post('http://localhost:8080/api/thong-bao', cancellationNotification, {
-                                                headers: { 'Content-Type': 'application/json' },
-                                            });
+                                            await axios.post(
+                                                'http://localhost:8080/api/thong-bao',
+                                                cancellationNotification,
+                                                {
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                },
+                                            );
                                             safeStompSend(
                                                 `/app/user/${orderData.taiKhoan.id}/notifications`,
                                                 {},
@@ -1445,7 +1543,6 @@ function OrderStatus() {
                                         } catch (notificationError) {
                                             console.error('Lỗi khi gửi thông báo hủy đơn:', notificationError);
                                         }
-                                        
                                     } else {
                                         // Handle normal resolved incident
                                         if (currentOrderStatus === 10) {
