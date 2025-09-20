@@ -1,5 +1,6 @@
 package com.example.da_be.controller;
 
+import com.example.da_be.dto.response.ProductsOutOfStockResponse;
 import com.example.da_be.dto.response.ThongKeResponse;
 import com.example.da_be.dto.response.TopSellingProductResponse;
 import com.example.da_be.service.ThongKeService;
@@ -77,5 +78,10 @@ public class ThongKeController {
             @RequestParam("fromDate") @DateTimeFormat(pattern = "yyyy-MM-dd") Date fromDate,
             @RequestParam("toDate") @DateTimeFormat(pattern = "yyyy-MM-dd") Date toDate) {
         return thongKeService.getTopSellingProductsByDateRange(fromDate, toDate);
+    }
+
+    @GetMapping("/products-out-of-stock")
+    public List<ProductsOutOfStockResponse> getProductsOutOfStock() {
+        return thongKeService.getProductsOutOfStockList();
     }
 }

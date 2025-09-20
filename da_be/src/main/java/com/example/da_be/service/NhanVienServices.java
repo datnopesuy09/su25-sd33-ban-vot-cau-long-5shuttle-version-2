@@ -1,4 +1,5 @@
 package com.example.da_be.service;
+import com.example.da_be.cloudinary.CloudinaryImage;
 import com.example.da_be.dto.request.NhanVien.NVCreationRequest;
 import com.example.da_be.dto.request.NhanVien.SearchNVRequest;
 import com.example.da_be.dto.response.NhanVienResponse;
@@ -27,12 +28,13 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
-public class NhanVienServices {
+public class    NhanVienServices {
     UserRepository userRepository;
     NhanVienRepository repository;
     RoleRepository roleRepository;
     PasswordEncoder passwordEncoder;
     UserMapper userMapper;
+    CloudinaryImage cloudinaryImage;
 
     public List<NhanVienResponse> getAllNhanVien() {
         return repository.getAllNhanVien();
@@ -54,8 +56,12 @@ public class NhanVienServices {
         user.setTrangThai(1); // Mặc định hoạt động
         user.setCccd(request.getCccd());
 
+        // Upload avatar lên Cloudinary và lưu URL đầy đủ
         if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
-            user.setAvatar(request.getAvatar().getOriginalFilename());
+            String avatarUrl = cloudinaryImage.uploadAvatar(request.getAvatar());
+            if (avatarUrl != null) {
+                user.setAvatar(avatarUrl);
+            }
         }
 
         Role staffRole = roleRepository.findByName("STAFF")

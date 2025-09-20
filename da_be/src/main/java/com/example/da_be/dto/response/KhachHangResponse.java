@@ -1,7 +1,6 @@
 package com.example.da_be.dto.response;
 
 import com.example.da_be.entity.DiaChi;
-import com.example.da_be.enums.UserType;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -22,7 +21,6 @@ public class KhachHangResponse {
     String email;
     Integer gioiTinh;
     LocalDate ngaySinh;
-    UserType userType;
     Set<DiaChi> diaChi;
     Integer trangThai;
 }

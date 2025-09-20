@@ -1,7 +1,3 @@
-// =============================
-// Trang Thống kê tổng quan cho Admin
-// =============================
-
 import React, { useState, useEffect } from 'react';
 import { Box, Grid, Typography, Skeleton } from '@mui/material';
 import dayjs from 'dayjs';
@@ -32,38 +28,38 @@ const FILTERS = [
 
 // Map icon cho từng filter
 const ICONS = {
-    'Ngày': <CalendarTodayIcon />,
-    'Tuần': <CalendarViewWeekIcon />,
-    'Tháng': <CalendarMonthIcon />,
-    'Năm': <DateRangeIcon />,
+    Ngày: <CalendarTodayIcon />,
+    Tuần: <CalendarViewWeekIcon />,
+    Tháng: <CalendarMonthIcon />,
+    Năm: <DateRangeIcon />,
     'Tùy chỉnh': <EditCalendarIcon />,
 };
 
 // Màu sắc cho từng card thống kê
 const COLOR_CARDS = {
-    'Ngày': '#00838f',
-    'Tuần': '#f57c00',
-    'Tháng': '#90a4ae',
-    'Năm': '#0d47a1',
+    Ngày: '#00838f',
+    Tuần: '#f57c00',
+    Tháng: '#90a4ae',
+    Năm: '#0d47a1',
     'Tùy chỉnh': '#3399FF',
 };
 
 // Hàm lấy URL API theo filter
 const getApiUrl = (filter, fromDate, toDate) => {
-  switch (filter) {
-    case 'Ngày':
-      return 'http://localhost:8080/thong-ke/overall/ngay';
-    case 'Tuần':
-      return 'http://localhost:8080/thong-ke/overall/tuan';
-    case 'Tháng':
-      return 'http://localhost:8080/thong-ke/overall/thang';
-    case 'Năm':
-      return 'http://localhost:8080/thong-ke/overall/nam';
-    case 'Tùy chỉnh':
-      return `http://localhost:8080/thong-ke/overall/tuy-chinh?fromDate=${fromDate.format('YYYY-MM-DD')}&toDate=${toDate.format('YYYY-MM-DD')}`;
-    default:
-      return '';
-  }
+    switch (filter) {
+        case 'Ngày':
+            return 'http://localhost:8080/thong-ke/overall/ngay';
+        case 'Tuần':
+            return 'http://localhost:8080/thong-ke/overall/tuan';
+        case 'Tháng':
+            return 'http://localhost:8080/thong-ke/overall/thang';
+        case 'Năm':
+            return 'http://localhost:8080/thong-ke/overall/nam';
+        case 'Tùy chỉnh':
+            return `http://localhost:8080/thong-ke/overall/tuy-chinh?fromDate=${fromDate.format('YYYY-MM-DD')}&toDate=${toDate.format('YYYY-MM-DD')}`;
+        default:
+            return '';
+    }
 };
 
 const ThongKe = () => {
@@ -72,10 +68,10 @@ const ThongKe = () => {
     // =============================
     const [selectedFilter, setSelectedFilter] = useState('Ngày'); // Filter đang chọn
     const [fromDate, setFromDate] = useState(dayjs()); // Ngày bắt đầu
-    const [toDate, setToDate] = useState(dayjs());     // Ngày kết thúc
+    const [toDate, setToDate] = useState(dayjs()); // Ngày kết thúc
     const [allCardsData, setAllCardsData] = useState([]); // Dữ liệu cho các card tổng quan
-    const [pieChartData, setPieChartData] = useState([]);  // Dữ liệu cho biểu đồ trạng thái
-    const [isLoading, setIsLoading] = useState(false);     // Loading cho card tổng quan
+    const [pieChartData, setPieChartData] = useState([]); // Dữ liệu cho biểu đồ trạng thái
+    const [isLoading, setIsLoading] = useState(false); // Loading cho card tổng quan
     const [isTableLoading, setIsTableLoading] = useState(false); // Loading cho bảng sản phẩm
     const [isChartLoading, setIsChartLoading] = useState(false); // Loading cho biểu đồ
 
@@ -105,6 +101,7 @@ const ThongKe = () => {
                                 success: data.tongDonThanhCong || 0,
                                 cancel: data.tongDonHuy || 0,
                                 return: data.tongDonTra || 0,
+                                returnProducts: data.tongSanPhamTra || 0, // Thêm tổng sản phẩm trả
                             },
                             color: COLOR_CARDS[filter.value],
                             customWidth: filter.value === 'Tùy chỉnh' ? 1180 : 575,
@@ -116,12 +113,12 @@ const ThongKe = () => {
                             title: `Tổng quan ${filter.value.toLowerCase()}`,
                             icon: ICONS[filter.value],
                             amount: 0,
-                            stats: { products: 0, success: 0, cancel: 0, return: 0 },
+                            stats: { products: 0, success: 0, cancel: 0, return: 0, returnProducts: 0 }, // Thêm returnProducts
                             color: COLOR_CARDS[filter.value],
                             customWidth: filter.value === 'Tùy chỉnh' ? 1180 : 575,
                         };
                     }
-                })
+                }),
             );
             setAllCardsData(cards);
             setIsLoading(false);
@@ -167,12 +164,12 @@ const ThongKe = () => {
             setIsTableLoading(false); // Tắt loading sau 0.5s (giả lập thời gian API)
         }, 500);
     };
-    
+
     // =============================
     // Xử lý export Excel (hiện tại chỉ log ra console)
     // =============================
     const handleExport = () => {
-        console.log("Đã nhấn nút Export Excel");
+        console.log('Đã nhấn nút Export Excel');
     };
 
     // =============================
@@ -181,7 +178,7 @@ const ThongKe = () => {
     return (
         <Box sx={{ p: 3 }}>
             {/* Tiêu đề trang */}
-            <Typography variant="h4" gutterBottom sx={{ color: 'black'}}>
+            <Typography variant="h4" gutterBottom sx={{ color: 'black' }}>
                 Thống kê
             </Typography>
 
@@ -216,8 +213,8 @@ const ThongKe = () => {
             <Grid container spacing={3} alignItems="stretch">
                 {/* Bảng sản phẩm bán chạy */}
                 <Grid item xs={12} md={8} sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                    <Box 
-                        sx={{ 
+                    <Box
+                        sx={{
                             backgroundColor: '#ffffff',
                             borderRadius: 3,
                             p: 3,
@@ -226,11 +223,11 @@ const ThongKe = () => {
                             minHeight: '500px',
                             width: '100%',
                             flexShrink: 0,
-                            transition: 'all 0.3s ease'
+                            transition: 'all 0.3s ease',
                         }}
                     >
-                        <TableBestSelling 
-                            filterLabel={selectedFilter} 
+                        <TableBestSelling
+                            filterLabel={selectedFilter}
                             fromDate={fromDate}
                             toDate={toDate}
                             loading={isTableLoading}
@@ -239,25 +236,21 @@ const ThongKe = () => {
                 </Grid>
                 {/* Biểu đồ trạng thái đơn hàng */}
                 <Grid item xs={12} md={4} sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                    <Box 
-                        sx={{ 
+                    <Box
+                        sx={{
                             backgroundColor: '#ffffff',
                             borderRadius: 3,
                             p: 3,
                             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                             height: '100%',
                             minHeight: '500px',
-                            transition: 'all 0.3s ease'
+                            transition: 'all 0.3s ease',
                         }}
                     >
                         <StatusPieChart
                             data={pieChartData}
                             label={selectedFilter.toLowerCase()}
-                            colors={[
-                                COLOR_CARDS[selectedFilter] || '#00838f',
-                                '#f44336',
-                                '#9c27b0',
-                            ]}
+                            colors={[COLOR_CARDS[selectedFilter] || '#00838f', '#f44336', '#9c27b0']}
                             loading={isChartLoading}
                         />
                     </Box>

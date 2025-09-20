@@ -10,6 +10,7 @@ import lombok.experimental.FieldDefaults;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
 
 @Getter
 @Setter
@@ -32,6 +33,8 @@ public class HoaDonCTResponse {
     BigDecimal giaBan;
 
     Integer trangThai;
+
+    List<PhieuTraHangChiTietResponse> phieuTraHangChiTietResponses;
 
     public String getHinhAnhUrl() {
         return hinhAnhUrl;

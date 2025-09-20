@@ -1,9 +1,11 @@
 package com.example.da_be.service;
 
+import com.example.da_be.dto.response.ProductsOutOfStockResponse;
 import com.example.da_be.dto.response.ThongKeResponse;
 import com.example.da_be.dto.response.TopSellingProductResponse;
 import com.example.da_be.mapper.ThongKeMapper;
 import com.example.da_be.repository.OrderStatsProjection;
+import com.example.da_be.repository.ProductsOutOfStockProjection;
 import com.example.da_be.repository.ThongKeRepository;
 import com.example.da_be.repository.TopSellingProductProjection;
 import lombok.AccessLevel;
@@ -77,5 +79,11 @@ public class ThongKeService {
     public List<TopSellingProductResponse> getTopSellingProductsByDateRange(Date fromDate, Date toDate) {
         List<TopSellingProductProjection> projections = thongKeRepository.findTopSellingProductsByDateRange(fromDate, toDate);
         return thongKeMapper.toTopSellingProductResponseList(projections);
+    }
+
+    //Sản phẩm sắp hết hàng
+    public List<ProductsOutOfStockResponse> getProductsOutOfStockList() {
+        List<ProductsOutOfStockProjection> projections = thongKeRepository.findProductsOutOfStock();
+        return thongKeMapper.toProductsOutOfStockResponseList(projections);
     }
 }

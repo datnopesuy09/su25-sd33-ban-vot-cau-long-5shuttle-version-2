@@ -62,16 +62,16 @@ public class PhieuTraHangService {
         HoaDon hoaDon = hoaDonRepository.findById(request.getHoaDonId())
                 .orElseThrow(() -> new RuntimeException(ErrorCode.ORDER_NOT_EXISTS.getMessage()));
 
-        log.info("Hoa don ID: " + hoaDon.getId());
+        boolean exists = phieuTraHangRepository.existsByHoaDonId((hoaDon.getId()));
+        if (exists) {
+            throw new AppException(ErrorCode.RETURN_EXISTS);
+        }
 
         if (hoaDon.getTrangThai() != 6 && hoaDon.getTrangThai() != 5) {
             throw new AppException(ErrorCode.INCOMPLETE_ORDER);
         }
 
-
-
         String phieuTraHangCode = "PTH-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-
 
         PhieuTraHang phieuTraHang = PhieuTraHang.builder()
                 .maPhieuTraHang(phieuTraHangCode)
@@ -86,17 +86,18 @@ public class PhieuTraHangService {
         phieuTraHang = phieuTraHangRepository.save(phieuTraHang);
 
         List<PhieuTraHangChiTiet> chiTietList = new ArrayList<>();
+        int tongSoLuongHoaDon = 0;
+        int tongSoLuongTra = 0;
+        int tongSoLuongDuyet = 0;
+
         for (PhieuTraHangChiTietRequest chiTietRequest : request.getChiTietPhieuTraHang()) {
             HoaDonCT hoaDonCT = hoaDonCTRepository.findById(chiTietRequest.getHoaDonChiTietId())
                     .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy chi tiết hóa đơn với ID: " + chiTietRequest.getHoaDonChiTietId()));
 
-            // a. Đảm bảo chi tiết hóa đơn này thuộc về hóa đơn đang được trả
             if (!hoaDonCT.getHoaDon().getId().equals(hoaDon.getId())) {
                 throw new RuntimeException("Chi tiết hóa đơn với ID " + chiTietRequest.getHoaDonChiTietId() + " không thuộc về hóa đơn " + hoaDon.getId());
             }
 
-            // b. Đảm bảo số lượng trả không vượt quá số lượng trong hóa đơn gốc
-            // (Bạn có thể cần tính toán số lượng đã trả trước đó để tránh trả quá số lượng)
             if (chiTietRequest.getSoLuongTra() > hoaDonCT.getSoLuong()) {
                 throw new RuntimeException("Số lượng trả cho sản phẩm " + hoaDonCT.getSanPhamCT().getSanPham().getTen() + " vượt quá số lượng mua ban đầu.");
             }
@@ -109,20 +110,24 @@ public class PhieuTraHangService {
                     .hoaDonChiTiet(hoaDonCT)
                     .soLuongTra(chiTietRequest.getSoLuongTra())
                     .lyDoTraHang(chiTietRequest.getLyDoTraHang())
-                    .trangThai(TrangThaiTra.PENDING) // Trạng thái ban đầu cho từng sản phẩm là "chờ xử lý"
+                    .trangThai(TrangThaiTra.PENDING)
                     .build();
+
             chiTietList.add(chiTiet);
+
+            hoaDonCTRepository.save(hoaDonCT);
         }
 
         if (!chiTietList.isEmpty()) {
             phieuTraHangChiTietRepository.saveAll(chiTietList);
-            hoaDon.setTrangThai(8);
-            phieuTraHang.setChiTietPhieuTraHang(chiTietList); // Set lại danh sách chi tiết cho phiếu trả hàng cha
+            phieuTraHang.setChiTietPhieuTraHang(chiTietList);
+
+            hoaDonRepository.save(hoaDon);
         }
 
         return phieuTraHangMapper.toPhieuTraHangResponse(phieuTraHang);
-
     }
+
 
     public List<PhieuTraHangResponse> getMyOnlineReturns() {
         var context = SecurityContextHolder.getContext();
@@ -186,9 +191,25 @@ public class PhieuTraHangService {
             phieuTraHangChiTietRepository.save(phieuTraHangChiTiet);
         }
 
-        // Làm mới dữ liệu
+        // Làm mới dữ liệu phiếu sau khi lưu chi tiết
         phieuTraHang = phieuTraHangRepository.findById(request.getPhieuTraHangId())
                 .orElseThrow(() -> new AppException(ErrorCode.RETURN_NOT_EXISTS));
+
+        HoaDon hoaDon = phieuTraHang.getHoaDon();
+
+        boolean yeuCauTraToanBo = phieuTraHang.getChiTietPhieuTraHang().stream()
+                .allMatch(ct -> ct.getSoLuongTra().equals(ct.getHoaDonChiTiet().getSoLuong()));
+
+        boolean adminDuyetToanBo = phieuTraHang.getChiTietPhieuTraHang().stream()
+                .allMatch(ct -> ct.getSoLuongPheDuyet() != null
+                        && ct.getSoLuongPheDuyet().equals(ct.getSoLuongTra()));
+
+        // Nếu cả hai đúng → set trạng thái hóa đơn = 8
+        if (yeuCauTraToanBo && adminDuyetToanBo) {
+            hoaDon.setTrangThai(8); // 8 = TRẢ HÀNG
+            hoaDonRepository.save(hoaDon);
+            log.info("Hóa đơn {} đã được cập nhật trạng thái TRẢ HÀNG (8)", hoaDon.getMa());
+        }
 
         // Gửi email xác nhận cho khách hàng
         try {
@@ -212,6 +233,7 @@ public class PhieuTraHangService {
 
         return phieuTraHangMapper.toPhieuTraHangResponse(phieuTraHang);
     }
+
 
     public List<PhieuTraHangResponse> getMyOrdersReturn() {
         var context = SecurityContextHolder.getContext();

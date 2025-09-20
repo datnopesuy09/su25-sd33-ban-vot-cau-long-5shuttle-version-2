@@ -12,9 +12,10 @@ import java.math.BigDecimal;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ThongKeResponse {
     BigDecimal tongTien;
-    Integer tongSanPham;
-    Integer tongDonThanhCong;
-    Integer tongDonHuy;
-    Integer tongDonTra;
+    Long tongSanPham;
+    Long tongSanPhamTra;
+    Long tongDonThanhCong;
+    Long tongDonHuy;
+    Long tongDonTra;
 
 }

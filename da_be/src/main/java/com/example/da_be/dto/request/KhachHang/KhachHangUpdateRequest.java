@@ -1,7 +1,5 @@
 package com.example.da_be.dto.request.KhachHang;
 
-import com.example.da_be.entity.DiaChi;
-import com.example.da_be.enums.UserType;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,7 +7,6 @@ import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDate;
-import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -26,7 +23,5 @@ public class KhachHangUpdateRequest {
     LocalDate ngaySinh;
 
     Integer gioiTinh;
-
-    UserType userType;
 
 }
