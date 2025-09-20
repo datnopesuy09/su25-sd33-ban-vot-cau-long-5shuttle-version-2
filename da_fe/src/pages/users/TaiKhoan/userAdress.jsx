@@ -54,9 +54,14 @@ const AddressUser = () => {
 
     const fetchProvinces = async () => {
         try {
-            const res = await fetch('https://provinces.open-api.vn/api/?depth=1');
+            const res = await fetch('https://online-gateway.ghn.vn/shiip/public-api/master-data/province', {
+                headers: {
+                    Token: '04ae91c9-b3a5-11ef-b074-aece61c107bd',
+                    'Content-Type': 'application/json',
+                },
+            });
             const data = await res.json();
-            setProvinces(data);
+            setProvinces(data.data);
         } catch {
             toast.error('Không thể tải tỉnh/thành');
         }
@@ -64,10 +69,18 @@ const AddressUser = () => {
 
     const fetchDistricts = async (provinceCode) => {
         try {
-            const res = await fetch(`https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`);
+            const res = await fetch(
+                `https://online-gateway.ghn.vn/shiip/public-api/master-data/district?province_id=${provinceCode}`,
+                {
+                    headers: {
+                        Token: '04ae91c9-b3a5-11ef-b074-aece61c107bd',
+                        'Content-Type': 'application/json',
+                    },
+                },
+            );
             const data = await res.json();
-            setDistricts(data.districts || []);
-            return data.districts;
+            setDistricts(data.data || []);
+            return data.data;
         } catch {
             toast.error('Lỗi tải quận/huyện');
             return [];
@@ -76,10 +89,18 @@ const AddressUser = () => {
 
     const fetchWards = async (districtCode) => {
         try {
-            const res = await fetch(`https://provinces.open-api.vn/api/d/${districtCode}?depth=2`);
+            const res = await fetch(
+                `https://online-gateway.ghn.vn/shiip/public-api/master-data/ward?district_id=${districtCode}`,
+                {
+                    headers: {
+                        Token: '04ae91c9-b3a5-11ef-b074-aece61c107bd',
+                        'Content-Type': 'application/json',
+                    },
+                },
+            );
             const data = await res.json();
-            setWards(data.wards || []);
-            return data.wards;
+            setWards(data.data || []);
+            return data.data;
         } catch {
             toast.error('Lỗi tải phường/xã');
             return [];
@@ -148,9 +169,9 @@ const AddressUser = () => {
             ten: diaChiData.ten,
             sdt: diaChiData.sdt,
             diaChiCuThe: diaChiData.diaChiCuThe,
-            tinh: selectedProvince?.name,
-            huyen: selectedDistrict?.name,
-            xa: selectedWard?.name,
+            tinh: selectedProvince?.ProvinceName,
+            huyen: selectedDistrict?.DistrictName,
+            xa: selectedWard?.WardName,
         };
 
         try {
@@ -223,23 +244,23 @@ const AddressUser = () => {
 
     const handleEditAddress = async (address) => {
         setDiaChiData(address);
-        const foundProvince = provinces.find((p) => p.name === address.tinh);
+        const foundProvince = provinces.find((p) => p.ProvinceName === address.tinh);
         setSelectedProvince(foundProvince);
 
         let districtsData = [];
-        if (foundProvince?.code) {
-            districtsData = await fetchDistricts(foundProvince.code);
+        if (foundProvince?.ProvinceID) {
+            districtsData = await fetchDistricts(foundProvince.ProvinceID);
         }
 
-        const foundDistrict = districtsData.find((d) => d.name === address.huyen);
+        const foundDistrict = districtsData.find((d) => d.DistrictName === address.huyen);
         setSelectedDistrict(foundDistrict);
 
         let wardsData = [];
-        if (foundDistrict?.code) {
-            wardsData = await fetchWards(foundDistrict.code);
+        if (foundDistrict?.DistrictID) {
+            wardsData = await fetchWards(foundDistrict.DistrictID);
         }
 
-        const foundWard = wardsData.find((w) => w.name === address.xa);
+        const foundWard = wardsData.find((w) => w.WardName === address.xa);
         setSelectedWard(foundWard);
 
         setOpen(true);

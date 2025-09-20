@@ -14,8 +14,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 public class GlobalExceptionHandle {
 
     @ExceptionHandler(value = Exception.class)
-    ResponseEntity<ApiResponse> handleException(RuntimeException exception) {
-        log.error("Exception: ", exception);
+    ResponseEntity<ApiResponse> handleException(Exception exception) {
+        log.error("Unhandled exception: {} - {}", exception.getClass().getName(), exception.getMessage(), exception);
         ApiResponse apiResponse = new ApiResponse();
 
         apiResponse.setCode(ErrorCode.UNCATEGORIZED_EXCEPTION.getCode());

@@ -4,6 +4,7 @@ import com.example.da_be.entity.*;
 import com.example.da_be.exception.ResourceNotFoundException;
 import com.example.da_be.repository.*;
 import com.example.da_be.service.KhoHangService;
+import com.example.da_be.service.GHNShippingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +48,8 @@ public class DatHangController {
     private PhieuGiamGiaRepository phieuGiamGiaRepository;
     @Autowired
     private KhoHangService khoHangService;
+    @Autowired
+    private GHNShippingService ghnShippingService;
 
     @Transactional
     @PostMapping
@@ -108,8 +111,32 @@ public class DatHangController {
 
             hoaDon.setLoaiHoaDon("Trực tuyến");
             
-            // Set phí ship mặc định
-            hoaDon.setPhiShip(BigDecimal.valueOf(0)); // Phí ship mặc định 30,000 VNĐ
+            // Tính phí ship thực tế từ GHN
+            BigDecimal phiShip = BigDecimal.valueOf(30000); // Phí ship mặc định
+            DatHangRequestDTO.ThongTinGiaoHangDTO thongTinGiao = orderRequest.getThongTinGiaoHang();
+            
+            if (thongTinGiao.getDistrictId() != null && thongTinGiao.getWardCode() != null) {
+                try {
+                    // Tính tổng số lượng sản phẩm
+                    int totalQuantity = cartItems.stream().mapToInt(DatHangRequestDTO.CartItemDTO::getSoLuong).sum();
+                    
+                    // Gọi API GHN để tính phí ship
+                    phiShip = ghnShippingService.calculateShippingFee(
+                        thongTinGiao.getDistrictId(),
+                        thongTinGiao.getWardCode(),
+                        totalQuantity,
+                        tongTien
+                    );
+                    
+                    log.info("Phí ship từ GHN: {} VNĐ", phiShip);
+                } catch (Exception e) {
+                    log.warn("Không thể tính phí ship từ GHN, sử dụng phí mặc định: {}", e.getMessage());
+                }
+            } else {
+                log.warn("Thiếu thông tin districtId hoặc wardCode, sử dụng phí ship mặc định");
+            }
+            
+            hoaDon.setPhiShip(phiShip);
 
             // Kiểm tra và áp dụng phiếu giảm giá nếu có
             if (orderRequest.getDiscountId() != null) {
@@ -134,12 +161,14 @@ public class DatHangController {
                     discountAmount = BigDecimal.valueOf(voucher.getGiaTri());
                 }
                 
-                BigDecimal tongTienSauGiam = tongTien.subtract(discountAmount);
-                hoaDon.setTongTien(tongTienSauGiam); // Lưu tổng tiền sau khi giảm
+                BigDecimal tongTienSauGiam = tongTien.subtract(discountAmount).add(phiShip);
+                hoaDon.setTongTien(tongTienSauGiam); // Lưu tổng tiền sau khi giảm + phí ship
                 voucher.setSoLuong(voucher.getSoLuong()-1);
-                log.info("Áp dụng phiếu giảm giá: {}, giảm giá: {}, tổng tiền sau giảm: {}", voucher.getMa(), discountAmount, tongTienSauGiam);
+                log.info("Áp dụng phiếu giảm giá: {}, giảm giá: {}, tổng tiền sau giảm + phí ship: {}", voucher.getMa(), discountAmount, tongTienSauGiam);
             } else {
-                hoaDon.setTongTien(tongTien); // Lưu tổng tiền gốc nếu không có phiếu giảm giá
+                BigDecimal tongTienFinal = tongTien.add(phiShip);
+                hoaDon.setTongTien(tongTienFinal); // Lưu tổng tiền + phí ship nếu không có phiếu giảm giá
+                log.info("Tổng tiền đơn hàng + phí ship: {}", tongTienFinal);
             }
 
             // Kiểm tra và gán voucher nếu có
@@ -200,6 +229,88 @@ public class DatHangController {
         } catch (Exception e) {
             log.error("Lỗi khi đặt hàng: {}", e.getMessage(), e);
             return ResponseEntity.status(500).body("Lỗi khi đặt hàng: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/calculate-shipping-fee")
+    public ResponseEntity<?> calculateShippingFee(@RequestBody ShippingFeeRequestDTO request) {
+        try {
+            log.info("Tính phí ship cho district: {}, ward: {}, quantity: {}", 
+                    request.getDistrictId(), request.getWardCode(), request.getQuantity());
+
+            if (request.getDistrictId() == null || request.getWardCode() == null || request.getQuantity() == null) {
+                return ResponseEntity.badRequest().body("Thiếu thông tin cần thiết để tính phí ship");
+            }
+
+            BigDecimal shippingFee = ghnShippingService.calculateShippingFee(
+                request.getDistrictId(),
+                request.getWardCode(),
+                request.getQuantity(),
+                request.getInsuranceValue() != null ? request.getInsuranceValue() : BigDecimal.valueOf(100000)
+            );
+
+            return ResponseEntity.ok(new ShippingFeeResponseDTO(shippingFee));
+
+        } catch (Exception e) {
+            log.error("Lỗi khi tính phí ship: {}", e.getMessage(), e);
+            return ResponseEntity.status(500).body("Lỗi khi tính phí ship: " + e.getMessage());
+        }
+    }
+
+    // DTO classes for shipping fee calculation
+    public static class ShippingFeeRequestDTO {
+        private Integer districtId;
+        private String wardCode;
+        private Integer quantity;
+        private BigDecimal insuranceValue;
+
+        // Getters and Setters
+        public Integer getDistrictId() {
+            return districtId;
+        }
+
+        public void setDistrictId(Integer districtId) {
+            this.districtId = districtId;
+        }
+
+        public String getWardCode() {
+            return wardCode;
+        }
+
+        public void setWardCode(String wardCode) {
+            this.wardCode = wardCode;
+        }
+
+        public Integer getQuantity() {
+            return quantity;
+        }
+
+        public void setQuantity(Integer quantity) {
+            this.quantity = quantity;
+        }
+
+        public BigDecimal getInsuranceValue() {
+            return insuranceValue;
+        }
+
+        public void setInsuranceValue(BigDecimal insuranceValue) {
+            this.insuranceValue = insuranceValue;
+        }
+    }
+
+    public static class ShippingFeeResponseDTO {
+        private BigDecimal shippingFee;
+
+        public ShippingFeeResponseDTO(BigDecimal shippingFee) {
+            this.shippingFee = shippingFee;
+        }
+
+        public BigDecimal getShippingFee() {
+            return shippingFee;
+        }
+
+        public void setShippingFee(BigDecimal shippingFee) {
+            this.shippingFee = shippingFee;
         }
     }
 

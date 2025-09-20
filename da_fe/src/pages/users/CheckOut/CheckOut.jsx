@@ -42,14 +42,15 @@ const CheckOut = () => {
     // Giả sử idTaiKhoan được truyền qua location.state hoặc dùng giá trị mặc định
     const { user } = useUserAuth();
     const { admin } = useAdminAuth();
-    
+
     // Cải thiện logic lấy token
     const userToken = user?.token || localStorage.getItem('userToken') || localStorage.getItem('token');
     const adminToken = admin?.token || localStorage.getItem('adminToken');
-    
-    const idTaiKhoan = user?.id || parseJwt(userToken)?.sub || parseJwt(userToken)?.id || localStorage.getItem('idKhachHang');
+
+    const idTaiKhoan =
+        user?.id || parseJwt(userToken)?.sub || parseJwt(userToken)?.id || localStorage.getItem('idKhachHang');
     const idAdmin = admin?.id || parseJwt(adminToken)?.sub || parseJwt(adminToken)?.id;
-    
+
     console.log('iduser checkout: ', idTaiKhoan);
     console.log('userToken: ', userToken);
     console.log('idadmin checkout: ', idAdmin);
@@ -85,7 +86,7 @@ const CheckOut = () => {
     const [smartShippingData, setSmartShippingData] = useState({
         districtId: null,
         wardCode: null,
-        quantity: 0
+        quantity: 0,
     });
     const [showAddressForm, setShowAddressForm] = useState(false);
     const [defaultAddress, setDefaultAddress] = useState(null);
@@ -179,11 +180,11 @@ const CheckOut = () => {
             // Nếu có district/ward code từ địa chỉ mặc định
             const districtId = defaultAddress.districtCode || null;
             const wardCode = defaultAddress.wardCode || null;
-            
-            setSmartShippingData(prev => ({
+
+            setSmartShippingData((prev) => ({
                 ...prev,
                 districtId,
-                wardCode
+                wardCode,
             }));
 
             // Nếu không có code, thử tìm kiếm dựa trên tên
@@ -197,35 +198,68 @@ const CheckOut = () => {
     const findDistrictAndWardCodes = async (provinceName, districtName, wardName) => {
         try {
             // Tìm province code
-            const provincesRes = await axios.get('https://provinces.open-api.vn/api/p/');
-            const province = provincesRes.data.find(p => 
-                p.name.toLowerCase().includes(provinceName.toLowerCase()) ||
-                provinceName.toLowerCase().includes(p.name.toLowerCase())
+            const provincesRes = await axios.get(
+                'https://online-gateway.ghn.vn/shiip/public-api/master-data/province',
+                {
+                    headers: {
+                        Token: '04ae91c9-b3a5-11ef-b074-aece61c107bd',
+                        'Content-Type': 'application/json',
+                    },
+                },
+            );
+            const province = provincesRes.data.data.find(
+                (p) =>
+                    p.ProvinceName.toLowerCase().includes(provinceName.toLowerCase()) ||
+                    provinceName.toLowerCase().includes(p.ProvinceName.toLowerCase()),
             );
 
             if (province) {
                 // Tìm district code
-                const districtsRes = await axios.get(`https://provinces.open-api.vn/api/p/${province.code}?depth=2`);
-                const district = districtsRes.data.districts.find(d => 
-                    d.name.toLowerCase().includes(districtName.toLowerCase()) ||
-                    districtName.toLowerCase().includes(d.name.toLowerCase())
+                const districtsRes = await axios.get(
+                    'https://online-gateway.ghn.vn/shiip/public-api/master-data/district',
+                    {
+                        headers: {
+                            Token: '04ae91c9-b3a5-11ef-b074-aece61c107bd',
+                            'Content-Type': 'application/json',
+                        },
+                        params: {
+                            province_id: province.ProvinceID,
+                        },
+                    },
+                );
+                const district = districtsRes.data.data.find(
+                    (d) =>
+                        d.DistrictName.toLowerCase().includes(districtName.toLowerCase()) ||
+                        districtName.toLowerCase().includes(d.DistrictName.toLowerCase()),
                 );
 
                 if (district) {
                     // Tìm ward code
-                    const wardsRes = await axios.get(`https://provinces.open-api.vn/api/d/${district.code}?depth=2`);
-                    const ward = wardsRes.data.wards.find(w => 
-                        w.name.toLowerCase().includes(wardName.toLowerCase()) ||
-                        wardName.toLowerCase().includes(w.name.toLowerCase())
+                    const wardsRes = await axios.get(
+                        'https://online-gateway.ghn.vn/shiip/public-api/master-data/ward',
+                        {
+                            headers: {
+                                Token: '04ae91c9-b3a5-11ef-b074-aece61c107bd',
+                                'Content-Type': 'application/json',
+                            },
+                            params: {
+                                district_id: district.DistrictID,
+                            },
+                        },
+                    );
+                    const ward = wardsRes.data.data.find(
+                        (w) =>
+                            w.WardName.toLowerCase().includes(wardName.toLowerCase()) ||
+                            wardName.toLowerCase().includes(w.WardName.toLowerCase()),
                     );
 
                     if (ward) {
-                        setSmartShippingData(prev => ({
+                        setSmartShippingData((prev) => ({
                             ...prev,
-                            districtId: district.code,
-                            wardCode: ward.code
+                            districtId: district.DistrictID,
+                            wardCode: ward.WardCode,
                         }));
-                        console.log('Đã tìm thấy district code:', district.code, 'ward code:', ward.code);
+                        console.log('Đã tìm thấy district code:', district.DistrictID, 'ward code:', ward.WardCode);
                     }
                 }
             }
@@ -249,12 +283,12 @@ const CheckOut = () => {
 
             setTotalPrice(total);
             setDiscountedPrice(total);
-            
+
             // Cập nhật số lượng sản phẩm cho shipping
             const totalQuantity = filteredCarts.reduce((sum, item) => sum + item.soLuong, 0);
-            setSmartShippingData(prev => ({
+            setSmartShippingData((prev) => ({
                 ...prev,
-                quantity: totalQuantity
+                quantity: totalQuantity,
             }));
         } catch (err) {
             console.error('Không thể lấy giỏ hàng', err);
@@ -320,8 +354,13 @@ const CheckOut = () => {
 
     const fetchProvinces = async () => {
         try {
-            const res = await axios.get('https://provinces.open-api.vn/api/p/');
-            setProvinces(res.data);
+            const res = await axios.get('https://online-gateway.ghn.vn/shiip/public-api/master-data/province', {
+                headers: {
+                    Token: '04ae91c9-b3a5-11ef-b074-aece61c107bd',
+                    'Content-Type': 'application/json',
+                },
+            });
+            setProvinces(res.data.data);
         } catch (error) {
             console.error('Không thể lấy danh sách tỉnh thành:', error);
             toast.error('Không thể lấy danh sách tỉnh/thành phố.');
@@ -330,10 +369,18 @@ const CheckOut = () => {
 
     const fetchDistricts = async (provinceCode) => {
         try {
-            const res = await axios.get(`https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`);
-            setDistricts(res.data.districts);
+            const res = await axios.get('https://online-gateway.ghn.vn/shiip/public-api/master-data/district', {
+                headers: {
+                    Token: '04ae91c9-b3a5-11ef-b074-aece61c107bd',
+                    'Content-Type': 'application/json',
+                },
+                params: {
+                    province_id: provinceCode,
+                },
+            });
+            setDistricts(res.data.data);
             setWards([]);
-            setShippingFee(provinceCode === 'someProvinceCode' ? 30000 : 50000);
+            setShippingFee(30000); // Default shipping fee
         } catch (error) {
             console.error('Không thể lấy danh sách huyện/thị xã:', error);
             toast.error('Không thể lấy danh sách quận/huyện.');
@@ -342,8 +389,16 @@ const CheckOut = () => {
 
     const fetchWards = async (districtCode) => {
         try {
-            const res = await axios.get(`https://provinces.open-api.vn/api/d/${districtCode}?depth=2`);
-            setWards(res.data.wards);
+            const res = await axios.get('https://online-gateway.ghn.vn/shiip/public-api/master-data/ward', {
+                headers: {
+                    Token: '04ae91c9-b3a5-11ef-b074-aece61c107bd',
+                    'Content-Type': 'application/json',
+                },
+                params: {
+                    district_id: districtCode,
+                },
+            });
+            setWards(res.data.data);
         } catch (error) {
             console.error('Không thể lấy danh sách xã/phường:', error);
             toast.error('Không thể lấy danh sách xã/phường.');
@@ -401,29 +456,29 @@ const CheckOut = () => {
             if (name === 'province') {
                 newFormData.district = '';
                 newFormData.ward = '';
-                newFormData.provinceName = provinces.find((p) => p.code === value)?.name || '';
+                newFormData.provinceName = provinces.find((p) => p.ProvinceID === parseInt(value))?.ProvinceName || '';
                 setDistricts([]);
                 setWards([]);
                 fetchDistricts(value);
             } else if (name === 'district') {
                 newFormData.ward = '';
-                newFormData.districtName = districts.find((d) => d.code === value)?.name || '';
+                newFormData.districtName = districts.find((d) => d.DistrictID === parseInt(value))?.DistrictName || '';
                 setWards([]);
                 fetchWards(value);
-                
+
                 // Cập nhật thông tin shipping
-                setSmartShippingData(prev => ({
+                setSmartShippingData((prev) => ({
                     ...prev,
                     districtId: value,
-                    wardCode: null
+                    wardCode: null,
                 }));
             } else if (name === 'ward') {
-                newFormData.wardName = wards.find((w) => w.code === value)?.name || '';
-                
+                newFormData.wardName = wards.find((w) => w.WardCode === value)?.WardName || '';
+
                 // Cập nhật thông tin shipping
-                setSmartShippingData(prev => ({
+                setSmartShippingData((prev) => ({
                     ...prev,
-                    wardCode: value
+                    wardCode: value,
                 }));
             }
             return newFormData;
@@ -450,41 +505,69 @@ const CheckOut = () => {
         return Object.keys(newErrors).length === 0;
     };
 
-    // Callback để cập nhật phí ship từ SmartShippingFee component (không còn sử dụng)
-    const handleShippingFeeChange = (newShippingFee) => {
-        setShippingFee(newShippingFee);
-        // discountedPrice sẽ được cập nhật tự động qua useEffect
+    // Function để tính phí ship
+    const calculateShippingFee = async (districtId, wardCode, quantity, totalValue) => {
+        try {
+            console.log('Calculating shipping fee with:', { districtId, wardCode, quantity, totalValue });
+
+            const response = await axios.post('http://localhost:8080/api/dat-hang/calculate-shipping-fee', {
+                districtId: parseInt(districtId),
+                wardCode: wardCode,
+                quantity: quantity,
+                insuranceValue: totalValue,
+            });
+
+            if (response.status === 200 && response.data.shippingFee) {
+                const fee = response.data.shippingFee;
+                console.log('Phí ship từ API:', fee);
+                setShippingFee(fee);
+                return fee;
+            }
+        } catch (error) {
+            console.error('Lỗi khi tính phí ship:', error);
+            console.log('Sử dụng phí ship mặc định: 30000');
+            setShippingFee(30000);
+            return 30000;
+        }
     };
 
-    // Tính phí ship tự động
-    // const calculateShippingFee = async (districtId, wardCode, quantity) => {
-    //     console.log('===== DEBUG SHIPPING FEE =====');
-    //     console.log('districtId:', districtId, 'type:', typeof districtId);
-    //     console.log('wardCode:', wardCode, 'type:', typeof wardCode);
-    //     console.log('quantity:', quantity, 'type:', typeof quantity);
-        
-    //     if (!districtId || !wardCode || quantity <= 0) {
-    //         console.log('Thiếu thông tin, sử dụng phí mặc định');
-    //         setShippingFee(30000); // Phí mặc định
-    //         return;
-    //     }
+    // Effect để tự động tính phí ship khi có đủ thông tin
+    useEffect(() => {
+        const calculateShippingFeeAuto = async () => {
+            if (carts.length === 0) return;
 
-    //     try {
-    //         console.log('Sending request to shipping API with:', { districtId, wardCode, quantity });
-    //         const result = await shippingService.calculateShippingFee(districtId, wardCode, quantity);
-    //         console.log('API response:', result);
-    //         if (result && result.shippingFee) {
-    //             setShippingFee(result.shippingFee);
-    //             console.log('Đã tính phí ship thông minh:', result.shippingFee);
-    //         } else {
-    //             setShippingFee(30000);
-    //             console.log('Sử dụng phí ship mặc định');
-    //         }
-    //     } catch (error) {
-    //         console.error('Lỗi khi tính phí ship:', error);
-    //         setShippingFee(30000); // Fallback về phí mặc định
-    //     }
-    // };
+            let districtId = null;
+            let wardCode = null;
+            let totalQuantity = carts.reduce((sum, item) => sum + item.soLuong, 0);
+
+            // Lấy thông tin từ địa chỉ đang chọn
+            if (showAddressForm && formData.district && formData.ward) {
+                districtId = formData.district;
+                wardCode = formData.ward;
+            } else if (defaultAddress && defaultAddress.districtCode && defaultAddress.wardCode) {
+                districtId = defaultAddress.districtCode;
+                wardCode = defaultAddress.wardCode;
+            } else if (smartShippingData.districtId && smartShippingData.wardCode) {
+                districtId = smartShippingData.districtId;
+                wardCode = smartShippingData.wardCode;
+            }
+
+            if (districtId && wardCode && totalQuantity > 0) {
+                await calculateShippingFee(districtId, wardCode, totalQuantity, totalPrice);
+            }
+        };
+
+        calculateShippingFeeAuto();
+    }, [
+        formData.district,
+        formData.ward,
+        defaultAddress,
+        carts,
+        totalPrice,
+        showAddressForm,
+        smartShippingData.districtId,
+        smartShippingData.wardCode,
+    ]);
 
     const handleSubmit = async () => {
         if (carts.length === 0) {
@@ -505,7 +588,7 @@ const CheckOut = () => {
                 huyen: formData.districtName,
                 tinh: formData.provinceName,
                 // Thêm district và ward code để tính phí ship
-                districtCode: formData.district,
+                districtId: parseInt(formData.district),
                 wardCode: formData.ward,
             };
         } else {
@@ -522,7 +605,7 @@ const CheckOut = () => {
                 huyen: defaultAddress.huyen,
                 tinh: defaultAddress.tinh,
                 // Thêm district và ward code nếu có
-                districtCode: defaultAddress.districtCode || smartShippingData.districtId,
+                districtId: defaultAddress.districtCode || smartShippingData.districtId,
                 wardCode: defaultAddress.wardCode || smartShippingData.wardCode,
             };
         }
@@ -620,6 +703,9 @@ const CheckOut = () => {
             xa: formData.wardName,
             diaChiCuThe: formData.diaChiCuThe,
             isMacDinh: isDefaultAddress,
+            // Thêm district và ward code để tính phí ship
+            districtCode: formData.district,
+            wardCode: formData.ward,
         };
 
         try {
@@ -636,10 +722,10 @@ const CheckOut = () => {
             setDefaultAddress(newAddress);
 
             // Cập nhật thông tin shipping với địa chỉ mới
-            setSmartShippingData(prev => ({
+            setSmartShippingData((prev) => ({
                 ...prev,
                 districtId: formData.district,
-                wardCode: formData.ward
+                wardCode: formData.ward,
             }));
 
             setShowAddressForm(false);

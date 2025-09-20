@@ -1,18 +1,19 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-        
-import { 
-    ShoppingCart, 
-    Edit3, 
-    Tag, 
-    CreditCard, 
-    Truck, 
+
+import {
+    ShoppingCart,
+    Edit3,
+    Tag,
+    CreditCard,
+    Truck,
     Percent,
     Gift,
     CheckCircle,
     Clock,
-    Calculator 
-} from 'lucide-react';const OrderSummary = ({
+    Calculator,
+} from 'lucide-react';
+const OrderSummary = ({
     carts,
     totalPrice,
     selectedPaymentMethod,
@@ -25,10 +26,10 @@ import {
     selectedDiscount,
     setShowModal,
     shippingFee = 0,
-    isSmartShipping = false
+    isSmartShipping = false,
 }) => {
     const navigate = useNavigate();
-    
+
     // Calculate discounted price
     const isPromoValid = promoDiscount > 0 && totalPrice >= promoDiscount;
     const itemCount = carts.reduce((sum, item) => sum + item.soLuong, 0);
@@ -61,10 +62,7 @@ import {
                 {/* Compact Cart Items */}
                 <div className="space-y-3 mb-6">
                     {carts.map((item) => (
-                        <div
-                            key={item.id}
-                            className="bg-gray-50 hover:bg-blue-50 rounded-xl p-3 transition-colors"
-                        >
+                        <div key={item.id} className="bg-gray-50 hover:bg-blue-50 rounded-xl p-3 transition-colors">
                             <div className="flex items-center gap-3">
                                 <div className="relative flex-shrink-0">
                                     <img
@@ -76,14 +74,14 @@ import {
                                         {item.soLuong}
                                     </span>
                                 </div>
-                                
+
                                 <div className="flex-grow min-w-0">
                                     <h3 className="font-medium text-gray-900 text-sm mb-1 line-clamp-1">
                                         {item.sanPhamCT.ten}
                                     </h3>
                                     <div className="flex items-center gap-2 text-xs text-gray-600">
-                                        <div 
-                                            className="w-3 h-3 rounded-full border border-gray-300" 
+                                        <div
+                                            className="w-3 h-3 rounded-full border border-gray-300"
                                             style={{ backgroundColor: item.sanPhamCT.mauSac.ten.toLowerCase() }}
                                         />
                                         <span>{item.sanPhamCT.mauSac.ten}</span>
@@ -91,7 +89,7 @@ import {
                                         <span>{item.sanPhamCT.trongLuong.ten}</span>
                                     </div>
                                 </div>
-                                
+
                                 <div className="text-right">
                                     {item.sanPhamCT.giaKhuyenMai ? (
                                         <div>
@@ -120,38 +118,36 @@ import {
                             <span className="text-gray-600">Tạm tính:</span>
                             <span className="font-medium">{totalPrice.toLocaleString()}₫</span>
                         </div>
-                        
+
                         {promoDiscount > 0 && (
                             <div className="flex justify-between text-sm">
                                 <span className="text-green-600 flex items-center gap-1">
                                     <Gift className="w-3 h-3" />
                                     Giảm giá ({selectedDiscount?.giaTri || 0}%):
                                 </span>
-                                <span className="text-green-600 font-medium">
-                                    -{promoDiscount.toLocaleString()}₫
-                                </span>
+                                <span className="text-green-600 font-medium">-{promoDiscount.toLocaleString()}₫</span>
                             </div>
                         )}
-                        
-                        {/* <div className="flex justify-between text-sm">
+
+                        <div className="flex justify-between text-sm">
                             <span className="text-gray-600 flex items-center gap-1">
                                 <Truck className="w-3 h-3" />
                                 Phí vận chuyển:
                                 {isSmartShipping && (
                                     <span className="ml-1 px-1 py-0.5 text-xs bg-green-100 text-green-700 rounded">
-                                        <Calculator  className="w-2 h-2 inline mr-0.5" />
+                                        <Calculator className="w-2 h-2 inline mr-0.5" />
                                         Thông minh
                                     </span>
                                 )}
                             </span>
                             <span className="font-medium">{shippingFee.toLocaleString()}₫</span>
-                        </div> */}
-                        
+                        </div>
+
                         <div className="border-t border-gray-200 pt-2">
                             <div className="flex justify-between items-center">
                                 <span className="font-semibold text-gray-900">Tổng cộng:</span>
                                 <span className="font-bold text-lg text-blue-600">
-                                    {((promoDiscount > 0 ? discountedPrice : totalPrice)).toLocaleString()}₫
+                                    {(promoDiscount > 0 ? discountedPrice : totalPrice + shippingFee).toLocaleString()}₫
                                 </span>
                             </div>
                         </div>
@@ -164,7 +160,7 @@ import {
                         <Tag className="w-4 h-4 text-orange-500" />
                         <h3 className="font-medium text-gray-900 text-sm">Mã giảm giá</h3>
                     </div>
-                    
+
                     <div className="flex gap-2 mb-2">
                         <input
                             type="text"
@@ -181,7 +177,7 @@ import {
                             Chọn
                         </button>
                     </div>
-                    
+
                     {selectedDiscount && (
                         <div className="bg-green-50 border border-green-200 rounded-lg p-2 text-xs">
                             <div className="flex items-center gap-1 text-green-700">
@@ -190,7 +186,7 @@ import {
                             </div>
                         </div>
                     )}
-                    
+
                     {promoDiscount > 0 && !isPromoValid && (
                         <div className="bg-red-50 border border-red-200 rounded-lg p-2 text-xs">
                             <div className="flex items-center gap-1 text-red-600">
@@ -207,14 +203,16 @@ import {
                         <CreditCard className="w-4 h-4 text-blue-500" />
                         <h3 className="font-medium text-gray-900 text-sm">Thanh toán</h3>
                     </div>
-                    
+
                     <div className="space-y-2">
                         <label className="cursor-pointer">
-                            <div className={`flex items-center p-3 rounded-lg border transition-colors ${
-                                selectedPaymentMethod === 'cash' 
-                                    ? 'border-green-400 bg-green-50' 
-                                    : 'border-gray-200 hover:border-gray-300 bg-white'
-                            }`}>
+                            <div
+                                className={`flex items-center p-3 rounded-lg border transition-colors ${
+                                    selectedPaymentMethod === 'cash'
+                                        ? 'border-green-400 bg-green-50'
+                                        : 'border-gray-200 hover:border-gray-300 bg-white'
+                                }`}
+                            >
                                 <input
                                     type="radio"
                                     value="cash"
@@ -222,16 +220,18 @@ import {
                                     onChange={() => setSelectedPaymentMethod('cash')}
                                     className="sr-only"
                                 />
-                                <Truck className={`w-4 h-4 mr-3 ${
-                                    selectedPaymentMethod === 'cash' ? 'text-green-600' : 'text-gray-500'
-                                }`} />
+                                <Truck
+                                    className={`w-4 h-4 mr-3 ${
+                                        selectedPaymentMethod === 'cash' ? 'text-green-600' : 'text-gray-500'
+                                    }`}
+                                />
                                 <span className="text-sm font-medium">Thanh toán khi nhận hàng</span>
                                 {selectedPaymentMethod === 'cash' && (
                                     <CheckCircle className="w-4 h-4 text-green-600 ml-auto" />
                                 )}
                             </div>
                         </label>
-                        
+
                         {/* <label className="cursor-pointer">
                             <div className={`flex items-center p-3 rounded-lg border transition-colors ${
                                 selectedPaymentMethod === 'vnpay' 

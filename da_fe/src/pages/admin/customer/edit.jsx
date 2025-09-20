@@ -202,10 +202,15 @@ function EditCustomer() {
 
     const fetchProvinces = async () => {
         try {
-            const response = await fetch('https://provinces.open-api.vn/api/');
+            const response = await fetch('https://online-gateway.ghn.vn/shiip/public-api/master-data/province', {
+                headers: {
+                    Token: '04ae91c9-b3a5-11ef-b074-aece61c107bd',
+                    'Content-Type': 'application/json',
+                },
+            });
             const data = await response.json();
-            if (data) {
-                setProvinces(data);
+            if (data.data) {
+                setProvinces(data.data);
                 setIsProvincesLoaded(true);
             } else {
                 console.error('Dữ liệu không hợp lệ:', data);
@@ -231,12 +236,20 @@ function EditCustomer() {
         }
 
         try {
-            const response = await fetch(`https://provinces.open-api.vn/api/p/${provinceId}?depth=2`);
+            const response = await fetch(
+                `https://online-gateway.ghn.vn/shiip/public-api/master-data/district?province_id=${provinceId}`,
+                {
+                    headers: {
+                        Token: '04ae91c9-b3a5-11ef-b074-aece61c107bd',
+                        'Content-Type': 'application/json',
+                    },
+                },
+            );
             const data = await response.json();
-            if (data && data.districts) {
-                console.log(`Districts for province ${provinceId}:`, data.districts);
-                setDistricts(data.districts);
-                return data.districts;
+            if (data && data.data) {
+                console.log(`Districts for province ${provinceId}:`, data.data);
+                setDistricts(data.data);
+                return data.data;
             } else {
                 console.error('Invalid response districts data: ', data);
                 setDistricts([]);
@@ -254,12 +267,20 @@ function EditCustomer() {
             return [];
         }
         try {
-            const response = await fetch(`https://provinces.open-api.vn/api/d/${districtId}?depth=2`);
+            const response = await fetch(
+                `https://online-gateway.ghn.vn/shiip/public-api/master-data/ward?district_id=${districtId}`,
+                {
+                    headers: {
+                        Token: '04ae91c9-b3a5-11ef-b074-aece61c107bd',
+                        'Content-Type': 'application/json',
+                    },
+                },
+            );
             const data = await response.json();
-            if (data && data.wards) {
-                console.log(`Wards for district ${districtId}:`, data.wards);
-                setWards(data.wards);
-                return data.wards;
+            if (data && data.data) {
+                console.log(`Wards for district ${districtId}:`, data.data);
+                setWards(data.data);
+                return data.data;
             } else {
                 console.error('Invalid response wards data:', data);
                 setWards([]);
@@ -335,7 +356,7 @@ function EditCustomer() {
                 const addresses = await Promise.all(
                     customerData.diaChi.map(async (address) => {
                         console.log('Tìm province cho tinh:', address.tinh);
-                        const province = provinces.find((prov) => prov.name === address.tinh);
+                        const province = provinces.find((prov) => prov.ProvinceName === address.tinh);
                         let districts = [];
                         let wards = [];
                         let addressData = {
@@ -353,21 +374,23 @@ function EditCustomer() {
 
                         if (province) {
                             console.log(
-                                `Found province: ${province.name} (code: ${province.code}) for tinh: ${address.tinh}`,
+                                `Found province: ${province.ProvinceName} (ID: ${province.ProvinceID}) for tinh: ${address.tinh}`,
                             );
-                            addressData.idTinh = province.code;
-                            districts = await fetchDistricts(province.code);
-                            const district = districts.find((dist) => dist.name === address.huyen);
+                            addressData.idTinh = province.ProvinceID;
+                            districts = await fetchDistricts(province.ProvinceID);
+                            const district = districts.find((dist) => dist.DistrictName === address.huyen);
                             if (district) {
                                 console.log(
-                                    `Found district: ${district.name} (code: ${district.code}) for huyen: ${address.huyen}`,
+                                    `Found district: ${district.DistrictName} (ID: ${district.DistrictID}) for huyen: ${address.huyen}`,
                                 );
-                                addressData.idHuyen = district.code;
-                                wards = await fetchWards(district.code);
-                                const ward = wards.find((w) => w.name === address.xa);
+                                addressData.idHuyen = district.DistrictID;
+                                wards = await fetchWards(district.DistrictID);
+                                const ward = wards.find((w) => w.WardName === address.xa);
                                 if (ward) {
-                                    console.log(`Found ward: ${ward.name} (code: ${ward.code}) for xa: ${address.xa}`);
-                                    addressData.idXa = ward.code;
+                                    console.log(
+                                        `Found ward: ${ward.WardName} (code: ${ward.WardCode}) for xa: ${address.xa}`,
+                                    );
+                                    addressData.idXa = ward.WardCode;
                                 } else {
                                     console.warn(`No ward found for xa: ${address.xa}`);
                                 }
@@ -543,9 +566,9 @@ function EditCustomer() {
             ? 'Bạn có chắc chắn muốn cập nhật địa chỉ này không?'
             : 'Bạn có chắc chắn muốn thêm mới địa chỉ này không?';
 
-        const Province = provinces.find((prov) => prov.code === parseInt(diaChiaa.idTinh));
-        const District = diaChiaa.districts.find((dist) => dist.code === parseInt(diaChiaa.idHuyen));
-        const Ward = diaChiaa.wards.find((w) => w.code === parseInt(diaChiaa.idXa));
+        const Province = provinces.find((prov) => prov.ProvinceID === parseInt(diaChiaa.idTinh));
+        const District = diaChiaa.districts.find((dist) => dist.DistrictID === parseInt(diaChiaa.idHuyen));
+        const Ward = diaChiaa.wards.find((w) => w.WardCode === diaChiaa.idXa);
 
         if (!Province || !District || !Ward) {
             swal('Lỗi!', 'Vui lòng chọn đầy đủ thông tin địa chỉ', 'error');
@@ -561,9 +584,9 @@ function EditCustomer() {
                 id: diaChiaa.id, // id của địa chỉ
                 ten: diaChiaa.ten,
                 sdt: diaChiaa.sdt,
-                tinh: Province.name,
-                huyen: District.name,
-                xa: Ward.name,
+                tinh: Province.ProvinceName,
+                huyen: District.DistrictName,
+                xa: Ward.WardName,
                 diaChiCuThe: diaChiaa.diaChiCuThe,
                 isMacDinh: diaChiaa.isMacDinh || false,
             };
@@ -572,9 +595,9 @@ function EditCustomer() {
             updatedDiaChi = {
                 ten: diaChiaa.ten,
                 sdt: diaChiaa.sdt,
-                tinh: Province.name,
-                huyen: District.name,
-                xa: Ward.name,
+                tinh: Province.ProvinceName,
+                huyen: District.DistrictName,
+                xa: Ward.WardName,
                 diaChiCuThe: diaChiaa.diaChiCuThe,
                 isMacDinh: diaChiaa.isMacDinh || false,
                 loai: diaChiaa.loai ?? 0,
