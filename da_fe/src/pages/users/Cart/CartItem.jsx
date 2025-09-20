@@ -239,10 +239,10 @@ const CartItem = ({
                             <Package className="w-3 h-3" />
                             <span className="font-medium">{maxQuantity}</span>
                         </div>
-                        <div className="flex items-center space-x-1 text-green-600">
+                        {/* <div className="flex items-center space-x-1 text-green-600">
                             <Truck className="w-3 h-3" />
                             <span>Free ship</span>
-                        </div>
+                        </div> */}
                     </div>
                 </div>
             </div>

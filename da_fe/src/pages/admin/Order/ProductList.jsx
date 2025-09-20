@@ -14,6 +14,7 @@ const ProductList = ({
     hoaDonId,
     setReturnHistory,
     currentOrderStatus,
+    showAddButton = true,
 }) => {
     const [showReturnModal, setShowReturnModal] = useState(false);
     const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
@@ -149,14 +150,16 @@ const ProductList = ({
             <div className="max-w-6xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
                     <h1 className="text-2xl font-bold text-gray-800">Danh sách sản phẩm</h1>
-                    <button
-                        onClick={handleOpenProductModal}
-                        disabled={currentOrderStatus >= 3 || isOrderOnHold}
-                        className={`bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2 ${currentOrderStatus >= 3 || isOrderOnHold ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                        <Plus size={18} />
-                        Thêm sản phẩm
-                    </button>
+                    {showAddButton && (
+                        <button
+                            onClick={handleOpenProductModal}
+                            disabled={currentOrderStatus >= 3 || isOrderOnHold}
+                            className={`bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2 ${currentOrderStatus >= 3 || isOrderOnHold ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            <Plus size={18} />
+                            Thêm sản phẩm
+                        </button>
+                    )}
                 </div>
 
                 {isOrderOnHold && (

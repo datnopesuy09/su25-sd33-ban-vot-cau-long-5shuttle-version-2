@@ -279,6 +279,42 @@ function OfflineSale() {
         }
     };
 
+    const handleDeleteProduct = async (orderDetailId) => {
+        const currentItem = billDetails.find((item) => item.id === orderDetailId);
+
+        if (!currentItem) {
+            swal('Lỗi', 'Không tìm thấy sản phẩm!', 'error');
+            return;
+        }
+
+        const isConfirmed = await swal({
+            title: 'Xác nhận xóa sản phẩm',
+            text: `Bạn có chắc chắn muốn xóa sản phẩm "${currentItem.sanPhamCT.ten}" khỏi hóa đơn?`,
+            icon: 'warning',
+            buttons: ['Hủy', 'Xóa'],
+            dangerMode: true,
+        });
+
+        if (isConfirmed) {
+            try {
+                const response = await axios.delete(`http://localhost:8080/api/hoa-don-ct/${orderDetailId}`);
+
+                if (response.status === 200) {
+                    // Refresh bill details
+                    await fetchBillDetails(selectedBill.id);
+                    // Optionally refresh bills list
+                    await updateBills();
+                    swal('Thành công!', 'Xóa sản phẩm thành công!', 'success');
+                } else {
+                    throw new Error('Không thể xóa sản phẩm');
+                }
+            } catch (error) {
+                console.error('Lỗi khi xóa sản phẩm:', error);
+                swal('Lỗi!', error.response?.data || 'Không thể xóa sản phẩm!', 'error');
+            }
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 p-4">
             <div className="flex flex-col gap-4 h-[calc(100vh-2rem)]">
@@ -353,6 +389,8 @@ function OfflineSale() {
                                 <ProductList
                                     orderDetailDatas={billDetails}
                                     handleQuantityChange={handleQuantityChange}
+                                    handleDeleteProduct={handleDeleteProduct}
+                                    showAddButton={false}
                                     isLiked={false}
                                     setIsLiked={() => {}}
                                 />

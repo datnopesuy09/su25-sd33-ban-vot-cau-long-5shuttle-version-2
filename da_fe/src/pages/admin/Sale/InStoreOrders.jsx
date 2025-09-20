@@ -165,17 +165,21 @@ console.log('orderitems', orderItems);
                     <tbody>
                         ${orderItems
                             .map(
-                                (item, index) => `
+                                (item, index) => {
+                                    const { originalPrice, discountedPrice } = resolvePrices(item);
+                                    const totalPrice = discountedPrice * item.soLuong;
+                                    return `
                             <tr>
                                 <td>${index + 1}</td>
                                 <td>${item.sanPhamCT?.ten || 'Không xác định'}</td>
                                 <td>${item.sanPhamCT?.thuongHieu?.ten || 'Không xác định'}</td>
                                 <td>${item.sanPhamCT?.mauSac?.ten || 'Không xác định'}</td>
                                 <td>${item.soLuong}</td>
-                                <td>${item.sanPhamCT.donGia ? item.sanPhamCT.donGia.toLocaleString() + ' VNĐ' : 'Không xác định'}</td>
-                                <td>${item.sanPhamCT.donGia && item.soLuong ? (item.sanPhamCT.donGia * item.soLuong).toLocaleString() + ' VNĐ' : 'Không xác định'}</td>
+                                <td>${discountedPrice > 0 ? discountedPrice.toLocaleString() + ' VNĐ' : 'Không xác định'}</td>
+                                <td>${totalPrice > 0 ? totalPrice.toLocaleString() + ' VNĐ' : 'Không xác định'}</td>
                             </tr>
-                        `,
+                        `;
+                                }
                             )
                             .join('')}
                     </tbody>
@@ -194,6 +198,39 @@ console.log('orderitems', orderItems);
             </body>
             </html>
         `;
+    };
+
+    // Format currency function
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat('vi-VN', {
+            style: 'currency',
+            currency: 'VND',
+        }).format(amount);
+    };
+
+    // Resolve possible price fields and return original and discounted prices
+    const resolvePrices = (item) => {
+        // Prefer unit prices from sanPhamCT (variant) — these should be immutable unit prices.
+        const variantOriginal = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia;
+        const variantDiscounted = item.sanPhamCT?.giaKhuyenMai ?? item.sanPhamCT?.sanPham?.giaKhuyenMai;
+
+        if (variantOriginal !== undefined && variantOriginal !== null) {
+            const originalPrice = Number(variantOriginal);
+            const discountedPrice = variantDiscounted !== undefined && variantDiscounted !== null ? Number(variantDiscounted) : originalPrice;
+            return { originalPrice, discountedPrice };
+        }
+
+        // If variant-level price not available, try order-level fields. Sometimes backend stores line total in giaBan/giaKhuyenMai
+        // after quantity updates; to get unit price, divide by soLuong when appropriate.
+        const qty = Number(item.soLuong) || 1;
+
+        const orderGiaBan = item.giaBan;
+        const orderGiaKhuyenMai = item.giaKhuyenMai;
+
+        const originalFromOrder = orderGiaBan !== undefined && orderGiaBan !== null ? Number(orderGiaBan) / qty : 0;
+        const discountedFromOrder = orderGiaKhuyenMai !== undefined && orderGiaKhuyenMai !== null ? Number(orderGiaKhuyenMai) / qty : originalFromOrder;
+
+        return { originalPrice: originalFromOrder, discountedPrice: discountedFromOrder };
     };
 
     useEffect(() => {
@@ -630,15 +667,37 @@ console.log('orderitems', orderItems);
                                                                 {item.soLuong}
                                                             </td>
                                                             <td className="py-3 px-4 text-sm text-gray-600">
-                                                                {item.sanPhamCT.donGia
-                                                                    ? item.sanPhamCT.donGia.toLocaleString() + ' VNĐ'
-                                                                    : 'Không xác định'}
+                                                                {(() => {
+                                                                    const { originalPrice, discountedPrice } = resolvePrices(item);
+                                                                    const discountPercent = originalPrice > 0 && originalPrice > discountedPrice
+                                                                        ? Math.round(((originalPrice - discountedPrice) / originalPrice) * 100)
+                                                                        : 0;
+
+                                                                    return (
+                                                                        <div className="flex flex-col">
+                                                                            <span className="text-red-500 font-medium">
+                                                                                {formatCurrency(discountedPrice)}
+                                                                            </span>
+                                                                            {discountPercent > 0 && (
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <span className="text-xs text-green-700 bg-green-50 px-1 py-0.5 rounded">
+                                                                                        -{discountPercent}%
+                                                                                    </span>
+                                                                                    <span className="text-xs text-gray-500 line-through">
+                                                                                        {formatCurrency(originalPrice)}
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })()}
                                                             </td>
                                                             <td className="py-3 px-4 text-sm font-medium text-gray-900">
-                                                                {item.sanPhamCT.donGia && item.soLuong
-                                                                    ? (item.sanPhamCT.donGia * item.soLuong).toLocaleString() +
-                                                                      ' VNĐ'
-                                                                    : 'Không xác định'}
+                                                                {(() => {
+                                                                    const { discountedPrice } = resolvePrices(item);
+                                                                    const totalPrice = discountedPrice * item.soLuong;
+                                                                    return totalPrice > 0 ? formatCurrency(totalPrice) : 'Không xác định';
+                                                                })()}
                                                             </td>
                                                         </tr>
                                                     ))}
