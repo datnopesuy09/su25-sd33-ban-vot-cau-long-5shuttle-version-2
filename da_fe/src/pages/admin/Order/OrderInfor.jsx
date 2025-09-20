@@ -36,7 +36,7 @@ const OrderInfo = ({
         tinh: '',
         huyen: '',
         xa: '',
-        phiShip: orderData.phiShip || 30000, // Thêm field phí ship với giá trị mặc định
+        phiShip: orderData.phiShip || 0, // Thêm field phí ship với giá trị mặc định
     });
 console.log("checkout", checkOut)
     // State for address API
@@ -173,6 +173,7 @@ console.log("checkout", checkOut)
             tinh: '',
             huyen: '',
             xa: '',
+            phiShip: orderData.phiShip ?? 0,
         });
 
         // Reset address selectors
@@ -378,10 +379,8 @@ console.log("checkout", checkOut)
                             <div>
                                 <div className="text-gray-500 text-sm">Phí giao hàng</div>
                                 <div className="text-gray-800 font-semibold">
-                                    {orderData.phiShip 
-                                        ? `${orderData.phiShip.toLocaleString('vi-VN')}đ`
-                                        : '30,000đ'
-                                    }
+                                    {orderData.phiShip}
+                                      
                                 </div>
                             </div>
                         </div>

@@ -47,7 +47,7 @@ function OrderStatus() {
     const [showImportModal, setShowImportModal] = useState(false);
     const [importQuantity, setImportQuantity] = useState(1);
     const [selectedProductId, setSelectedProductId] = useState(null);
-    const shippingFee = orderData.phiShip || 30000; // Sử dụng phí ship từ database, fallback về 30000 nếu không có
+    const shippingFee = orderData.phiShip; // Sử dụng phí ship từ database, fallback về 30000 nếu không có
     const [stompClient, setStompClient] = useState(null);
     const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [orderHistory, setOrderHistory] = useState([]);
@@ -833,6 +833,20 @@ function OrderStatus() {
             console.log('Processing newStatus from OrderProgress:', newStatus);
 
             // Xử lý các trường hợp đặc biệt
+            // Trước khi chuyển sang trạng thái 3 (Đang vận chuyển), yêu cầu phí ship phải được nhập (>0)
+            if (newStatus === 3) {
+                const fee = Number(orderData?.phiShip ?? 0);
+                if (!fee || fee <= 0) {
+                    swal({
+                        title: 'Thiếu phí giao hàng',
+                        text: 'Vui lòng nhập Phí giao hàng (phiShip) trong mục Thông tin giao hàng trước khi Xác nhận giao hàng.',
+                        icon: 'warning',
+                        button: 'Đã hiểu',
+                    });
+                    return;
+                }
+            }
+
             if (newStatus === 5 && currentOrderStatus === 4) {
                 // Trạng thái 4 -> 5 cần mở modal thanh toán thay vì cập nhật trạng thái ngay
                 console.log('Opening payment modal for status 4 -> 5');
@@ -846,7 +860,22 @@ function OrderStatus() {
             // Logic cũ khi không có newStatus (gọi từ các nơi khác)
             console.log('Using old logic, currentOrderStatus:', currentOrderStatus);
             if (currentOrderStatus === 3) {
+                // chuyển từ 3 -> 4 (Đang vận chuyển -> Đã giao hàng) là bình thường
                 updateOrderStatus(4, description);
+            } else if (currentOrderStatus === 2) {
+                // khi không truyền newStatus, logic cũ có thể tăng trạng thái lên 3
+                // Trước khi tăng lên 3, kiểm tra phí ship
+                const fee = Number(orderData?.phiShip ?? 0);
+                if (!fee || fee <= 0) {
+                    swal({
+                        title: 'Thiếu phí giao hàng',
+                        text: 'Vui lòng nhập Phí giao hàng (phiShip) trong mục Thông tin giao hàng trước khi Xác nhận giao hàng.',
+                        icon: 'warning',
+                        button: 'Đã hiểu',
+                    });
+                    return;
+                }
+                updateOrderStatus(3, description);
             } else if (currentOrderStatus === 4) {
                 setIsModalOpen(true);
             } else if (currentOrderStatus === 9) {

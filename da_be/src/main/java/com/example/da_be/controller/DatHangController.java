@@ -109,7 +109,7 @@ public class DatHangController {
             hoaDon.setLoaiHoaDon("Trực tuyến");
             
             // Set phí ship mặc định
-            hoaDon.setPhiShip(BigDecimal.valueOf(30000)); // Phí ship mặc định 30,000 VNĐ
+            hoaDon.setPhiShip(BigDecimal.valueOf(0)); // Phí ship mặc định 30,000 VNĐ
 
             // Kiểm tra và áp dụng phiếu giảm giá nếu có
             if (orderRequest.getDiscountId() != null) {

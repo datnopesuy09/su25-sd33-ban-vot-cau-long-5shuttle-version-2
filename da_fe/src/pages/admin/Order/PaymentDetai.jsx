@@ -10,7 +10,7 @@ const PaymentDetails = ({
     total,
     discountAmount,
     subtotal,
-    shippingFee = 30000,
+    shippingFee = 0,
 }) => {
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
