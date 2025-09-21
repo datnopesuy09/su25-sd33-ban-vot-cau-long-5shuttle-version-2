@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { CheckCircle, Clock, Package, Truck, CreditCard, XCircle, RotateCcw, AlertCircle } from 'lucide-react';
 import { Plus, Minus, ShoppingCart, Star, Heart } from 'lucide-react';
 import { Calculator, Percent, Receipt } from 'lucide-react';
@@ -20,10 +20,100 @@ import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
 import { useAdminAuth } from '../../../contexts/adminAuthContext';
 
+// Helper function to generate timeline with real order history data
+const ORDER_STEPS = [1, 2, 3, 4, 5, 6];
+const generateTimeline = (currentStatus, orderHistory = [], orderData = {}) => {
+    const timeline = [];
+    
+    // Tạo map để lưu thời gian thực từ orderHistory theo trạng thái
+    const historyTimeMap = {};
+    if (orderHistory && orderHistory.length > 0) {
+        orderHistory.forEach(history => {
+            if (history.trangThaiHoaDon && history.ngayTao) {
+                // Chuyển đổi tên trạng thái thành số
+                const statusNumber = getStatusNumberFromLabel(history.trangThaiHoaDon);
+                if (statusNumber) {
+                    historyTimeMap[statusNumber] = history.ngayTao;
+                }
+            }
+        });
+    }
+    
+    for (let i = 0; i < ORDER_STEPS.length; i++) {
+        const step = ORDER_STEPS[i];
+        let completed = currentStatus > step;
+        let current = currentStatus === step;
+        let time = 'Đang chờ...';
+        
+        if (historyTimeMap[step]) {
+            // Sử dụng thời gian thực từ orderHistory nếu có
+            time = new Date(historyTimeMap[step]).toLocaleString('vi-VN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        } else if (current) {
+            // Hiển thị thời gian hiện tại cho trạng thái đang active
+            time = new Date().toLocaleString('vi-VN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        } else if (completed) {
+            // Cho các trạng thái đã hoàn thành nhưng không có trong history
+            // Sử dụng thời gian tạo đơn hàng cho trạng thái 1 (Chờ xác nhận)
+            if (step === 1 && orderData.ngayTao) {
+                time = new Date(orderData.ngayTao).toLocaleString('vi-VN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+            } else {
+                // Hiển thị "Đã hoàn thành" thay vì "Đang chờ..." cho các trạng thái completed khác
+                time = 'Đã hoàn thành';
+            }
+        }
+        
+        timeline.push({
+            status: step,
+            time,
+            completed,
+            current,
+        });
+    }
+    return timeline;
+};
+
+// Helper function để chuyển đổi tên trạng thái thành số
+const getStatusNumberFromLabel = (label) => {
+    const statusMap = {
+        'Chờ xác nhận': 1,
+        'Chờ giao hàng': 2,
+        'Đang vận chuyển': 3,
+        'Đã giao hàng': 4,
+        'Đã thanh toán': 5,
+        'Hoàn thành': 6,
+        'Đã hủy': 7,
+        'Trả hàng': 8,
+        'Chờ nhập hàng': 9,
+        'Có sự cố - Tạm dừng vận chuyển': 10
+    };
+    return statusMap[label] || null;
+};
+
 function OrderStatus() {
     const location = useLocation();
     const { admin } = useAdminAuth(); // Lấy thông tin admin đang đăng nhập
-    const orderData = location.state?.order || {};
+    const orderData = useMemo(() => location.state?.order || {}, [location.state?.order]);
     const [orderDetailDatas, setOrderDetailDatas] = useState(location.state?.orderDetails || []);
     const [checkOut, setCheckOuts] = useState(location.state?.checkOut || []);
     const [currentOrderStatus, setCurrentOrderStatus] = useState(orderData.trangThai || 3);
@@ -56,6 +146,7 @@ function OrderStatus() {
     const [loadingHistory, setLoadingHistory] = useState(false);
     const [showIncidentModal, setShowIncidentModal] = useState(false);
     const [incidentRefreshTrigger, setIncidentRefreshTrigger] = useState(0);
+    const [timeline, setTimeline] = useState([]);
 
     const fetchPreOrders = async () => {
         try {
@@ -295,6 +386,12 @@ function OrderStatus() {
         }
     }, [orderData.id]);
 
+    // Update timeline when orderHistory or currentOrderStatus changes
+    useEffect(() => {
+        const newTimeline = generateTimeline(currentOrderStatus, orderHistory, orderData);
+        setTimeline(newTimeline);
+    }, [orderHistory, currentOrderStatus, orderData]);
+
     // Discount validation logic (same as CheckOut.jsx)
     function validateDiscount(subtotal, voucher) {
         if (!voucher) return 0;
@@ -530,7 +627,7 @@ function OrderStatus() {
                 // Dùng API Enhanced để đảm bảo chỉ hoàn kho khi đã allocated
                 const response = await axios.delete(
                     `http://localhost:8080/api/enhanced-kho-hang/remove-product/${orderDetailId}`,
-                    { params: { reason: 'Admin xóa sản phẩm' } }
+                    { params: { reason: 'Admin xóa sản phẩm' } },
                 );
 
                 if (response.status === 200) {
@@ -830,6 +927,9 @@ function OrderStatus() {
             // Lưu lịch sử đơn hàng sau khi đã cập nhật state
             console.log('Saving order history...');
             await saveOrderHistory(newStatus, description);
+            
+            // Fetch lại order history để cập nhật timeline với thời gian thực
+            await fetchOrderHistory();
 
             // Gửi thông báo đến người dùng
             const userNotification = {
@@ -892,6 +992,9 @@ function OrderStatus() {
             // Lưu lịch sử đơn hàng
             console.log('Saving order history...');
             await saveOrderHistory(2, description);
+            
+            // Fetch lại order history để cập nhật timeline với thời gian thực
+            await fetchOrderHistory();
 
             // Gửi thông báo đến người dùng
             const userNotification = {
@@ -956,6 +1059,9 @@ function OrderStatus() {
                 previousStatus,
                 description || `Quay lại trạng thái: ${getStatusLabel(previousStatus).label}`,
             );
+            
+            // Fetch lại order history để cập nhật timeline với thời gian thực
+            await fetchOrderHistory();
 
             // Gửi thông báo đến người dùng
             const userNotification = {
@@ -1199,38 +1305,6 @@ function OrderStatus() {
                 return 'bg-gray-100 text-gray-700';
         }
     };
-
-    const ORDER_STEPS = [1, 2, 3, 4, 5, 6];
-    const generateTimeline = (currentStatus) => {
-        const timeline = [];
-        const baseTime = new Date('2023-12-21T13:48:17');
-        const timeOffsets = [
-            0,
-            4 * 60 * 1000,
-            8 * 60 * 1000,
-            24 * 60 * 60 * 1000,
-            25 * 60 * 60 * 1000,
-            26 * 60 * 60 * 1000,
-        ];
-        for (let i = 0; i < ORDER_STEPS.length; i++) {
-            const step = ORDER_STEPS[i];
-            let completed = currentStatus > step;
-            let current = currentStatus === step;
-            let time = new Date(baseTime.getTime() + timeOffsets[i]).toLocaleString('vi-VN');
-            if (step === 6 && currentStatus < 6) {
-                time = 'Đang chờ...';
-            }
-            timeline.push({
-                status: step,
-                time,
-                completed,
-                current,
-            });
-        }
-        return timeline;
-    };
-
-    const timeline = generateTimeline(currentOrderStatus);
 
     const totalSteps = timeline.length;
     const currentStepIndex = ORDER_STEPS.indexOf(ORDER_STEPS.find((s) => s === currentOrderStatus));
