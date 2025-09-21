@@ -61,10 +61,11 @@ function ProductCard({ product }) {
             );
             const productData = response.data;
 
-            // Lọc các màu sắc khác nhau (chỉ lấy màu sắc, không cần trọng lượng)
-            const uniqueColors = [...new Set(productData.variants.map((v) => v.mauSacTen))];
+            // Lọc các màu sắc khác nhau (chỉ lấy màu sắc, không cần trọng lượng) và chỉ lấy biến thể active
+            const activeVariants = productData.variants.filter(variant => variant.trangThai === 1);
+            const uniqueColors = [...new Set(activeVariants.map((v) => v.mauSacTen))];
             const colorVariants = uniqueColors.map((color) => {
-                const variant = productData.variants.find((v) => v.mauSacTen === color);
+                const variant = activeVariants.find((v) => v.mauSacTen === color);
                 return {
                     color: color,
                     image: variant?.hinhAnhUrls?.[0] || product.hinhAnhDaiDien,

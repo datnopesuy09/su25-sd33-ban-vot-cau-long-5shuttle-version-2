@@ -19,6 +19,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.da_be.cloudinary.CloudinaryImage;
 
 import java.util.HashSet;
 import java.util.List;
@@ -33,6 +34,7 @@ public class NhanVienServices {
     RoleRepository roleRepository;
     PasswordEncoder passwordEncoder;
     UserMapper userMapper;
+    CloudinaryImage cloudinaryImage;
 
     public List<NhanVienResponse> getAllNhanVien() {
         return repository.getAllNhanVien();
@@ -54,8 +56,16 @@ public class NhanVienServices {
         user.setTrangThai(1); // Mặc định hoạt động
         user.setCccd(request.getCccd());
 
+        // if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
+        //     user.setAvatar(request.getAvatar().getOriginalFilename());
+        // }
+
+        // Upload avatar lên Cloudinary và lưu URL đầy đủ
         if (request.getAvatar() != null && !request.getAvatar().isEmpty()) {
-            user.setAvatar(request.getAvatar().getOriginalFilename());
+            String avatarUrl = cloudinaryImage.uploadAvatar(request.getAvatar());
+            if (avatarUrl != null) {
+                user.setAvatar(avatarUrl);
+            }
         }
 
         Role staffRole = roleRepository.findByName("STAFF")

@@ -1,11 +1,16 @@
 package com.example.da_be.service.impl;
 
 import com.example.da_be.dto.request.PhieuGiamGiaRequest;
+import com.example.da_be.dto.request.PhieuGiamGiaSearch;
 import com.example.da_be.dto.response.PhieuGiamGiaResponse;
 import com.example.da_be.entity.PhieuGiamGia;
 import com.example.da_be.repository.PhieuGiamGiaRepository;
 import com.example.da_be.service.PhieuGiamGiaService;
+import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.text.ParseException;
@@ -67,6 +72,11 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
     }
 
     @Override
+    public Page<PhieuGiamGiaResponse> getSearchPhieuGiamGia(PhieuGiamGiaSearch phieuGiamGiaSearch, Pageable pageable) {
+        return phieuGiamGiaRepository.getSearchPhieuGiamGia(phieuGiamGiaSearch, pageable);
+    }
+
+    @Override
     public List<String> getAllMaPhieuGiamGia() {
         return phieuGiamGiaRepository.getAllMaPhieuGiamGia();
     }
@@ -79,5 +89,30 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
     @Override
     public PhieuGiamGiaResponse getPhieuGiamGiaById(Integer id) {
         return phieuGiamGiaRepository.getPhieuGiamGiaById(id);
+    }
+
+    @Scheduled(cron = "0 * * * * ?")
+    @Transactional
+    public void updateTrangThaiVoucher() {
+        boolean flag = false;
+        LocalDateTime now = LocalDateTime.now(); // Lấy thời gian hiện tại
+
+        List<PhieuGiamGia> voucherList = phieuGiamGiaRepository.getAllVoucherWrong(now);
+
+        for (PhieuGiamGia voucher : voucherList) {
+            LocalDateTime ngayBatDau = voucher.getNgayBatDau();
+            LocalDateTime ngayKetThuc = voucher.getNgayKetThuc();
+
+            if (ngayBatDau.isAfter(now) && voucher.getTrangThai() != 0) {
+                voucher.setTrangThai(0);
+                flag = true;
+            } else if (ngayKetThuc.isBefore(now) && voucher.getTrangThai() != 2) {
+                voucher.setTrangThai(2);
+                flag = true;
+            } else if (ngayBatDau.isBefore(now) && ngayKetThuc.isAfter(now) && voucher.getTrangThai() != 1) {
+                voucher.setTrangThai(1);
+                flag = true;
+            }
+        }
     }
 }

@@ -9,6 +9,7 @@ import com.example.da_be.exception.ResourceNotFoundException;
 import com.example.da_be.repository.HinhAnhRepository;
 import com.example.da_be.repository.SanPhamCTRepository;
 import com.example.da_be.repository.SanPhamKhuyenMaiRepository;
+import com.example.da_be.repository.SanPhamRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,9 @@ public class SanPhamCTService {
     private HinhAnhRepository hinhAnhRepository;
     @Autowired
     private SanPhamKhuyenMaiRepository sanPhamKhuyenMaiRepository;
+    
+    @Autowired
+    private SanPhamRepository sanPhamRepository;
 
     // Lấy tất cả sản phẩm chi tiết
     public List<SanPhamCT> getAllSanPhamCT() {
@@ -126,10 +130,13 @@ public class SanPhamCTService {
 
     // Lấy thông tin chi tiết sản phẩm
     public SanPhamCTDetailDTO getSanPhamCTDetail(Integer sanPhamId) {
-        // Lấy danh sách tất cả SanPhamCT theo sản phẩm cha
-        List<SanPhamCT> sanPhamCTList = sanPhamCTRepository.findBySanPham_Id(sanPhamId);
+        // Lấy danh sách tất cả SanPhamCT theo sản phẩm cha và chỉ lấy những biến thể active (trangThai = 1)
+        List<SanPhamCT> sanPhamCTList = sanPhamCTRepository.findBySanPham_Id(sanPhamId)
+                .stream()
+                .filter(spct -> spct.getTrangThai() != null && spct.getTrangThai() == 1)
+                .collect(Collectors.toList());
         if (sanPhamCTList.isEmpty()) {
-            throw new ResourceNotFoundException("No SanPhamCT found for SanPham id " + sanPhamId);
+            throw new ResourceNotFoundException("No active SanPhamCT found for SanPham id " + sanPhamId);
         }
         // Lấy thông tin chung sản phẩm từ sản phẩm cha
         SanPham sanPham = sanPhamCTList.get(0).getSanPham();
@@ -138,6 +145,7 @@ public class SanPhamCTService {
         detailDTO.setTenSanPham(sanPham.getTen());
         // Mô tả, donGia, soLuong có thể lấy từ 1 bản SanPhamCT (ví dụ bản đầu tiên)
         SanPhamCT spctDauTien = sanPhamCTList.get(0);
+
         detailDTO.setMoTa(spctDauTien.getMoTa());
         detailDTO.setTrangThai(spctDauTien.getTrangThai());
         detailDTO.setDonGia(spctDauTien.getDonGia());
@@ -180,11 +188,12 @@ public class SanPhamCTService {
                     SanPhamCT matched = variantOpt.get();
                     VariantDTO variantDTO = new VariantDTO();
                     variantDTO.setId(matched.getId());
-
+                    variantDTO.setMaSanPham(matched.getMa());
                     variantDTO.setMauSacTen(color);
                     variantDTO.setTrongLuongTen(weight);
                     variantDTO.setDonGia(matched.getDonGia());
                     variantDTO.setSoLuong(matched.getSoLuong());
+                    variantDTO.setTrangThai(matched.getTrangThai());
                     List<String> imageUrls = matched.getHinhAnh().stream()
                             .map(h -> h.getLink())
                             .collect(Collectors.toList());
@@ -242,10 +251,13 @@ public class SanPhamCTService {
 
 
     public SanPhamCTDetailDTO getSanPhamCTDetailWithPromotion(Integer sanPhamId) {
-        // Lấy danh sách tất cả SanPhamCT theo sản phẩm cha
-        List<SanPhamCT> sanPhamCTList = sanPhamCTRepository.findBySanPham_Id(sanPhamId);
+        // Lấy danh sách tất cả SanPhamCT theo sản phẩm cha và chỉ lấy những biến thể active (trangThai = 1)
+        List<SanPhamCT> sanPhamCTList = sanPhamCTRepository.findBySanPham_Id(sanPhamId)
+                .stream()
+                .filter(spct -> spct.getTrangThai() != null && spct.getTrangThai() == 1)
+                .collect(Collectors.toList());
         if (sanPhamCTList.isEmpty()) {
-            throw new ResourceNotFoundException("No SanPhamCT found for SanPham id " + sanPhamId);
+            throw new ResourceNotFoundException("No active SanPhamCT found for SanPham id " + sanPhamId);
         }
 
         // Lấy thông tin chung sản phẩm từ sản phẩm cha
@@ -298,6 +310,7 @@ public class SanPhamCTService {
                     variantDTO.setTrongLuongTen(weight);
                     variantDTO.setDonGia(matched.getDonGia());
                     variantDTO.setSoLuong(matched.getSoLuong());
+                    variantDTO.setTrangThai(matched.getTrangThai());
                     variantDTO.setHinhAnhUrls(matched.getHinhAnh().stream()
                             .map(HinhAnh::getLink)
                             .collect(Collectors.toList()));
@@ -355,6 +368,34 @@ public class SanPhamCTService {
         return sanPhamCTRepository.findAllWithPromotions();
     }
 
+
+    // Cập nhật trạng thái sản phẩm cha dựa trên trạng thái của tất cả biến thể
+    @Transactional
+    public void updateParentProductStatus(Integer sanPhamId) {
+        // Lấy tất cả biến thể của sản phẩm
+        List<SanPhamCT> variants = sanPhamCTRepository.findBySanPham_Id(sanPhamId);
+        
+        if (variants.isEmpty()) {
+            return; // Không có biến thể nào
+        }
+        
+        // Kiểm tra xem có biến thể nào còn active không
+        boolean hasActiveVariant = variants.stream()
+                .anyMatch(variant -> variant.getTrangThai() != null && variant.getTrangThai() == 1);
+        
+        // Lấy sản phẩm cha
+        SanPham parentProduct = variants.get(0).getSanPham();
+        
+        // Cập nhật trạng thái sản phẩm cha
+        if (hasActiveVariant) {
+            parentProduct.setTrangThai(1); // Active
+        } else {
+            parentProduct.setTrangThai(0); // Inactive
+        }
+        
+        // Lưu sản phẩm cha
+        sanPhamRepository.save(parentProduct);
+    }
 
     public List<SanPhamCTListDTOo> getAllSanPhamCTSummaryy() {
         List<SanPhamCT> sanPhamCTList = sanPhamCTRepository.findAll();
