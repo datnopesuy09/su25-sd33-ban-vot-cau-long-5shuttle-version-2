@@ -33,9 +33,11 @@ public class KhuyenMaiRequest {
         khuyenMai.setTgKetThuc(this.tgKetThuc);
         khuyenMai.setGiaTri(this.giaTri);
         khuyenMai.setLoai(this.loai);
-        if (LocalDateTime.now().isBefore(this.tgBatDau)) {
+        
+        LocalDateTime now = LocalDateTime.now();
+        if (now.isBefore(this.tgBatDau)) {
             khuyenMai.setTrangThai(0); // Sắp diễn ra
-        } else if (LocalDateTime.now().isAfter(this.tgBatDau.minusDays(1)) && LocalDateTime.now().isBefore(this.tgKetThuc.plusDays(1))) {
+        } else if (now.isAfter(this.tgBatDau) && now.isBefore(this.tgKetThuc)) {
             khuyenMai.setTrangThai(1); // Đang diễn ra
         } else {
             khuyenMai.setTrangThai(2); // Đã kết thúc

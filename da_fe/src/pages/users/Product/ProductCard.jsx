@@ -16,7 +16,7 @@ function ProductCard({ product }) {
     const [displayedVariant, setDisplayedVariant] = useState(null);
     const [isFavorite, setIsFavorite] = useState(false);
     const intervalRef = useRef(null);
-
+    console.log('productVariants: ', productVariants);
     // Hàm lấy token từ user hoặc localStorage
     const getToken = () => {
         const token = user?.token || localStorage.getItem('userToken');
