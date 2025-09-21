@@ -4,7 +4,7 @@ import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { TbEyeEdit } from 'react-icons/tb';
-import { Search, Filter, Package, ChevronDown, Edit3, X, Save, PackagePlus } from 'lucide-react';
+import { Search, Filter, Package, ChevronDown, Edit3, X, Save, PackagePlus, Upload } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 function SpctDetail() {
@@ -17,8 +17,150 @@ function SpctDetail() {
     const [isLoading, setIsLoading] = useState(false); // loading state cho update
     const [pendingRequests, setPendingRequests] = useState({}); // lưu trữ yêu cầu nhập hàng
 
+    const [brand, setBrand] = useState('');
+    const [material, setMaterial] = useState('');
+    const [balancePoint, setBalancePoint] = useState('');
+    const [stiff, setStiff] = useState('');
+    const [status, setStatus] = useState('');
+    const [description, setDescription] = useState('');
+    const [color, setColor] = useState('');
+    const [weight, setWeight] = useState('');
+
+    const [brands, setBrands] = useState([]);
+    const [materials, setMaterials] = useState([]);
+    const [balances, setBalances] = useState([]);
+    const [stiffs, setStiffs] = useState([]);
+    const [colors, setColors] = useState([]);
+    const [weights, setWeights] = useState([]);
+
+    const [selectedImages, setSelectedImages] = useState([]);
+    const [previewImage, setPreviewImage] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
+
+    const uploadImages = async (files) => {
+        if (!files || files.length === 0) {
+            alert('Vui lòng chọn ít nhất một hình ảnh');
+            return [];
+        }
+        const formData = new FormData();
+        files.forEach((file) => {
+            formData.append('images', file);
+        });
+
+        try {
+            const response = await axios.post('http://localhost:8080/api/upload', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            });
+            return response.data.urls;
+        } catch (error) {
+            console.error('Error uploading images:', error);
+            alert(`Lỗi khi tải ảnh: ${error.response?.data?.message || error.message}`);
+            return [];
+        }
+    };
+
+    const handleImageUpload = async (files) => {
+        if (!files || files.length === 0) return;
+
+        setIsUploading(true);
+        try {
+            const uploadedUrls = await uploadImages(Array.from(files));
+            setSelectedImages((prev) => [...prev, ...uploadedUrls]);
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const removeImage = (imageIndex) => {
+        setSelectedImages((prev) => prev.filter((_, index) => index !== imageIndex));
+    };
+
+    const loadBrands = async () => {
+        try {
+            const response = await axios.get('http://localhost:8080/api/thuong-hieu');
+            setBrands(response.data);
+        } catch (error) {
+            console.error('Failed to fetch brands', error);
+        }
+    };
+
+    const loadMaterials = async () => {
+        try {
+            const response = await axios.get('http://localhost:8080/api/chat-lieu');
+            setMaterials(response.data);
+        } catch (error) {
+            console.error('Failed to fetch Material', error);
+        }
+    };
+
+    const loadBalances = async () => {
+        try {
+            const response = await axios.get('http://localhost:8080/api/diem-can-bang');
+            setBalances(response.data);
+        } catch (error) {
+            console.error('Failed to fetch balances', error);
+        }
+    };
+
+    const loadStiffs = async () => {
+        try {
+            const response = await axios.get('http://localhost:8080/api/do-cung');
+            setStiffs(response.data);
+        } catch (error) {
+            console.error('Failed to fetch stiffs', error);
+        }
+    };
+
+    const loadColors = async () => {
+        try {
+            const response = await axios.get('http://localhost:8080/api/mau-sac');
+            setColors(response.data);
+        } catch (error) {
+            console.error('Failed to fetch colors', error);
+        }
+    };
+
+    const loadWeights = async () => {
+        try {
+            const response = await axios.get('http://localhost:8080/api/trong-luong');
+            setWeights(response.data);
+        } catch (error) {
+            console.error('Failed to fetch weights', error);
+        }
+    };
+
+    useEffect(() => {
+        loadBrands();
+        loadMaterials();
+        loadBalances();
+        loadStiffs();
+        loadColors();
+        loadWeights();
+    }, []);
+
     const handleOpenModal = (variant) => {
         setSelectedVariant(variant);
+        // set dữ liệu mặc định từ variant lên các state input
+        setBrand(variant.brand || '');
+        setMaterial(variant.material || '');
+        setBalancePoint(variant.balancePoint || '');
+        setStiff(variant.hardness || '');
+        setColor(variant.color || '');
+        setWeight(variant.weight || '');
+        setStatus(variant.status || '');
+        setDescription(productDetail?.moTa || '');
+        
+        // Load tất cả ảnh hiện tại nếu có
+        if (variant.hinhAnhUrls && variant.hinhAnhUrls.length > 0) {
+            setSelectedImages(variant.hinhAnhUrls);
+        } else if (variant.image) {
+            setSelectedImages([variant.image]);
+        } else {
+            setSelectedImages([]);
+        }
+        
         setIsModalOpen(true);
     };
 
@@ -29,74 +171,63 @@ function SpctDetail() {
 
     const handleUpdateProduct = async () => {
         if (!selectedVariant) return;
-
         setIsLoading(true);
+    
         try {
-            // Thử endpoint mới trước
-            let response;
-            let updateData = {
+            const updateData = {
                 soLuong: selectedVariant.quantity,
                 donGia: selectedVariant.price,
+                trangThai: status,
+                moTa: description,
+                brand,
+                material,
+                balancePoint,
+                hardness: stiff,
+                color,
+                weight,
+                hinhAnhUrls: selectedImages,
             };
-
-            try {
-                // Thử API endpoint chuyên dụng trước
-                response = await axios.put(
-                    `http://localhost:8080/api/san-pham-ct/update-basic/${selectedVariant.id}`,
-                    updateData,
-                );
-            } catch (error) {
-                if (error.response?.status === 404) {
-                    console.log('Endpoint update-basic không tồn tại, thử endpoint chính...');
-
-                    // Fallback về endpoint chính với structure đơn giản hơn
-                    updateData = {
-                        soLuong: selectedVariant.quantity,
-                        donGia: selectedVariant.price,
-                        trangThai: 1,
-                    };
-
-                    response = await axios.put(
-                        `http://localhost:8080/api/san-pham-ct/${selectedVariant.id}`,
-                        updateData,
-                    );
-                } else {
-                    throw error; // Re-throw nếu không phải lỗi 404
-                }
-            }
-
-            if (response.status === 200) {
-                // Cập nhật lại danh sách variants trong state
-                setVariants((prevVariants) =>
-                    prevVariants.map((variant) =>
-                        variant.id === selectedVariant.id
-                            ? { ...variant, quantity: selectedVariant.quantity, price: selectedVariant.price }
-                            : variant,
-                    ),
-                );
-
-                toast.success('Cập nhật sản phẩm thành công!');
-                handleCloseModal();
-            }
+    
+            // 👉 Chỉ update 1 biến thể đại diện của màu
+            await axios.put(
+                `http://localhost:8080/api/san-pham-ct/update-basic/${selectedVariant.id}`,
+                updateData
+            );
+    
+            toast.success(`Đã cập nhật biến thể màu ${selectedVariant.color}`);
+    
+            // Reload lại toàn bộ danh sách
+            const res = await axios.get(`http://localhost:8080/api/san-pham-ct/${id}/detaill`);
+            const data = res.data;
+    
+            setVariants(data.variants.map((v, index) => ({
+                stt: index + 1,
+                id: v.id,
+                maSanPham: v.maSanPham,
+                brand: data.thuongHieu,
+                material: data.chatLieu,
+                balancePoint: data.diemCanBang,
+                hardness: data.doCung,
+                color: v.mauSacTen,
+                weight: v.trongLuongTen,
+                quantity: v.soLuong,
+                price: v.donGia,
+                status: v.trangThai === 1 ? 'Active' : 'Inactive',
+                image: v.hinhAnhUrls?.[0] || null,
+                hinhAnhUrls: v.hinhAnhUrls || [],
+            })));
+    
+            handleCloseModal();
         } catch (error) {
             console.error('Lỗi khi cập nhật sản phẩm:', error);
-
-            // Hiển thị thông báo lỗi chi tiết hơn
-            let errorMessage = 'Không thể cập nhật sản phẩm. Vui lòng thử lại!';
-
-            if (error.response?.data) {
-                if (typeof error.response.data === 'string') {
-                    errorMessage = error.response.data;
-                } else if (error.response.data.message) {
-                    errorMessage = error.response.data.message;
-                }
-            }
-
-            toast.error(errorMessage);
+            toast.error(error.response?.data?.message || 'Không thể cập nhật sản phẩm');
         } finally {
             setIsLoading(false);
         }
     };
+    
+    
+      
 
     useEffect(() => {
         const fetchProductDetail = async () => {
@@ -111,7 +242,8 @@ function SpctDetail() {
                 const loadedVariants = data.variants.map((v, index) => ({
                     stt: index + 1,
                     id: v.id,
-                    code: `${data.tenSanPham}-${v.trongLuongTen}-${v.mauSacTen}`, // mã tạm
+                    // code: `${data.tenSanPham}-${v.trongLuongTen}-${v.mauSacTen}`, // mã tạm
+                    maSanPham: v.maSanPham,
                     brand: data.thuongHieu,
                     material: data.chatLieu,
                     balancePoint: data.diemCanBang,
@@ -122,8 +254,9 @@ function SpctDetail() {
                     weightId: v.trongLuongId, // Thêm ID cho trọng lượng
                     quantity: v.soLuong,
                     price: v.donGia,
-                    status: data.trangThai === 1 ? 'Active' : 'Inactive',
+                    status: v.trangThai === 1 ? 'Active' : 'Inactive',
                     image: v.hinhAnhUrls?.length > 0 ? v.hinhAnhUrls[0] : null,
+                    hinhAnhUrls: v.hinhAnhUrls || [], // Thêm dòng này để lưu tất cả ảnh
                 }));
 
                 setVariants(loadedVariants);
@@ -160,12 +293,12 @@ function SpctDetail() {
 
     // Xử lý cập nhật số lượng kho cho variant
     const handleUpdateStock = async (variant) => {
-    const requestedQuantity = pendingRequests[variant.id] || 0;
+        const requestedQuantity = pendingRequests[variant.id] || 0;
 
-    // Modal với 2 options
-    const { value: result } = await Swal.fire({
-        title: `Cập nhật kho cho sản phẩm`,
-        html: `
+        // Modal với 2 options
+        const { value: result } = await Swal.fire({
+            title: `Cập nhật kho cho sản phẩm`,
+            html: `
             <div class="text-left mb-4">
                 <p><strong>Sản phẩm:</strong> ${productDetail?.tenSanPham}</p>
                 <p><strong>Màu sắc:</strong> ${variant.color}</p>
@@ -173,7 +306,7 @@ function SpctDetail() {
                 <p><strong>Số lượng hiện tại:</strong> ${variant.quantity}</p>
                 <p><strong>Yêu cầu nhập hàng:</strong> ${requestedQuantity}</p>
             </div>
-            
+
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Chọn loại cập nhật:</label>
                 <select id="update-type" class="swal2-select">
@@ -181,102 +314,103 @@ function SpctDetail() {
                     <option value="set">Cập nhật tổng số lượng (thay thế)</option>
                 </select>
             </div>
-            
+
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-2">Số lượng:</label>
                 <input id="swal-input1" class="swal2-input" type="number" placeholder="Nhập số lượng" min="0" value="0">
             </div>
-            
+
             <div id="preview" class="text-sm text-gray-600 mt-2"></div>
         `,
-        focusConfirm: false,
-        didOpen: () => {
-            const updateTypeSelect = document.getElementById('update-type');
-            const quantityInput = document.getElementById('swal-input1');
-            const preview = document.getElementById('preview');
-            
-            const updatePreview = () => {
-                const updateType = updateTypeSelect.value;
-                const inputValue = parseInt(quantityInput.value) || 0;
-                
-                if (updateType === 'add') {
-                    const newTotal = variant.quantity + inputValue;
-                    preview.innerHTML = `<strong>Kết quả:</strong> ${variant.quantity} + ${inputValue} = <span class="text-blue-600">${newTotal}</span> sản phẩm`;
-                } else {
-                    preview.innerHTML = `<strong>Kết quả:</strong> Số lượng kho = <span class="text-blue-600">${inputValue}</span> sản phẩm`;
-                }
-            };
-            
-            updateTypeSelect.addEventListener('change', updatePreview);
-            quantityInput.addEventListener('input', updatePreview);
-            updatePreview(); // Initial preview
-        },
-        preConfirm: () => {
-            const updateType = document.getElementById('update-type').value;
-            const inputValue = parseInt(document.getElementById('swal-input1').value);
-            
-            if (isNaN(inputValue) || inputValue < 0) {
-                Swal.showValidationMessage('Vui lòng nhập số lượng hợp lệ!');
-                return false;
-            }
-            
-            let finalQuantity;
-            if (updateType === 'add') {
-                finalQuantity = variant.quantity + inputValue;
-                if (inputValue === 0) {
-                    Swal.showValidationMessage('Vui lòng nhập số lượng cần thêm!');
+            focusConfirm: false,
+            didOpen: () => {
+                const updateTypeSelect = document.getElementById('update-type');
+                const quantityInput = document.getElementById('swal-input1');
+                const preview = document.getElementById('preview');
+
+                const updatePreview = () => {
+                    const updateType = updateTypeSelect.value;
+                    const inputValue = parseInt(quantityInput.value) || 0;
+
+                    if (updateType === 'add') {
+                        const newTotal = variant.quantity + inputValue;
+                        preview.innerHTML = `<strong>Kết quả:</strong> ${variant.quantity} + ${inputValue} = <span class="text-blue-600">${newTotal}</span> sản phẩm`;
+                    } else {
+                        preview.innerHTML = `<strong>Kết quả:</strong> Số lượng kho = <span class="text-blue-600">${inputValue}</span> sản phẩm`;
+                    }
+                };
+
+                updateTypeSelect.addEventListener('change', updatePreview);
+                quantityInput.addEventListener('input', updatePreview);
+                updatePreview(); // Initial preview
+            },
+            preConfirm: () => {
+                const updateType = document.getElementById('update-type').value;
+                const inputValue = parseInt(document.getElementById('swal-input1').value);
+
+                if (isNaN(inputValue) || inputValue < 0) {
+                    Swal.showValidationMessage('Vui lòng nhập số lượng hợp lệ!');
                     return false;
                 }
-            } else {
-                finalQuantity = inputValue;
-            }
-            
-            return {
-                type: updateType,
-                inputValue: inputValue,
-                finalQuantity: finalQuantity
-            };
-        },
-        showCancelButton: true,
-        confirmButtonText: 'Cập nhật',
-        cancelButtonText: 'Hủy',
-        customClass: {
-            container: 'swal-wide'
-        }
-    });
 
-    if (result) {
-        try {
-            const response = await axios.patch(
-                `http://localhost:8080/api/pre-order/san-pham-ct/${variant.id}/stock`,
-                {
-                    soLuong: result.finalQuantity,
+                let finalQuantity;
+                if (updateType === 'add') {
+                    finalQuantity = variant.quantity + inputValue;
+                    if (inputValue === 0) {
+                        Swal.showValidationMessage('Vui lòng nhập số lượng cần thêm!');
+                        return false;
+                    }
+                } else {
+                    finalQuantity = inputValue;
                 }
-            );
-            
-            if (response.status === 200) {
-                const successMessage = result.type === 'add' 
-                    ? `Đã thêm ${result.inputValue} sản phẩm vào kho. Tổng: ${result.finalQuantity}`
-                    : `Đã cập nhật số lượng kho thành ${result.finalQuantity} sản phẩm`;
-                    
-                toast.success(successMessage);
 
-                // Cập nhật lại danh sách variants trong state
-                setVariants((prevVariants) =>
-                    prevVariants.map((v) => (v.id === variant.id ? { ...v, quantity: result.finalQuantity } : v)),
+                return {
+                    type: updateType,
+                    inputValue: inputValue,
+                    finalQuantity: finalQuantity,
+                };
+            },
+            showCancelButton: true,
+            confirmButtonText: 'Cập nhật',
+            cancelButtonText: 'Hủy',
+            customClass: {
+                container: 'swal-wide',
+            },
+        });
+
+        if (result) {
+            try {
+                const response = await axios.patch(
+                    `http://localhost:8080/api/pre-order/san-pham-ct/${variant.id}/stock`,
+                    {
+                        soLuong: result.finalQuantity,
+                    },
                 );
 
-                // Cập nhật lại yêu cầu nhập hàng
-                getPendingRequests();
-            } else {
-                toast.error(response.data || 'Có lỗi xảy ra khi cập nhật kho!');
+                if (response.status === 200) {
+                    const successMessage =
+                        result.type === 'add'
+                            ? `Đã thêm ${result.inputValue} sản phẩm vào kho. Tổng: ${result.finalQuantity}`
+                            : `Đã cập nhật số lượng kho thành ${result.finalQuantity} sản phẩm`;
+
+                    toast.success(successMessage);
+
+                    // Cập nhật lại danh sách variants trong state
+                    setVariants((prevVariants) =>
+                        prevVariants.map((v) => (v.id === variant.id ? { ...v, quantity: result.finalQuantity } : v)),
+                    );
+
+                    // Cập nhật lại yêu cầu nhập hàng
+                    getPendingRequests();
+                } else {
+                    toast.error(response.data || 'Có lỗi xảy ra khi cập nhật kho!');
+                }
+            } catch (error) {
+                console.error('Cập nhật kho thất bại', error);
+                toast.error(error.response?.data || 'Có lỗi xảy ra khi cập nhật kho!');
             }
-        } catch (error) {
-            console.error('Cập nhật kho thất bại', error);
-            toast.error(error.response?.data || 'Có lỗi xảy ra khi cập nhật kho!');
         }
-    }
-};
+    };
 
     return (
         <div className="min-h-screen bg-gray-50 p-6">
@@ -448,9 +582,9 @@ function SpctDetail() {
                                         <td className="px-2 py-3">
                                             <div
                                                 className="text-xs font-medium text-gray-900 truncate"
-                                                title={item.code}
+                                                title={item.maSanPham}
                                             >
-                                                {item.code}
+                                                {item.maSanPham}
                                             </div>
                                         </td>
                                         <td className="px-2 py-3">
@@ -570,7 +704,7 @@ function SpctDetail() {
             {/* Modal chỉnh sửa với styling mới */}
             {isModalOpen && selectedVariant && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-hidden">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-6xl w-full max-h-[90vh] overflow-auto">
                         {/* Header */}
                         <div className="bg-gray-50 px-6 py-5 border-b border-gray-200">
                             <div className="flex items-center justify-between">
@@ -595,79 +729,225 @@ function SpctDetail() {
 
                         {/* Content */}
                         <div className="p-6 space-y-5">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Mã sản phẩm</label>
-                                <input
-                                    type="text"
-                                    value={selectedVariant.code}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-gray-50 text-gray-500 cursor-not-allowed"
-                                    disabled
-                                    title="Mã sản phẩm không thể chỉnh sửa"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">Mã sản phẩm không thể thay đổi</p>
+                            {/* Chia 2 cột cho thông tin chung */}
+                            <div className="grid grid-cols-2 gap-6">
+                                {/* Thương hiệu */}
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700">Thương hiệu</label>
+                                    <select
+                                        value={brand}
+                                        onChange={(e) => setBrand(e.target.value)}
+                                        className="mt-1 block w-full h-10 border rounded-md p-2 text-sm"
+                                    >
+                                        <option value="">Chọn thương hiệu</option>
+                                        {brands.map((b, index) => (
+                                            <option key={index} value={b.ten}>
+                                                {b.ten}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Chất liệu */}
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700">Chất liệu</label>
+                                    <select
+                                        value={material}
+                                        onChange={(e) => setMaterial(e.target.value)}
+                                        className="mt-1 block w-full h-10 border rounded-md p-2 text-sm"
+                                    >
+                                        <option value="">Chọn chất liệu</option>
+                                        {materials.map((b, index) => (
+                                            <option key={index} value={b.ten}>
+                                                {b.ten}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Điểm cân bằng */}
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700">Điểm cân bằng</label>
+                                    <select
+                                        value={balancePoint}
+                                        onChange={(e) => setBalancePoint(e.target.value)}
+                                        className="mt-1 block w-full h-10 border rounded-md p-2 text-sm"
+                                    >
+                                        <option value="">Chọn điểm cân bằng</option>
+                                        {balances.map((b, index) => (
+                                            <option key={index} value={b.ten}>
+                                                {b.ten}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Độ cứng */}
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700">Độ cứng</label>
+                                    <select
+                                        value={stiff}
+                                        onChange={(e) => setStiff(e.target.value)}
+                                        className="mt-1 block w-full h-10 border rounded-md p-2 text-sm"
+                                    >
+                                        <option value="">Chọn độ cứng</option>
+                                        {stiffs.map((b, index) => (
+                                            <option key={index} value={b.ten}>
+                                                {b.ten}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Màu sắc */}
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700">Màu sắc</label>
+                                    <select
+                                        value={color}
+                                        onChange={(e) => setColor(e.target.value)}
+                                        className="mt-1 block w-full h-10 border rounded-md p-2 text-sm"
+                                    >
+                                        <option value="">Chọn màu</option>
+                                        {colors.map((b, index) => (
+                                            <option key={index} value={b.ten}>
+                                                {b.ten}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Trọng lượng */}
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700">Trọng lượng</label>
+                                    <select
+                                        value={weight}
+                                        onChange={(e) => setWeight(e.target.value)}
+                                        className="mt-1 block w-full h-10 border rounded-md p-2 text-sm"
+                                    >
+                                        <option value="">Chọn trọng lượng</option>
+                                        {weights.map((b, index) => (
+                                            <option key={index} value={b.ten}>
+                                                {b.ten}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
 
+                            {/* Hàng 3 cột: Số lượng - Giá - Trạng thái */}
+                            <div className="grid grid-cols-3 gap-6">
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700">Số lượng</label>
+                                    <input
+                                        type="number"
+                                        value={selectedVariant.quantity}
+                                        onChange={(e) =>
+                                            setSelectedVariant({
+                                                ...selectedVariant,
+                                                quantity: parseInt(e.target.value) || 0,
+                                            })
+                                        }
+                                        className="w-full border rounded-md p-2 text-sm"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700">Đơn giá (VND)</label>
+                                    <input
+                                        type="number"
+                                        value={selectedVariant.price}
+                                        onChange={(e) =>
+                                            setSelectedVariant({
+                                                ...selectedVariant,
+                                                price: parseInt(e.target.value) || 0,
+                                            })
+                                        }
+                                        className="w-full border rounded-md p-2 text-sm"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700">Trạng thái</label>
+                                    <select
+                                        value={status}
+                                        onChange={(e) => setStatus(e.target.value)}
+                                        className="w-full h-10 border rounded-md p-2 text-sm"
+                                    >
+                                        <option value="Active">Active</option>
+                                        <option value="Inactive">Inactive</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Mô tả nằm cuối */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Số lượng <span className="text-red-500">*</span>
+                                <label className="block text-sm font-bold text-gray-700">Mô tả</label>
+                                <textarea
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    className="w-full border rounded-md p-2 text-sm h-24"
+                                />
+                            </div>
+
+                            {/* Phần chọn ảnh */}
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">
+                                    Hình ảnh sản phẩm
+                                    <span className="text-xs text-orange-600 ml-2">
+                                        (Ảnh sẽ được áp dụng cho tất cả biến thể màu {selectedVariant?.color})
+                                    </span>
                                 </label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={selectedVariant.quantity}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                                    onChange={(e) =>
-                                        setSelectedVariant({
-                                            ...selectedVariant,
-                                            quantity: parseInt(e.target.value) || 0,
-                                        })
-                                    }
-                                    placeholder="Nhập số lượng"
-                                />
-                            </div>
+                                
+                                <div className="flex gap-4 items-start">
+                                    {/* Upload area */}
+                                    <div className="flex-shrink-0 w-48 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
+                                        <label htmlFor="image-upload" className="cursor-pointer">
+                                            <Upload className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                                            <p className="text-xs text-gray-600">
+                                                {isUploading ? 'Đang tải ảnh...' : 'Click để chọn ảnh'}
+                                            </p>
+                                            <p className="text-xs text-gray-500 mt-1">JPG, PNG, GIF, WEBP</p>
+                                        </label>
+                                        <input
+                                            id="image-upload"
+                                            type="file"
+                                            multiple
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={(e) => handleImageUpload(e.target.files)}
+                                            disabled={isUploading}
+                                        />
+                                    </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Đơn giá (VND) <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={selectedVariant.price}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                                    onChange={(e) =>
-                                        setSelectedVariant({
-                                            ...selectedVariant,
-                                            price: parseInt(e.target.value) || 0,
-                                        })
-                                    }
-                                    placeholder="Nhập đơn giá"
-                                />
-                                <p className="text-xs text-gray-500 mt-1">
-                                    Giá hiển thị: {selectedVariant.price?.toLocaleString('vi-VN')}đ
-                                </p>
-                            </div>
-
-                            {/* Thông tin sản phẩm chỉ đọc */}
-                            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
-                                <h4 className="text-sm font-medium text-gray-700">Thông tin sản phẩm</h4>
-                                <div className="grid grid-cols-2 gap-3 text-xs">
-                                    <div>
-                                        <span className="text-gray-500">Màu sắc:</span>
-                                        <span className="ml-2 text-gray-700">{selectedVariant.color}</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-gray-500">Trọng lượng:</span>
-                                        <span className="ml-2 text-gray-700">{selectedVariant.weight}</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-gray-500">Thương hiệu:</span>
-                                        <span className="ml-2 text-gray-700">{selectedVariant.brand}</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-gray-500">Chất liệu:</span>
-                                        <span className="ml-2 text-gray-700">{selectedVariant.material}</span>
-                                    </div>
+                                    {/* Hiển thị ảnh đã chọn */}
+                                    {selectedImages.length > 0 && (
+                                        <div className="flex-1">
+                                            <p className="text-sm font-medium text-gray-700 mb-2">
+                                                Ảnh đã chọn ({selectedImages.length})
+                                            </p>
+                                            <div className="flex gap-2 flex-wrap">
+                                                {selectedImages.map((src, index) => (
+                                                    <div key={index} className="relative group">
+                                                        <div className="w-20 h-20 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-center">
+                                                            <img
+                                                                src={src}
+                                                                alt={`Preview ${index + 1}`}
+                                                                className="max-w-full max-h-full object-contain cursor-pointer hover:opacity-75 transition-opacity"
+                                                                onClick={() => setPreviewImage(src)}
+                                                            />
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => removeImage(index)}
+                                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -699,6 +979,27 @@ function SpctDetail() {
                                 )}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal preview ảnh */}
+            {previewImage && (
+                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+                    <div className="relative max-w-4xl max-h-full">
+                        <img
+                            src={previewImage}
+                            alt="Preview"
+                            className="max-w-full max-h-full object-contain rounded-lg"
+                            style={{ backgroundColor: '#fff' }}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setPreviewImage(null)}
+                            className="absolute top-4 right-4 bg-black bg-opacity-20 hover:bg-opacity-30 text-white rounded-full p-2 transition-all"
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
                     </div>
                 </div>
             )}

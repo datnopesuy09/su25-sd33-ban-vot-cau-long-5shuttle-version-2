@@ -157,7 +157,7 @@ function ProductCard({ product }) {
             // Lọc các màu sắc khác nhau
             const uniqueColors = [...new Set(productData.variants.map((v) => v.mauSacTen))];
             const colorVariants = uniqueColors.map((color) => {
-                const variant = productData.variants.find((v) => v.mauSacTen === color);
+                const variant = activeVariants.find((v) => v.mauSacTen === color);
                 return {
                     color: color,
                     image: variant?.hinhAnhUrls?.[0] || product.hinhAnhDaiDien,

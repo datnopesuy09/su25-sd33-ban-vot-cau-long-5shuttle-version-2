@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @CrossOrigin(origins = "http://localhost:5173")
@@ -148,6 +149,7 @@ public class SanPhamCTController {
     }
 
     @PutMapping("/update-basic/{id}")
+    @Transactional
     public ResponseEntity<?> updateBasicInfo(
             @PathVariable int id,
             @RequestBody Map<String, Object> payload
@@ -156,49 +158,137 @@ public class SanPhamCTController {
             SanPhamCT existingSanPhamCT = sanPhamCTRepository.findById(id)
                     .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại"));
 
-            // Cập nhật số lượng nếu có
+            // ====== Các trường cơ bản ======
             if (payload.containsKey("soLuong")) {
-                Object soLuongObj = payload.get("soLuong");
-                Integer soLuong = null;
-                if (soLuongObj instanceof Integer) {
-                    soLuong = (Integer) soLuongObj;
-                } else if (soLuongObj instanceof String) {
-                    soLuong = Integer.parseInt((String) soLuongObj);
-                }
-                if (soLuong != null) {
-                    existingSanPhamCT.setSoLuong(soLuong);
-                }
+                existingSanPhamCT.setSoLuong(Integer.parseInt(payload.get("soLuong").toString()));
             }
-
-            // Cập nhật đơn giá nếu có
             if (payload.containsKey("donGia")) {
-                Object donGiaObj = payload.get("donGia");
-                Double donGia = null;
-                if (donGiaObj instanceof Integer) {
-                    donGia = ((Integer) donGiaObj).doubleValue();
-                } else if (donGiaObj instanceof Long) {
-                    donGia = ((Long) donGiaObj).doubleValue();
-                } else if (donGiaObj instanceof Double) {
-                    donGia = (Double) donGiaObj;
-                } else if (donGiaObj instanceof String) {
-                    donGia = Double.parseDouble((String) donGiaObj);
-                }
-                if (donGia != null) {
-                    existingSanPhamCT.setDonGia(donGia);
+                existingSanPhamCT.setDonGia(Double.parseDouble(payload.get("donGia").toString()));
+            }
+            if (payload.containsKey("trangThai")) {
+                String status = payload.get("trangThai").toString();
+                existingSanPhamCT.setTrangThai("Active".equalsIgnoreCase(status) ? 1 : 0);
+            }
+            if (payload.containsKey("moTa")) {
+                existingSanPhamCT.setMoTa(payload.get("moTa").toString());
+            }
+
+            // ====== Các quan hệ (lookup theo tên) ======
+            if (payload.containsKey("brand")) {
+                String brand = payload.get("brand").toString();
+                existingSanPhamCT.setThuongHieu(
+                        thuongHieuRepository.findByTen(brand).orElse(null)
+                );
+            }
+            if (payload.containsKey("material")) {
+                String material = payload.get("material").toString();
+                existingSanPhamCT.setChatLieu(
+                        chatLieuRepository.findByTen(material).orElse(null)
+                );
+            }
+            if (payload.containsKey("balancePoint")) {
+                String balancePoint = payload.get("balancePoint").toString();
+                existingSanPhamCT.setDiemCanBang(
+                        diemCanBangRepository.findByTen(balancePoint).orElse(null)
+                );
+            }
+            if (payload.containsKey("hardness")) {
+                String hardness = payload.get("hardness").toString();
+                existingSanPhamCT.setDoCung(
+                        doCungRepository.findByTen(hardness).orElse(null)
+                );
+            }
+            if (payload.containsKey("color")) {
+                String color = payload.get("color").toString();
+                existingSanPhamCT.setMauSac(
+                        mauSacRepository.findByTen(color).orElse(null)
+                );
+            }
+            if (payload.containsKey("weight")) {
+                String weight = payload.get("weight").toString();
+                existingSanPhamCT.setTrongLuong(
+                        trongLuongRepository.findByTen(weight).orElse(null)
+                );
+            }
+
+//            // ====== Xử lý ảnh: đồng bộ cho tất cả biến thể cùng màu ======
+            if (payload.containsKey("hinhAnhUrls")) {
+                @SuppressWarnings("unchecked")
+                List<String> hinhAnhUrls = (List<String>) payload.get("hinhAnhUrls");
+
+                System.out.println("=== CẬP NHẬT ẢNH CHO SANPHAMCT ID: " + id + " ===");
+                System.out.println("Số lượng ảnh mới: " + (hinhAnhUrls != null ? hinhAnhUrls.size() : 0));
+
+                try {
+                    // Tìm tất cả biến thể cùng màu
+                    List<SanPhamCT> sameColorVariants = 
+                        sanPhamCTRepository.findBySanPhamAndMauSac(
+                            existingSanPhamCT.getSanPham(), 
+                            existingSanPhamCT.getMauSac()
+                        );
+                    
+                    System.out.println("Số biến thể cùng màu: " + sameColorVariants.size());
+
+                    // Cập nhật ảnh cho tất cả biến thể cùng màu
+                    for (SanPhamCT variant : sameColorVariants) {
+                        System.out.println("Đang cập nhật ảnh cho biến thể ID: " + variant.getId());
+                        
+                        // Xóa tất cả ảnh cũ của biến thể này
+                        List<HinhAnh> existingHinhAnhs = variant.getHinhAnh();
+                        if (existingHinhAnhs != null && !existingHinhAnhs.isEmpty()) {
+                            for (HinhAnh hinhAnh : existingHinhAnhs) {
+                                try {
+                                    hinhAnhRepository.deleteById(hinhAnh.getId());
+                                    System.out.println("Đã xóa ảnh ID: " + hinhAnh.getId());
+                                } catch (Exception e) {
+                                    System.err.println("Lỗi khi xóa ảnh ID " + hinhAnh.getId() + ": " + e.getMessage());
+                                }
+                            }
+                            variant.getHinhAnh().clear();
+                        }
+
+                        // Thêm ảnh mới nếu có
+                        if (hinhAnhUrls != null && !hinhAnhUrls.isEmpty()) {
+                            for (String url : hinhAnhUrls) {
+                                try {
+                                    HinhAnh newHinhAnh = new HinhAnh();
+                                    newHinhAnh.setLink(url);
+                                    newHinhAnh.setTrangThai(1);
+                                    newHinhAnh.setSanPhamCT(variant);
+                                    HinhAnh savedHinhAnh = hinhAnhRepository.save(newHinhAnh);
+                                    variant.getHinhAnh().add(savedHinhAnh);
+                                    System.out.println("Đã thêm ảnh mới ID: " + savedHinhAnh.getId() + " - URL: " + url);
+                                } catch (Exception e) {
+                                    System.err.println("Lỗi khi thêm ảnh URL " + url + ": " + e.getMessage());
+                                }
+                            }
+                        }
+
+                        // Lưu biến thể
+                        sanPhamCTRepository.save(variant);
+                    }
+
+                    System.out.println("=== HOÀN THÀNH CẬP NHẬT ẢNH CHO TẤT CẢ BIẾN THỂ CÙNG MÀU ===");
+
+                } catch (Exception e) {
+                    System.err.println("Lỗi tổng quát khi xử lý ảnh: " + e.getMessage());
+                    e.printStackTrace();
                 }
             }
 
+
+            // ====== Lưu lại ======
             sanPhamCTRepository.save(existingSanPhamCT);
             
+            // Cập nhật trạng thái sản phẩm cha dựa trên trạng thái của tất cả biến thể
+            sanPhamCTService.updateParentProductStatus(existingSanPhamCT.getSanPham().getId());
+
             return ResponseEntity.ok(existingSanPhamCT);
+
         } catch (ResourceNotFoundException e) {
-            return ResponseEntity
-                    .status(HttpStatus.NOT_FOUND)
-                    .body("Sản phẩm không tồn tại");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
         } catch (NumberFormatException e) {
-            return ResponseEntity
-                    .badRequest()
-                    .body("Dữ liệu không hợp lệ");
+            return ResponseEntity.badRequest().body("Dữ liệu không hợp lệ");
         } catch (Exception e) {
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -293,6 +383,94 @@ public class SanPhamCTController {
     public ResponseEntity<SanPhamCTDetailDTO> getSanPhamCTDetailWithPromotion(@PathVariable int id) {
         SanPhamCTDetailDTO detailDTO = sanPhamCTService.getSanPhamCTDetailWithPromotion(id);
         return new ResponseEntity<>(detailDTO, HttpStatus.OK);
+    }
+
+    @PostMapping("/add-variant/{productId}")
+    @Transactional
+    public ResponseEntity<?> addVariantToExistingProduct(
+            @PathVariable int productId,
+            @RequestBody Map<String, Object> variantData) {
+        try {
+            // 1. Tìm sản phẩm chính
+            SanPham sanPham = sanPhamRepository.findById(productId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại"));
+
+            // 2. Tạo biến thể mới
+            SanPhamCT sanPhamCT = new SanPhamCT();
+            sanPhamCT.setSanPham(sanPham);
+
+            // Lấy các thuộc tính từ request
+            if (variantData.containsKey("brand")) {
+                String brand = variantData.get("brand").toString();
+                sanPhamCT.setThuongHieu(thuongHieuRepository.findByTen(brand).orElse(null));
+            }
+            if (variantData.containsKey("material")) {
+                String material = variantData.get("material").toString();
+                sanPhamCT.setChatLieu(chatLieuRepository.findByTen(material).orElse(null));
+            }
+            if (variantData.containsKey("balancePoint")) {
+                String balancePoint = variantData.get("balancePoint").toString();
+                sanPhamCT.setDiemCanBang(diemCanBangRepository.findByTen(balancePoint).orElse(null));
+            }
+            if (variantData.containsKey("hardness")) {
+                String hardness = variantData.get("hardness").toString();
+                sanPhamCT.setDoCung(doCungRepository.findByTen(hardness).orElse(null));
+            }
+            if (variantData.containsKey("mauSacTen")) {
+                String color = variantData.get("mauSacTen").toString();
+                sanPhamCT.setMauSac(mauSacRepository.findByTen(color).orElse(null));
+            }
+            if (variantData.containsKey("trongLuongTen")) {
+                String weight = variantData.get("trongLuongTen").toString();
+                sanPhamCT.setTrongLuong(trongLuongRepository.findByTen(weight).orElse(null));
+            }
+
+            // Các thông tin khác
+            sanPhamCT.setMa(generateProductCode());
+            if (variantData.containsKey("soLuong")) {
+                sanPhamCT.setSoLuong(Integer.parseInt(variantData.get("soLuong").toString()));
+            }
+            if (variantData.containsKey("donGia")) {
+                sanPhamCT.setDonGia(Double.parseDouble(variantData.get("donGia").toString()));
+            }
+            if (variantData.containsKey("description")) {
+                sanPhamCT.setMoTa(variantData.get("description").toString());
+            }
+            if (variantData.containsKey("status")) {
+                String status = variantData.get("status").toString();
+                sanPhamCT.setTrangThai("Active".equalsIgnoreCase(status) ? 1 : 0);
+            } else {
+                sanPhamCT.setTrangThai(1); // Default Active
+            }
+
+            // Lưu biến thể
+            SanPhamCT savedVariant = sanPhamCTRepository.save(sanPhamCT);
+
+            // 3. Lưu hình ảnh cho biến thể
+            if (variantData.containsKey("hinhAnhUrls")) {
+                @SuppressWarnings("unchecked")
+                List<String> hinhAnhUrls = (List<String>) variantData.get("hinhAnhUrls");
+                
+                if (hinhAnhUrls != null && !hinhAnhUrls.isEmpty()) {
+                    for (String imageUrl : hinhAnhUrls) {
+                        HinhAnh hinhAnh = new HinhAnh();
+                        hinhAnh.setSanPhamCT(savedVariant);
+                        hinhAnh.setLink(imageUrl);
+                        hinhAnh.setTrangThai(1);
+                        hinhAnhRepository.save(hinhAnh);
+                    }
+                }
+            }
+
+            return ResponseEntity.ok(savedVariant);
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (NumberFormatException e) {
+            return ResponseEntity.badRequest().body("Dữ liệu không hợp lệ");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Error adding variant: " + e.getMessage());
+        }
     }
 
 
