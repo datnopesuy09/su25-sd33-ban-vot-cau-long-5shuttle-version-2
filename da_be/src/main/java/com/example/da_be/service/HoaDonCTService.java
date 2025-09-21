@@ -67,10 +67,11 @@ public class HoaDonCTService {
         HoaDonCTDTO dto = new HoaDonCTDTO();
         dto.setId(hoaDonCT.getId());
         dto.setSoLuong(hoaDonCT.getSoLuong());
-        // Tính tổng giá bán = giaBan (stored as BigDecimal) nếu có, ngược lại tính từ đơn giá * số lượng
+        // Sử dụng giá đã lưu trong HoaDonCT (giá tại thời điểm mua hàng)
         if (hoaDonCT.getGiaBan() != null) {
             dto.setGiaBan(hoaDonCT.getGiaBan().doubleValue());
         } else {
+            // Fallback: tính từ đơn giá gốc * số lượng (chỉ khi không có giá bán lưu)
             double unit = hoaDonCT.getSanPhamCT().getDonGia();
             dto.setGiaBan(unit * hoaDonCT.getSoLuong());
         }
@@ -81,8 +82,9 @@ public class HoaDonCTService {
         sanPhamCTDTO.setTen(sanPhamCT.getSanPham().getTen());
         sanPhamCTDTO.setDonGia(sanPhamCT.getDonGia());
         sanPhamCTDTO.setSoLuong(sanPhamCT.getSoLuong());
-        sanPhamCTDTO.setGiaKhuyenMai(sanPhamCT.getGiaKhuyenMai());
-        sanPhamCTDTO.setGiaTriKhuyenMai(sanPhamCT.getGiaTriKhuyenMai());
+        // Không truyền giá khuyến mãi hiện tại để tránh hiển thị sai
+        // sanPhamCTDTO.setGiaKhuyenMai(sanPhamCT.getGiaKhuyenMai());
+        // sanPhamCTDTO.setGiaTriKhuyenMai(sanPhamCT.getGiaTriKhuyenMai());
         String hinhAnhUrl = hinhAnhRepository.findFirstBySanPhamCT_Id(sanPhamCT.getId())
                 .map(HinhAnh::getLink)
                 .orElse(null);
@@ -121,14 +123,22 @@ public class HoaDonCTService {
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy hóa đơn chi tiết với ID: " + hoaDonCTId));
         SanPhamCT sanPhamCT = hoaDonCT.getSanPhamCT();
         int oldQuantity = hoaDonCT.getSoLuong();
-        // Cập nhật số lượng và tính lại giaBan = unitPrice * newQuantity
+        // Cập nhật số lượng và tính lại giaBan dựa trên đơn giá đã lưu
         hoaDonCT.setSoLuong(newQuantity);
+        
+        // Tính đơn giá từ giá bán hiện tại chia cho số lượng cũ
         BigDecimal unitPrice;
-        if (sanPhamCT.getGiaKhuyenMai() != null && sanPhamCT.getGiaKhuyenMai() < sanPhamCT.getDonGia()) {
-            unitPrice = BigDecimal.valueOf(sanPhamCT.getGiaKhuyenMai());
+        if (hoaDonCT.getGiaBan() != null && oldQuantity > 0) {
+            unitPrice = hoaDonCT.getGiaBan().divide(BigDecimal.valueOf(oldQuantity));
         } else {
-            unitPrice = BigDecimal.valueOf(sanPhamCT.getDonGia());
+            // Fallback: sử dụng giá hiện tại nếu không có giá bán lưu
+            if (sanPhamCT.getGiaKhuyenMai() != null && sanPhamCT.getGiaKhuyenMai() < sanPhamCT.getDonGia()) {
+                unitPrice = BigDecimal.valueOf(sanPhamCT.getGiaKhuyenMai());
+            } else {
+                unitPrice = BigDecimal.valueOf(sanPhamCT.getDonGia());
+            }
         }
+        
         hoaDonCT.setGiaBan(unitPrice.multiply(BigDecimal.valueOf(newQuantity)));
         hoaDonCTRepository.save(hoaDonCT);
         int quantityDifference = newQuantity - oldQuantity;

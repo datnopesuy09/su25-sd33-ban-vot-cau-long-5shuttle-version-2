@@ -112,6 +112,40 @@ const formatCurrency = (value) => {
     return n.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 };
 
+// Resolve possible price fields for a product item and return unit original/discounted prices
+const resolveItemPrices = (sp, isReturn = false) => {
+    // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
+    const qty = Number(isReturn ? sp?.soLuongTra || 0 : sp?.soLuong || 0) || 1;
+
+    // Giá đã lưu trong hóa đơn (giá tại thời điểm mua hàng)
+    const orderGiaBan = isReturn ? (sp?.thongTinSanPhamTra?.giaBan ?? sp?.giaBan) : sp?.giaBan;
+
+    if (orderGiaBan !== undefined && orderGiaBan !== null) {
+        const savedTotalPrice = Number(orderGiaBan);
+        const unitPrice = savedTotalPrice / qty;
+
+        // Lấy giá gốc từ sản phẩm để tính phần trăm giảm giá
+        const sanPhamCT = isReturn ? sp?.thongTinSanPhamTra?.sanPhamCT : sp?.sanPhamCT;
+        const originalPrice = sanPhamCT?.donGia ?? sanPhamCT?.sanPham?.donGia ?? unitPrice;
+
+        return {
+            originalPrice: Number(originalPrice),
+            discountedPrice: unitPrice,
+            unitPrice: unitPrice,
+        };
+    }
+
+    // Fallback: nếu không có giá lưu, sử dụng giá gốc từ sản phẩm
+    const sanPhamCT = isReturn ? sp?.thongTinSanPhamTra?.sanPhamCT : sp?.sanPhamCT;
+    const originalPrice = sanPhamCT?.donGia ?? sanPhamCT?.sanPham?.donGia ?? 0;
+
+    return {
+        originalPrice: Number(originalPrice),
+        discountedPrice: Number(originalPrice),
+        unitPrice: Number(originalPrice),
+    };
+};
+
 function UserOrder() {
     const [selectedTab, setSelectedTab] = useState('Tất cả');
     const [listHoaDon, setListHoaDon] = useState([]);
@@ -476,8 +510,15 @@ function UserOrder() {
                                 const quantity = isReturn ? sp?.soLuongTra || 0 : sp?.soLuong || 0;
                                 const sanPhamCT = isReturn ? sp?.thongTinSanPhamTra?.sanPhamCT : sp?.sanPhamCT;
 
-                                const originalPrice = sanPhamCT?.donGia ?? sp?.giaGoc ?? (isReturn ? sp?.thongTinSanPhamTra?.giaBan : sp?.giaBan) ?? 0;
-                                const discountedPrice = sanPhamCT?.giaKhuyenMai ?? (isReturn ? sp?.thongTinSanPhamTra?.giaBan : sp?.giaBan) ?? originalPrice;
+                                const originalPrice =
+                                    sanPhamCT?.donGia ??
+                                    sp?.giaGoc ??
+                                    (isReturn ? sp?.thongTinSanPhamTra?.giaBan : sp?.giaBan) ??
+                                    0;
+                                const discountedPrice =
+                                    sanPhamCT?.giaKhuyenMai ??
+                                    (isReturn ? sp?.thongTinSanPhamTra?.giaBan : sp?.giaBan) ??
+                                    originalPrice;
 
                                 const unitPrice = discountedPrice;
                                 const lineTotal = unitPrice * quantity;
@@ -489,159 +530,173 @@ function UserOrder() {
                                     key={item.id}
                                     className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
                                 >
-                                {/* Order Header */}
-                                <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-100">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <div
-                                                className={`w-3 h-3 rounded-full ${getStatusDot(item.trangThai)}`}
-                                            ></div>
-                                            <div>
-                                                <h3 className="font-semibold text-gray-800 text-lg">{item.ma}</h3>
-                                                <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
-                                                    <Calendar className="w-3 h-3" />
-                                                    {item.trangThai === 7
-                                                        ? `Hủy lúc: ${dayjs(item.ngaySua).format('DD/MM/YYYY HH:mm')}`
-                                                        : `Đặt lúc: ${dayjs(item.ngayTao).format('DD/MM/YYYY HH:mm')}`}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        <div
-                                            className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border ${getStatusStyle(item.trangThai)}`}
-                                        >
-                                            {getStatusIcon(item.trangThai)}
-                                            {getStatus(item.trangThai)}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Products */}
-                                <div className="p-6">
-                                    <div className="space-y-4">
-                                        {(item.trangThai === 8 ? item.returnDetails : item.chiTiet)?.map((sp, idx) => {
-                                            const isReturn = item.trangThai === 8;
-                                            const quantity = isReturn ? sp?.soLuongTra || 0 : sp?.soLuong || 0;
-
-                                            // Try to extract variant/product pricing
-                                            const sanPhamCT = isReturn ? sp?.thongTinSanPhamTra?.sanPhamCT : sp?.sanPhamCT;
-
-                                            const originalPrice = sanPhamCT?.donGia ?? sp?.giaGoc ?? (isReturn ? sp?.thongTinSanPhamTra?.giaBan : sp?.giaBan) ?? 0;
-                                            const discountedPrice = sanPhamCT?.giaKhuyenMai ?? (isReturn ? sp?.thongTinSanPhamTra?.giaBan : sp?.giaBan) ?? originalPrice;
-
-                                            const unitPrice = discountedPrice;
-                                            const lineTotal = unitPrice * quantity;
-
-                                            const discountPercent = originalPrice > 0 && originalPrice > discountedPrice
-                                                ? Math.round(((originalPrice - discountedPrice) / originalPrice) * 100)
-                                                : 0;
-
-                                            return (
+                                    {/* Order Header */}
+                                    <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-blue-50 border-b border-gray-100">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
                                                 <div
-                                                    key={idx}
-                                                    className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
-                                                >
-                                                    {/* Product Image */}
-                                                    <div className="flex-shrink-0">
-                                                        <img
-                                                            src={
-                                                                sp?.hinhAnhUrl ||
-                                                                sp?.sanPhamCT?.hinhAnhUrl ||
-                                                                sp?.sanPhamCT?.hinhAnh ||
-                                                                sp?.thongTinSanPhamTra?.hinhAnhUrl ||
-                                                                'https://via.placeholder.com/80'
-                                                            }
-                                                            alt={
-                                                                isReturn
-                                                                    ? sp?.thongTinSanPhamTra?.tenSanPham
-                                                                    : sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'
-                                                            }
-                                                            className="w-20 h-20 object-cover rounded-xl border border-gray-200"
-                                                        />
-                                                    </div>
-
-                                                    {/* Product Info */}
-                                                    <div className="flex-grow min-w-0">
-                                                        <h4 className="font-medium text-gray-800 text-base line-clamp-2 mb-2">
-                                                            {isReturn
-                                                                ? sp?.thongTinSanPhamTra?.tenSanPham
-                                                                : sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'}
-                                                        </h4>
-
-                                                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                                                            <div className="flex items-center gap-1">
-                                                                <Tag className="w-3 h-3" />
-                                                                <span>
-                                                                    {isReturn
-                                                                        ? `${sp?.thongTinSanPhamTra?.tenMauSac || ''}, ${sp?.thongTinSanPhamTra?.tenTrongLuong || ''}, ${sp?.thongTinSanPhamTra?.tenDoCung || ''}`
-                                                                        : `${sp?.sanPhamCT?.mauSac?.ten || ''}, ${sp?.sanPhamCT?.trongLuong?.ten || ''}, ${sp?.sanPhamCT?.doCung?.ten || ''}`}
-                                                                </span>
-                                                            </div>
-                                                            <div className="flex items-center gap-1">
-                                                                <Package className="w-3 h-3" />
-                                                                <span>
-                                                                    x{quantity}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Price */}
-                                                    <div className="text-right min-w-[140px]">
-                                                        <div className="flex items-center justify-end gap-2">
-                                                            <div className="text-sm text-gray-500">Đơn giá:</div>
-                                                            <div className="text-md font-semibold text-red-600">
-                                                                {formatCurrency(unitPrice)}
-                                                            </div>
-                                                            {discountPercent > 0 && (
-                                                                <div className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded">
-                                                                    -{discountPercent}%
-                                                                </div>
-                                                            )}
-                                                        </div>
-
-                                                        {discountPercent > 0 && (
-                                                            <div className="text-xs text-gray-500 line-through mt-1">
-                                                                {formatCurrency(originalPrice)}
-                                                            </div>
-                                                        )}
-
-                                                        <div className="text-sm text-gray-600 mt-2">Tổng:</div>
-                                                        <div className="text-lg font-bold text-gray-800">{formatCurrency(lineTotal)}</div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                {/* Order Footer */}
-                                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                                            <DollarSign className="w-4 h-4" />
-                                            <span>{item.trangThai === 8 ? 'Số tiền hoàn lại:' : 'Tổng tiền:'}</span>
-                                        </div>
-
-                                        <div className="flex items-center gap-4">
-                                            <div className="text-right">
-                                                <div className="text-xl font-bold text-red-600">
-                                                    {formatCurrency(subtotalFromProducts)}
+                                                    className={`w-3 h-3 rounded-full ${getStatusDot(item.trangThai)}`}
+                                                ></div>
+                                                <div>
+                                                    <h3 className="font-semibold text-gray-800 text-lg">{item.ma}</h3>
+                                                    <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                                                        <Calendar className="w-3 h-3" />
+                                                        {item.trangThai === 7
+                                                            ? `Hủy lúc: ${dayjs(item.ngaySua).format('DD/MM/YYYY HH:mm')}`
+                                                            : `Đặt lúc: ${dayjs(item.ngayTao).format('DD/MM/YYYY HH:mm')}`}
+                                                    </p>
                                                 </div>
                                             </div>
 
-                                            <Link
-                                                to={`/profile/order-detail/${item.id}`}
-                                                className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                                            <div
+                                                className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border ${getStatusStyle(item.trangThai)}`}
                                             >
-                                                <Eye className="w-4 h-4" />
-                                                Xem chi tiết
-                                            </Link>
+                                                {getStatusIcon(item.trangThai)}
+                                                {getStatus(item.trangThai)}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Products */}
+                                    <div className="p-6">
+                                        <div className="space-y-4">
+                                            {(item.trangThai === 8 ? item.returnDetails : item.chiTiet)?.map(
+                                                (sp, idx) => {
+                                                    const isReturn = item.trangThai === 8;
+                                                    const quantity = isReturn ? sp?.soLuongTra || 0 : sp?.soLuong || 0;
+
+                                                    // Resolve prices using helper (handles variant or order-level totals)
+                                                    const { originalPrice, discountedPrice, unitPrice } =
+                                                        resolveItemPrices(sp, isReturn);
+                                                    const lineTotal = unitPrice * quantity;
+
+                                                    const discountPercent =
+                                                        originalPrice > 0 && originalPrice > discountedPrice
+                                                            ? Math.round(
+                                                                  ((originalPrice - discountedPrice) / originalPrice) *
+                                                                      100,
+                                                              )
+                                                            : 0;
+
+                                                    return (
+                                                        <div
+                                                            key={idx}
+                                                            className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                                                        >
+                                                            {/* Product Image */}
+                                                            <div className="flex-shrink-0">
+                                                                <img
+                                                                    src={
+                                                                        sp?.hinhAnhUrl ||
+                                                                        sp?.sanPhamCT?.hinhAnhUrl ||
+                                                                        sp?.sanPhamCT?.hinhAnh ||
+                                                                        sp?.thongTinSanPhamTra?.hinhAnhUrl ||
+                                                                        'https://via.placeholder.com/80'
+                                                                    }
+                                                                    alt={
+                                                                        isReturn
+                                                                            ? sp?.thongTinSanPhamTra?.tenSanPham
+                                                                            : sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'
+                                                                    }
+                                                                    className="w-20 h-20 object-cover rounded-xl border border-gray-200"
+                                                                />
+                                                            </div>
+
+                                                            {/* Product Info */}
+                                                            <div className="flex-grow min-w-0">
+                                                                <h4 className="font-medium text-gray-800 text-base line-clamp-2 mb-2">
+                                                                    {isReturn
+                                                                        ? sp?.thongTinSanPhamTra?.tenSanPham
+                                                                        : sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'}
+                                                                </h4>
+
+                                                                <div className="flex items-center gap-4 text-sm text-gray-600">
+                                                                    <div className="flex items-center gap-1">
+                                                                        <Tag className="w-3 h-3" />
+                                                                        <span>
+                                                                            {isReturn
+                                                                                ? `${sp?.thongTinSanPhamTra?.tenMauSac || ''}, ${sp?.thongTinSanPhamTra?.tenTrongLuong || ''}, ${sp?.thongTinSanPhamTra?.tenDoCung || ''}`
+                                                                                : `${sp?.sanPhamCT?.mauSac?.ten || ''}, ${sp?.sanPhamCT?.trongLuong?.ten || ''}, ${sp?.sanPhamCT?.doCung?.ten || ''}`}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1">
+                                                                        <Package className="w-3 h-3" />
+                                                                        <span>x{quantity}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Price */}
+                                                            <div className="text-right min-w-[140px]">
+                                                                <div className="flex items-center justify-end gap-2">
+                                                                    <div className="text-sm text-gray-500">
+                                                                        Đơn giá:
+                                                                    </div>
+                                                                    <div className="text-md font-semibold text-red-600">
+                                                                        {formatCurrency(unitPrice)}
+                                                                    </div>
+                                                                    {discountPercent > 0 && (
+                                                                        <div className="text-xs font-semibold text-white bg-red-500 px-2 py-0.5 rounded">
+                                                                            -{discountPercent}%
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {discountPercent > 0 && (
+                                                                    <div className="text-xs text-gray-500 line-through mt-1 text-right">
+                                                                        Giá gốc: {formatCurrency(originalPrice)}
+                                                                    </div>
+                                                                )}
+
+                                                                <div className="text-sm text-gray-600 mt-2 text-right">
+                                                                    Thành tiền:
+                                                                </div>
+                                                                <div className="text-lg font-bold text-gray-800 text-right">
+                                                                    {formatCurrency(lineTotal)}
+                                                                </div>
+                                                                {discountPercent > 0 && (
+                                                                    <div className="text-xs text-gray-500 mt-1 text-right">
+                                                                        Tiết kiệm:{' '}
+                                                                        {formatCurrency(
+                                                                            (originalPrice - unitPrice) * quantity,
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                },
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Order Footer */}
+                                    <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                                                <DollarSign className="w-4 h-4" />
+                                                <span>{item.trangThai === 8 ? 'Số tiền hoàn lại:' : 'Tổng tiền:'}</span>
+                                            </div>
+
+                                            <div className="flex items-center gap-4">
+                                                <div className="text-right">
+                                                    <div className="text-xl font-bold text-red-600">
+                                                        {formatCurrency(item.tongTien ?? subtotalFromProducts)}
+                                                    </div>
+                                                </div>
+
+                                                <Link
+                                                    to={`/profile/order-detail/${item.id}`}
+                                                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+                                                >
+                                                    <Eye className="w-4 h-4" />
+                                                    Xem chi tiết
+                                                </Link>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        );
+                            );
                         })}
 
                         {/* Pagination */}

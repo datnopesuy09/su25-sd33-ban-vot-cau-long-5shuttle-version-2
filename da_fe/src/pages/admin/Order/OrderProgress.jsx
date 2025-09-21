@@ -305,24 +305,6 @@ const OrderProgress = ({
                 <h2 className="text-2xl font-bold text-gray-800 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     Lịch sử đơn hàng
                 </h2>
-
-                {/* Status Selector for Demo */}
-                <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-600">Trạng thái:</span>
-                        <select
-                            value={currentOrderStatus}
-                            onChange={(e) => handlePrepareStatusChange(parseInt(e.target.value))}
-                            className="px-3 py-1 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((status) => (
-                                <option key={status} value={status}>
-                                    {getStatusInfo(status).label}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
             </div>
 
             {/* Progress Bar */}
@@ -464,10 +446,13 @@ const OrderProgress = ({
                                     </p>
                                     <div className="mt-2 text-xs text-red-600 space-y-1">
                                         <div>
-                                            <span className="font-medium">Lưu ý:</span> Chức năng Force hoàn kho đã bị vô hiệu hóa
+                                            <span className="font-medium">Lưu ý:</span> Chức năng Force hoàn kho đã bị
+                                            vô hiệu hóa
                                         </div>
                                         <div className="bg-red-100 p-2 rounded text-xs">
-                                            <span className="font-medium">Nếu đơn hàng bị hủy do sự cố vận chuyển:</span>
+                                            <span className="font-medium">
+                                                Nếu đơn hàng bị hủy do sự cố vận chuyển:
+                                            </span>
                                             <br />• Quy trình hoàn tiền đã được khởi tạo tự động
                                             <br />• Khách hàng sẽ nhận được thông báo chi tiết
                                             <br />• Yêu cầu bồi thường với đơn vị vận chuyển đã được tạo

@@ -315,8 +315,22 @@ public class SanPhamCTService {
                             .map(HinhAnh::getLink)
                             .collect(Collectors.toList()));
 
-                    // Lấy giá khuyến mãi và giá trị khuyến mãi
-                    getPromotionPrice(matched.getId(), variantDTO);
+                    // Lấy giá khuyến mãi và giá trị khuyến mãi từ entity getter đã chuẩn hóa
+                    Integer giaKhuyenMai = matched.getGiaKhuyenMai();
+                    Integer giaTriKhuyenMai = matched.getGiaTriKhuyenMai();
+                    
+                    // Debug logging
+                    System.out.println("Debug SanPhamCT ID: " + matched.getId());
+                    System.out.println("Debug sanPhamKhuyenMais size: " + matched.getSanPhamKhuyenMais().size());
+                    System.out.println("Debug giaKhuyenMai: " + giaKhuyenMai);
+                    System.out.println("Debug giaTriKhuyenMai: " + giaTriKhuyenMai);
+                    
+                    if (giaKhuyenMai != null) {
+                        variantDTO.setGiaKhuyenMai(giaKhuyenMai.doubleValue());
+                    }
+                    if (giaTriKhuyenMai != null) {
+                        variantDTO.setGiaTriKhuyenMai(giaTriKhuyenMai);
+                    }
 
                     variants.add(variantDTO);
                 }
@@ -324,43 +338,6 @@ public class SanPhamCTService {
         }
         detailDTO.setVariants(variants);
         return detailDTO;
-    }
-
-
-    // Phương thức để lấy giá khuyến mãi
-    private Double getPromotionPrice(Integer sanPhamCTId, VariantDTO variantDTO) {
-        // Lấy danh sách khuyến mãi đang hoạt động cho sản phẩm chi tiết
-        List<SanPhamKhuyenMai> promotions = sanPhamKhuyenMaiRepository.findActivePromotionsBySanPhamCTId(sanPhamCTId);
-
-        if (promotions.isEmpty()) {
-            return null; // Không có khuyến mãi
-        }
-
-        // Giả sử mỗi sản phẩm chỉ có một khuyến mãi đang hoạt động
-        SanPhamKhuyenMai promotion = promotions.get(0);
-
-        // Gán giá trị khuyến mãi vào variantDTO
-        variantDTO.setGiaKhuyenMai(promotion.getGiaKhuyenMai().doubleValue());
-        variantDTO.setGiaTriKhuyenMai(promotion.getKhuyenMai().getGiaTri()); // Lấy giá trị khuyến mãi
-
-        // Nếu giá khuyến mãi đã được tính sẵn trong bảng SanPham_KhuyenMai
-        if (promotion.getGiaKhuyenMai() != null) {
-            return promotion.getGiaKhuyenMai().doubleValue(); // Trả về giá khuyến mãi
-        }
-
-        // Nếu không có giá khuyến mãi, có thể tính toán dựa trên loại khuyến mãi
-        SanPhamCT sanPhamCT = sanPhamCTRepository.findById(sanPhamCTId)
-                .orElseThrow(() -> new ResourceNotFoundException("SanPhamCT not found"));
-
-        double originalPrice = sanPhamCT.getDonGia();
-        int discountValue = promotion.getKhuyenMai().getGiaTri(); // Lấy giá trị khuyến mãi
-
-        // Kiểm tra loại khuyến mãi
-        if (promotion.getKhuyenMai().getLoai()) { // Nếu loại là true, giảm theo phần trăm
-            return originalPrice * (1 - discountValue / 100.0);
-        } else { // Nếu loại là false, giảm theo giá cố định
-            return originalPrice - discountValue;
-        }
     }
 
 

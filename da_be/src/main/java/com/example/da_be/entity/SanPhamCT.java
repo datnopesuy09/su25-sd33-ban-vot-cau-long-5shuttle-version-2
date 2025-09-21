@@ -63,7 +63,7 @@ public class SanPhamCT {
     @JsonIgnore
     private List<HinhAnh> hinhAnh;
 
-    @OneToMany(mappedBy = "sanPhamCT")
+    @OneToMany(mappedBy = "sanPhamCT", fetch = FetchType.EAGER)
     @JsonIgnore
     private List<SanPhamKhuyenMai> sanPhamKhuyenMais = new ArrayList<>(); // Khởi tạo danh sách
 
@@ -210,7 +210,8 @@ public class SanPhamCT {
     public Integer getGiaKhuyenMai() {
         LocalDateTime now = LocalDateTime.now();
         return sanPhamKhuyenMais.stream()
-                .filter(spKm -> spKm.getKhuyenMai().getTgBatDau().isBefore(now) &&
+                .filter(spKm -> spKm.getKhuyenMai().getTrangThai() == 1 &&
+                        spKm.getKhuyenMai().getTgBatDau().isBefore(now) &&
                         spKm.getKhuyenMai().getTgKetThuc().isAfter(now))
                 .map(SanPhamKhuyenMai::getGiaKhuyenMai)
                 .findFirst()
@@ -219,7 +220,8 @@ public class SanPhamCT {
     public Integer getGiaTriKhuyenMai() {
         LocalDateTime now = LocalDateTime.now();
         return sanPhamKhuyenMais.stream()
-                .filter(spKm -> spKm.getKhuyenMai().getTgBatDau().isBefore(now) &&
+                .filter(spKm -> spKm.getKhuyenMai().getTrangThai() == 1 &&
+                        spKm.getKhuyenMai().getTgBatDau().isBefore(now) &&
                         spKm.getKhuyenMai().getTgKetThuc().isAfter(now))
                 .map(spKm -> spKm.getKhuyenMai().getGiaTri())
                 .findFirst()
