@@ -61,6 +61,7 @@ public class HoaDon {
     @Column(name = "TrangThai")
     private Integer trangThai;
 
+
     public HoaDon() {
     }
 

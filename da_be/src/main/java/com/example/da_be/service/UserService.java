@@ -37,6 +37,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class
 UserService {
+    private final HoaDonChiTietMapper hoaDonChiTietMapper;
 
     UserRepository userRepository;
     UserMapper userMapper;
@@ -138,27 +139,16 @@ UserService {
 
         List<HoaDonCT> hdctList = hoaDonCTRepository.findByHoaDonId(idHoaDon);
 
-        return hdctList.stream().map(hdct -> {
-            // Map hóa đơn chi tiết cơ bản
-            HoaDonCTResponse resp = hoaDonCTMapper.toHoaDonChiTietResponse(hdct);
+        boolean trangThaiTraHang = phieuTraHangRepository.existsByHoaDonId(idHoaDon);
 
-            // Thêm ảnh
-            try {
-                Integer spctId = hdct.getSanPhamCT().getId();
-                String url = hinhAnhRepository.findFirstBySanPhamCT_Id(spctId)
-                        .map(HinhAnh::getLink)
-                        .orElse(null);
-                resp.setHinhAnhUrl(url);
-            } catch (Exception ignored) {}
-            List<PhieuTraHangChiTiet> traList = phieuTraHangChiTietRepository.findByHoaDonChiTiet_Id(hdct.getId());
-            if (!traList.isEmpty()) {
-                List<PhieuTraHangChiTietResponse> traResponses =
-                        traList.stream().map(phieuTraHangChiTietMapper::toResponse).toList();
-                resp.setPhieuTraHangChiTietResponses(traResponses);
-            }
-
-            return resp;
-        }).toList();
+        log.info("Trang thai tra hang: " + trangThaiTraHang);
+        return hdctList.stream()
+                .map(hdct -> {
+                    HoaDonCTResponse response = hoaDonChiTietMapper.toHoaDonChiTietResponse(hdct);
+                    response.setTrangThaiTraHang(trangThaiTraHang); // gán cho từng item
+                    return response;
+                })
+                .toList();
     }
 
     public HoaDonResponse updateMyOrderStatus(Integer idHoaDon, int newStatus) {

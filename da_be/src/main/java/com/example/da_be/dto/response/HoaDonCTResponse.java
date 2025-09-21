@@ -34,7 +34,7 @@ public class HoaDonCTResponse {
 
     Integer trangThai;
 
-    List<PhieuTraHangChiTietResponse> phieuTraHangChiTietResponses;
+    boolean trangThaiTraHang;
 
     public String getHinhAnhUrl() {
         return hinhAnhUrl;
