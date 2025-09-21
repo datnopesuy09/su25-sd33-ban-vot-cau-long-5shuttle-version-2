@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Minus, Star, Heart, RotateCcw, Trash2 } from 'lucide-react';
 import axios from 'axios';
 import swal from 'sweetalert';
+import StockAllocationIndicator from '../../../components/StockAllocationIndicator';
 
 const ProductList = ({
     orderDetailDatas,
@@ -273,6 +274,18 @@ const ProductList = ({
                                                 Tồn kho: {orderDetail.sanPhamCT.soLuong}
                                             </span>
                                         </div>
+
+                                        {/* THÊM: Stock Allocation Indicator */}
+                                        {/* <div className="mt-3">
+                                            <StockAllocationIndicator
+                                                sanPhamCTId={orderDetail.sanPhamCT.id}
+                                                hoaDonCTId={orderDetail.id}
+                                                currentQuantity={orderDetail.soLuong}
+                                                isOrderConfirmed={currentOrderStatus >= 3}
+                                                showDetails={true}
+                                                className="w-full"
+                                            />
+                                        </div> */}
                                     </div>
 
                                     <div className="text-right">

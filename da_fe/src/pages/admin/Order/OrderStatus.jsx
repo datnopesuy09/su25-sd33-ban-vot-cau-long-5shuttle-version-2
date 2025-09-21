@@ -373,14 +373,16 @@ function OrderStatus() {
         }
 
         try {
-            const response = await axios.post('http://localhost:8080/api/hoa-don-ct/add-to-bill', {
-                idHoaDon: orderData.id,
-                idSanPhamCT: selectedProduct.id,
-                soLuong: quantity,
+            // Dùng API Enhanced để đảm bảo logic reservation/allocation theo trạng thái
+            const response = await axios.post('http://localhost:8080/api/enhanced-kho-hang/add-product', {
+                hoaDonId: orderData.id,
+                sanPhamCTId: selectedProduct.id,
+                quantity: quantity,
+                reason: 'Admin thêm sản phẩm',
             });
 
             if (response.status === 200) {
-                if (response.data.trangThai === 9) {
+                if (response.data?.trangThai === 9) {
                     swal({
                         title: 'Sản phẩm tạm hết hàng',
                         text: 'Sản phẩm này hiện không đủ hàng. Yêu cầu đặt trước đã được ghi nhận.',
@@ -424,23 +426,33 @@ function OrderStatus() {
                 });
                 fetchPreOrders();
             } else {
-                toast.error(error.response?.data || 'Không thể thêm sản phẩm!');
+                const msg = error.response?.data?.message || error.response?.data || 'Không thể thêm sản phẩm!';
+                toast.error(msg);
             }
         }
     };
 
     const updateQuantity = async (orderDetailId, newQuantity) => {
         try {
-            const response = await fetch(`http://localhost:8080/api/hoa-don-ct/update-quantity/${orderDetailId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
+            // SỬ DỤNG API MỚI: Enhanced KhoHangService
+            const response = await fetch(
+                `http://localhost:8080/api/enhanced-kho-hang/update-quantity/${orderDetailId}`,
+                {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        soLuong: newQuantity,
+                        reason: 'Admin điều chỉnh số lượng',
+                    }),
                 },
-                body: JSON.stringify({ soLuong: newQuantity }),
-            });
+            );
 
-            if (!response.ok) {
-                throw new Error('Không thể cập nhật số lượng');
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'Không thể cập nhật số lượng');
             }
 
             // Update local list with new quantity and line total (giaBan)
@@ -481,11 +493,13 @@ function OrderStatus() {
                 }
             } catch (err) {
                 console.error('Không thể cập nhật tổng tiền hóa đơn trên server:', err);
-                toast.warning('Cập nhật số lượng thành công, nhưng không thể cập nhật tổng tiền trên server');
+                toast.warning('Stock allocation đã cập nhật, nhưng không thể cập nhật tổng tiền trên server');
             }
+
+            toast.success('Cập nhật số lượng thành công! Stock allocation đã được điều chỉnh.');
         } catch (error) {
             console.error('Error updating quantity:', error);
-            toast.error('Không thể cập nhật số lượng!');
+            toast.error('Không thể cập nhật số lượng: ' + (error.message || 'Lỗi không xác định'));
         }
     };
 
@@ -513,7 +527,11 @@ function OrderStatus() {
 
         if (isConfirmed) {
             try {
-                const response = await axios.delete(`http://localhost:8080/api/hoa-don-ct/${orderDetailId}`);
+                // Dùng API Enhanced để đảm bảo chỉ hoàn kho khi đã allocated
+                const response = await axios.delete(
+                    `http://localhost:8080/api/enhanced-kho-hang/remove-product/${orderDetailId}`,
+                    { params: { reason: 'Admin xóa sản phẩm' } }
+                );
 
                 if (response.status === 200) {
                     // Cập nhật danh sách sản phẩm
@@ -846,12 +864,13 @@ function OrderStatus() {
         }
     };
 
-    // Function xác nhận đơn hàng mới - trừ stock thực tế
+    // Function xác nhận đơn hàng mới - chỉ cập nhật trạng thái allocation
     const confirmOrder = async (description = 'Xác nhận đơn hàng') => {
         console.log('confirmOrder called');
 
         try {
-            const response = await fetch(`http://localhost:8080/api/hoa-don/${hoaDonId}/confirm`, {
+            // SỬ DỤNG API MỚI: Enhanced KhoHangService
+            const response = await fetch(`http://localhost:8080/api/enhanced-kho-hang/confirm-order/${hoaDonId}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -860,9 +879,10 @@ function OrderStatus() {
 
             console.log('Confirm API response status:', response.status);
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || 'Không thể xác nhận đơn hàng');
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'Không thể xác nhận đơn hàng');
             }
 
             // Cập nhật state thành trạng thái "Đã xác nhận" (2)
@@ -893,7 +913,7 @@ function OrderStatus() {
                 toast.warning('Không thể gửi thông báo đến người dùng.');
             }
 
-            toast.success('Xác nhận đơn hàng thành công! Số lượng sản phẩm đã được trừ khỏi kho.');
+            toast.success('Xác nhận đơn hàng thành công! Stock allocation đã được chuyển sang trạng thái CONFIRMED.');
         } catch (error) {
             console.error('Lỗi khi xác nhận đơn hàng:', error);
             toast.error('Không thể xác nhận đơn hàng: ' + error.message);
