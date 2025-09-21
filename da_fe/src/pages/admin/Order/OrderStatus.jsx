@@ -24,11 +24,11 @@ import { useAdminAuth } from '../../../contexts/adminAuthContext';
 const ORDER_STEPS = [1, 2, 3, 4, 5, 6];
 const generateTimeline = (currentStatus, orderHistory = [], orderData = {}) => {
     const timeline = [];
-    
+
     // Tạo map để lưu thời gian thực từ orderHistory theo trạng thái
     const historyTimeMap = {};
     if (orderHistory && orderHistory.length > 0) {
-        orderHistory.forEach(history => {
+        orderHistory.forEach((history) => {
             if (history.trangThaiHoaDon && history.ngayTao) {
                 // Chuyển đổi tên trạng thái thành số
                 const statusNumber = getStatusNumberFromLabel(history.trangThaiHoaDon);
@@ -38,13 +38,13 @@ const generateTimeline = (currentStatus, orderHistory = [], orderData = {}) => {
             }
         });
     }
-    
+
     for (let i = 0; i < ORDER_STEPS.length; i++) {
         const step = ORDER_STEPS[i];
         let completed = currentStatus > step;
         let current = currentStatus === step;
         let time = 'Đang chờ...';
-        
+
         if (historyTimeMap[step]) {
             // Sử dụng thời gian thực từ orderHistory nếu có
             time = new Date(historyTimeMap[step]).toLocaleString('vi-VN', {
@@ -53,7 +53,7 @@ const generateTimeline = (currentStatus, orderHistory = [], orderData = {}) => {
                 day: '2-digit',
                 hour: '2-digit',
                 minute: '2-digit',
-                second: '2-digit'
+                second: '2-digit',
             });
         } else if (current) {
             // Hiển thị thời gian hiện tại cho trạng thái đang active
@@ -63,7 +63,7 @@ const generateTimeline = (currentStatus, orderHistory = [], orderData = {}) => {
                 day: '2-digit',
                 hour: '2-digit',
                 minute: '2-digit',
-                second: '2-digit'
+                second: '2-digit',
             });
         } else if (completed) {
             // Cho các trạng thái đã hoàn thành nhưng không có trong history
@@ -75,14 +75,14 @@ const generateTimeline = (currentStatus, orderHistory = [], orderData = {}) => {
                     day: '2-digit',
                     hour: '2-digit',
                     minute: '2-digit',
-                    second: '2-digit'
+                    second: '2-digit',
                 });
             } else {
                 // Hiển thị "Đã hoàn thành" thay vì "Đang chờ..." cho các trạng thái completed khác
                 time = 'Đã hoàn thành';
             }
         }
-        
+
         timeline.push({
             status: step,
             time,
@@ -105,7 +105,7 @@ const getStatusNumberFromLabel = (label) => {
         'Đã hủy': 7,
         'Trả hàng': 8,
         'Chờ nhập hàng': 9,
-        'Có sự cố - Tạm dừng vận chuyển': 10
+        'Có sự cố - Tạm dừng vận chuyển': 10,
     };
     return statusMap[label] || null;
 };
@@ -927,7 +927,7 @@ function OrderStatus() {
             // Lưu lịch sử đơn hàng sau khi đã cập nhật state
             console.log('Saving order history...');
             await saveOrderHistory(newStatus, description);
-            
+
             // Fetch lại order history để cập nhật timeline với thời gian thực
             await fetchOrderHistory();
 
@@ -992,7 +992,7 @@ function OrderStatus() {
             // Lưu lịch sử đơn hàng
             console.log('Saving order history...');
             await saveOrderHistory(2, description);
-            
+
             // Fetch lại order history để cập nhật timeline với thời gian thực
             await fetchOrderHistory();
 
@@ -1059,7 +1059,7 @@ function OrderStatus() {
                 previousStatus,
                 description || `Quay lại trạng thái: ${getStatusLabel(previousStatus).label}`,
             );
-            
+
             // Fetch lại order history để cập nhật timeline với thời gian thực
             await fetchOrderHistory();
 
