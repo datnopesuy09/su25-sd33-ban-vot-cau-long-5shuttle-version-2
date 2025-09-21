@@ -192,7 +192,15 @@ public class DatHangController {
                 hoaDonCT.setHoaDon(hoaDon);
                 hoaDonCT.setSanPhamCT(spct);
                 hoaDonCT.setSoLuong(item.getSoLuong());
-                hoaDonCT.setGiaBan(BigDecimal.valueOf(spct.getDonGia()));
+                
+                // Lưu giá thực tế tại thời điểm mua hàng (bao gồm khuyến mãi nếu có)
+                BigDecimal giaTaiThoidiem;
+                if (spct.getGiaKhuyenMai() != null) {
+                    giaTaiThoidiem = BigDecimal.valueOf(spct.getGiaKhuyenMai());
+                } else {
+                    giaTaiThoidiem = BigDecimal.valueOf(spct.getDonGia());
+                }
+                hoaDonCT.setGiaBan(giaTaiThoidiem.multiply(BigDecimal.valueOf(item.getSoLuong())));
                 hoaDonCT.setTrangThai(1);
                 hoaDonCTRepository.save(hoaDonCT);
                 hoaDonCTList.add(hoaDonCT);

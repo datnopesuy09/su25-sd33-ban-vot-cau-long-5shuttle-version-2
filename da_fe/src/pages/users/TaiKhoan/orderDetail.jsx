@@ -38,52 +38,31 @@ function OrderDetail() {
 
     // Try to resolve original, discounted and per-unit prices from different possible fields
     const resolvePrices = (item) => {
-        // possible original price fields (per-unit)
-        const candidatesOriginal = [
-            item.giaBan,
-            item.giaGoc,
-            item.sanPhamCT?.donGia,
-            item.sanPhamCT?.sanPham?.donGia,
-            item.thongTinSanPhamTra?.giaBan,
-        ];
+        // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
+        const qty = Number(item.soLuong) || 1;
 
-        // possible discounted price fields (could be per-unit or sometimes a line total depending on backend)
-        const candidatesDiscounted = [
-            item.giaKhuyenMai,
-            item.sanPhamCT?.giaKhuyenMai,
-            item.sanPhamCT?.sanPham?.giaKhuyenMai,
-            item.thongTinSanPhamTra?.giaKhuyenMai,
-            item.thongTinSanPhamTra?.giaBan,
-        ];
+        // Giá đã lưu trong hóa đơn (giá tại thời điểm mua hàng)
+        if (item.giaBan !== undefined && item.giaBan !== null) {
+            const savedTotalPrice = Number(item.giaBan);
+            const unitPrice = savedTotalPrice / qty;
 
-        const originalPrice = candidatesOriginal.find((v) => v !== undefined && v !== null);
-        const discountedPrice = candidatesDiscounted.find((v) => v !== undefined && v !== null) ?? originalPrice;
+            // Lấy giá gốc từ sản phẩm để tính phần trăm giảm giá
+            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? unitPrice;
 
-        // Determine per-unit price. Prefer explicit per-unit fields if present. If backend provided a line total
-        // (e.g. `thanhTien`), divide by quantity to get unit price.
-        let unitPrice = discountedPrice ?? originalPrice ?? 0;
-
-        const perUnitCandidates = [
-            item.donGia,
-            item.donGiaBan,
-            item.sanPhamCT?.donGia,
-            item.sanPhamCT?.sanPham?.donGia,
-            item.thongTinSanPhamTra?.donGia,
-        ];
-        const explicitUnit = perUnitCandidates.find((v) => v !== undefined && v !== null);
-        if (explicitUnit !== undefined && explicitUnit !== null) {
-            unitPrice = Number(explicitUnit);
-        } else if (item.thanhTien && item.soLuong) {
-            // common backend field for line total -> convert to per-unit
-            unitPrice = Number(item.thanhTien) / Number(item.soLuong);
-        } else if (item.thanhTienHang && item.soLuong) {
-            unitPrice = Number(item.thanhTienHang) / Number(item.soLuong);
+            return {
+                originalPrice: Number(originalPrice),
+                discountedPrice: unitPrice,
+                unitPrice: unitPrice,
+            };
         }
 
+        // Fallback: nếu không có giá lưu, sử dụng giá gốc từ sản phẩm
+        const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? 0;
+
         return {
-            originalPrice: Number(originalPrice ?? 0),
-            discountedPrice: Number(discountedPrice ?? 0),
-            unitPrice: Number(unitPrice ?? 0),
+            originalPrice: Number(originalPrice),
+            discountedPrice: Number(originalPrice),
+            unitPrice: Number(originalPrice),
         };
     };
 
@@ -319,6 +298,7 @@ function OrderDetail() {
                                                             background: '#ecfdf7',
                                                             padding: '2px 8px',
                                                             borderRadius: 8,
+                                                            fontWeight: 600,
                                                         }}
                                                     >
                                                         -{discountPercent}%
@@ -329,18 +309,28 @@ function OrderDetail() {
                                             {discountPercent > 0 && (
                                                 <div
                                                     style={{
-                                                        marginTop: 6,
-                                                        fontSize: 13,
+                                                        marginTop: 4,
+                                                        fontSize: 12,
                                                         color: '#888',
                                                         textDecoration: 'line-through',
+                                                        textAlign: 'right',
                                                     }}
                                                 >
-                                                    {formatCurrency(originalPrice)}
+                                                    Giá gốc: {formatCurrency(originalPrice)}
                                                 </div>
                                             )}
 
-                                            <div style={{ marginTop: 8, fontSize: 13, color: '#666' }}>Tổng:</div>
-                                            <div style={{ fontSize: 18, fontWeight: 800 }}>
+                                            <div
+                                                style={{
+                                                    marginTop: 8,
+                                                    fontSize: 13,
+                                                    color: '#666',
+                                                    textAlign: 'right',
+                                                }}
+                                            >
+                                                Thành tiền:
+                                            </div>
+                                            <div style={{ fontSize: 18, fontWeight: 800, textAlign: 'right' }}>
                                                 {formatCurrency(lineTotal)}
                                             </div>
                                         </div>

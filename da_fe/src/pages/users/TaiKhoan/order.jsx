@@ -114,31 +114,36 @@ const formatCurrency = (value) => {
 
 // Resolve possible price fields for a product item and return unit original/discounted prices
 const resolveItemPrices = (sp, isReturn = false) => {
-    const sanPhamCT = isReturn ? sp?.thongTinSanPhamTra?.sanPhamCT : sp?.sanPhamCT;
+    // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
+    const qty = Number(isReturn ? sp?.soLuongTra || 0 : sp?.soLuong || 0) || 1;
 
-    // Prefer variant-level prices when available (these are unit prices)
-    const variantOriginal = sanPhamCT?.donGia ?? sanPhamCT?.sanPham?.donGia;
-    const variantDiscounted = sanPhamCT?.giaKhuyenMai ?? sanPhamCT?.sanPham?.giaKhuyenMai;
+    // Giá đã lưu trong hóa đơn (giá tại thời điểm mua hàng)
+    const orderGiaBan = isReturn ? (sp?.thongTinSanPhamTra?.giaBan ?? sp?.giaBan) : sp?.giaBan;
 
-    if (variantOriginal !== undefined && variantOriginal !== null) {
-        const originalPrice = Number(variantOriginal);
-        const discountedPrice =
-            variantDiscounted !== undefined && variantDiscounted !== null ? Number(variantDiscounted) : originalPrice;
-        return { originalPrice, discountedPrice, unitPrice: discountedPrice };
+    if (orderGiaBan !== undefined && orderGiaBan !== null) {
+        const savedTotalPrice = Number(orderGiaBan);
+        const unitPrice = savedTotalPrice / qty;
+
+        // Lấy giá gốc từ sản phẩm để tính phần trăm giảm giá
+        const sanPhamCT = isReturn ? sp?.thongTinSanPhamTra?.sanPhamCT : sp?.sanPhamCT;
+        const originalPrice = sanPhamCT?.donGia ?? sanPhamCT?.sanPham?.donGia ?? unitPrice;
+
+        return {
+            originalPrice: Number(originalPrice),
+            discountedPrice: unitPrice,
+            unitPrice: unitPrice,
+        };
     }
 
-    // Fallback: order-level fields may be totals (giaBan/giaKhuyenMai) — divide by quantity to get unit price
-    const qty = Number(isReturn ? sp?.soLuongTra || 0 : sp?.soLuong || 0) || 1;
-    const orderGiaBan = isReturn ? (sp?.thongTinSanPhamTra?.giaBan ?? sp?.giaBan) : sp?.giaBan;
-    const orderGiaKhuyenMai = isReturn ? (sp?.thongTinSanPhamTra?.giaKhuyenMai ?? sp?.giaKhuyenMai) : sp?.giaKhuyenMai;
+    // Fallback: nếu không có giá lưu, sử dụng giá gốc từ sản phẩm
+    const sanPhamCT = isReturn ? sp?.thongTinSanPhamTra?.sanPhamCT : sp?.sanPhamCT;
+    const originalPrice = sanPhamCT?.donGia ?? sanPhamCT?.sanPham?.donGia ?? 0;
 
-    const originalFromOrder = orderGiaBan !== undefined && orderGiaBan !== null ? Number(orderGiaBan) / qty : 0;
-    const discountedFromOrder =
-        orderGiaKhuyenMai !== undefined && orderGiaKhuyenMai !== null
-            ? Number(orderGiaKhuyenMai) / qty
-            : originalFromOrder;
-
-    return { originalPrice: originalFromOrder, discountedPrice: discountedFromOrder, unitPrice: discountedFromOrder };
+    return {
+        originalPrice: Number(originalPrice),
+        discountedPrice: Number(originalPrice),
+        unitPrice: Number(originalPrice),
+    };
 };
 
 function UserOrder() {
@@ -631,22 +636,32 @@ function UserOrder() {
                                                                         {formatCurrency(unitPrice)}
                                                                     </div>
                                                                     {discountPercent > 0 && (
-                                                                        <div className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                                                                        <div className="text-xs font-semibold text-white bg-red-500 px-2 py-0.5 rounded">
                                                                             -{discountPercent}%
                                                                         </div>
                                                                     )}
                                                                 </div>
 
                                                                 {discountPercent > 0 && (
-                                                                    <div className="text-xs text-gray-500 line-through mt-1">
-                                                                        {formatCurrency(originalPrice)}
+                                                                    <div className="text-xs text-gray-500 line-through mt-1 text-right">
+                                                                        Giá gốc: {formatCurrency(originalPrice)}
                                                                     </div>
                                                                 )}
 
-                                                                <div className="text-sm text-gray-600 mt-2">Tổng:</div>
-                                                                <div className="text-lg font-bold text-gray-800">
+                                                                <div className="text-sm text-gray-600 mt-2 text-right">
+                                                                    Thành tiền:
+                                                                </div>
+                                                                <div className="text-lg font-bold text-gray-800 text-right">
                                                                     {formatCurrency(lineTotal)}
                                                                 </div>
+                                                                {discountPercent > 0 && (
+                                                                    <div className="text-xs text-gray-500 mt-1 text-right">
+                                                                        Tiết kiệm:{' '}
+                                                                        {formatCurrency(
+                                                                            (originalPrice - unitPrice) * quantity,
+                                                                        )}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     );

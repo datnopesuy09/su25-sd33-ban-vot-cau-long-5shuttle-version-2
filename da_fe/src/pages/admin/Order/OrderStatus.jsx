@@ -44,6 +44,8 @@ function OrderStatus() {
     const [subtotal, setSubtotal] = useState(0);
     const [discountAmount, setDiscountAmount] = useState(0);
     const [total, setTotal] = useState(0);
+    // State để theo dõi tongTien hiện tại và cập nhật real-time
+    const [currentTongTien, setCurrentTongTien] = useState(orderData.tongTien || 0);
     const [showImportModal, setShowImportModal] = useState(false);
     const [importQuantity, setImportQuantity] = useState(1);
     const [selectedProductId, setSelectedProductId] = useState(null);
@@ -88,6 +90,10 @@ function OrderStatus() {
             await axios.put(`http://localhost:8080/api/hoa-don/${hoaDonId}`, hoaDonObj, {
                 headers: { 'Content-Type': 'application/json' },
             });
+
+            // Cập nhật state tongTien ngay lập tức để UI phản ánh thay đổi
+            setCurrentTongTien(newTotal);
+
             return true;
         } catch (err) {
             console.error('Không thể cập nhật tổng tiền hóa đơn trên server:', err);
@@ -302,38 +308,39 @@ function OrderStatus() {
 
     // Resolve possible price fields for an order detail item and return unit original/discounted prices
     const resolvePrices = (item) => {
-        // Prefer variant-level prices when available (these are unit prices)
-        const variantOriginal = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia;
-        const variantDiscounted = item.sanPhamCT?.giaKhuyenMai ?? item.sanPhamCT?.sanPham?.giaKhuyenMai;
+        // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
+        const qty = Number(item.soLuong) || 1;
 
-        if (variantOriginal !== undefined && variantOriginal !== null) {
-            const originalPrice = Number(variantOriginal);
-            const discountedPrice =
-                variantDiscounted !== undefined && variantDiscounted !== null
-                    ? Number(variantDiscounted)
-                    : originalPrice;
-            return { originalPrice, discountedPrice };
+        // Giá đã lưu trong hóa đơn (giá tại thời điểm mua hàng)
+        if (item.giaBan !== undefined && item.giaBan !== null) {
+            const savedTotalPrice = Number(item.giaBan);
+            const unitPrice = savedTotalPrice / qty;
+
+            // Lấy giá gốc từ sản phẩm để tính phần trăm giảm giá
+            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? unitPrice;
+
+            return {
+                originalPrice: Number(originalPrice),
+                discountedPrice: unitPrice,
+                unitPrice: unitPrice,
+            };
         }
 
-        // Fallback: order-level fields may be totals (giaBan/giaKhuyenMai) — divide by quantity to get unit price
-        const qty = Number(item.soLuong) || 1;
-        const orderGiaBan = item.giaBan;
-        const orderGiaKhuyenMai = item.giaKhuyenMai;
+        // Fallback: nếu không có giá lưu, sử dụng giá gốc từ sản phẩm
+        const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? 0;
 
-        const originalFromOrder = orderGiaBan !== undefined && orderGiaBan !== null ? Number(orderGiaBan) / qty : 0;
-        const discountedFromOrder =
-            orderGiaKhuyenMai !== undefined && orderGiaKhuyenMai !== null
-                ? Number(orderGiaKhuyenMai) / qty
-                : originalFromOrder;
-
-        return { originalPrice: originalFromOrder, discountedPrice: discountedFromOrder };
+        return {
+            originalPrice: Number(originalPrice),
+            discountedPrice: Number(originalPrice),
+            unitPrice: Number(originalPrice),
+        };
     };
 
     useEffect(() => {
         const newSubtotal = orderDetailDatas.reduce((sum, item) => {
-            const { discountedPrice } = resolvePrices(item);
+            const { unitPrice } = resolvePrices(item);
             const qty = Number(item.soLuong) || 0;
-            return sum + discountedPrice * qty;
+            return sum + unitPrice * qty;
         }, 0);
 
         let voucher = orderData.voucher || null;
@@ -351,6 +358,13 @@ function OrderStatus() {
             setDiscountPercent(orderData.voucher.giaTri);
         }
     }, [orderData]);
+
+    // Đồng bộ currentTongTien với orderData.tongTien khi orderData thay đổi
+    useEffect(() => {
+        if (orderData.tongTien !== undefined && orderData.tongTien !== null) {
+            setCurrentTongTien(orderData.tongTien);
+        }
+    }, [orderData.tongTien]);
 
     const handleConfirmAddProduct = async (selectedProduct, quantity) => {
         if (!selectedProduct || !orderData.id) {
@@ -384,9 +398,9 @@ function OrderStatus() {
                     const updatedDetails = await fetchBillDetails(orderData.id);
                     if (updatedDetails) {
                         const newSubtotal = updatedDetails.reduce((sum, item) => {
-                            const { discountedPrice } = resolvePrices(item);
+                            const { unitPrice } = resolvePrices(item);
                             const qty = Number(item.soLuong) || 0;
-                            return sum + discountedPrice * qty;
+                            return sum + unitPrice * qty;
                         }, 0);
                         const newDiscountAmount = validateDiscount(newSubtotal, orderData.voucher);
                         const newTotal = newSubtotal - newDiscountAmount + (orderData.phiShip || 0);
@@ -432,10 +446,12 @@ function OrderStatus() {
             // Update local list with new quantity and line total (giaBan)
             const updatedOrderDetails = orderDetailDatas.map((item) => {
                 if (item.id === orderDetailId) {
+                    // Sử dụng resolvePrices để lấy đúng giá unit price (đã áp dụng khuyến mãi nếu có)
+                    const { unitPrice } = resolvePrices(item);
                     return {
                         ...item,
                         soLuong: newQuantity,
-                        giaBan: item.sanPhamCT.donGia * newQuantity,
+                        giaBan: unitPrice * newQuantity,
                     };
                 }
                 return item;
@@ -446,9 +462,9 @@ function OrderStatus() {
             // Recalculate invoice totals from updated details
             const newSubtotal = updatedOrderDetails.reduce((sum, item) => {
                 // reuse resolvePrices to get unit discounted price
-                const { discountedPrice } = resolvePrices(item);
+                const { unitPrice } = resolvePrices(item);
                 const qty = Number(item.soLuong) || 0;
-                return sum + discountedPrice * qty;
+                return sum + unitPrice * qty;
             }, 0);
 
             const newDiscountAmount = validateDiscount(newSubtotal, orderData.voucher);
@@ -509,9 +525,9 @@ function OrderStatus() {
                         const updatedDetails = await fetchBillDetails(hoaDonId);
                         if (updatedDetails) {
                             const newSubtotal = updatedDetails.reduce((sum, item) => {
-                                const { discountedPrice } = resolvePrices(item);
+                                const { unitPrice } = resolvePrices(item);
                                 const qty = Number(item.soLuong) || 0;
-                                return sum + discountedPrice * qty;
+                                return sum + unitPrice * qty;
                             }, 0);
                             const newDiscountAmount = validateDiscount(newSubtotal, orderData.voucher);
                             const newTotal = newSubtotal - newDiscountAmount + (orderData.phiShip || 0);
@@ -1584,7 +1600,10 @@ function OrderStatus() {
                 total={total}
                 discountAmount={discountAmount}
                 subtotal={subtotal}
+                subtotalAfterProductDiscount={subtotal}
+                hoaDonTotal={currentTongTien}
                 shippingFee={shippingFee}
+                items={orderDetailDatas}
             />
             <PaymentModal
                 isOpen={isModalOpen}
