@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Box, Typography, Paper, Button, Stack, Avatar, Grid, Divider, Chip } from '@mui/material';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -10,6 +10,7 @@ import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+import { RotateCcw } from 'lucide-react';
 dayjs.extend(isSameOrBefore);
 import ModalReturn from './modalReturn';
 
@@ -32,38 +33,37 @@ function OrderDetail() {
     const [billDetail, setBillDetail] = useState([]);
     const [voucher, setVoucher] = useState(null);
     const [openReturnModal, setOpenReturnModal] = useState(false);
+    const [returnHistory, setReturnHistory] = useState([]); // Thêm state cho lịch sử hoàn hàng
     const navigate = useNavigate();
 
     const formatCurrency = (money) => numeral(money).format('0,0') + ' ₫';
 
     // Try to resolve original, discounted and per-unit prices from different possible fields
     const resolvePrices = (item) => {
-        // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
         const qty = Number(item.soLuong) || 1;
+        const spct = item?.sanPhamCT;
+        const originalPrice = Number(spct?.donGia ?? spct?.sanPham?.donGia ?? 0);
 
-        // Giá đã lưu trong hóa đơn (giá tại thời điểm mua hàng)
-        if (item.giaBan !== undefined && item.giaBan !== null) {
-            const savedTotalPrice = Number(item.giaBan);
-            const unitPrice = savedTotalPrice / qty;
-
-            // Lấy giá gốc từ sản phẩm để tính phần trăm giảm giá
-            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? unitPrice;
-
-            return {
-                originalPrice: Number(originalPrice),
-                discountedPrice: unitPrice,
-                unitPrice: unitPrice,
-            };
+        // Prefer transaction unit price attached from return history
+        if (item?.returnUnitPrice) {
+            const unit = Number(item.returnUnitPrice);
+            return { originalPrice, discountedPrice: unit, unitPrice: unit };
         }
 
-        // Fallback: nếu không có giá lưu, sử dụng giá gốc từ sản phẩm
-        const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? 0;
+        // Use unit price when giaBan is within reasonable range
+        if (item.giaBan !== undefined && item.giaBan !== null) {
+            const candidate = Number(item.giaBan);
+            if (!originalPrice || candidate <= originalPrice * 1.5) {
+                return { originalPrice, discountedPrice: candidate, unitPrice: candidate };
+            }
+            if (qty > 0) {
+                const divided = candidate / qty;
+                return { originalPrice, discountedPrice: divided, unitPrice: divided };
+            }
+        }
 
-        return {
-            originalPrice: Number(originalPrice),
-            discountedPrice: Number(originalPrice),
-            unitPrice: Number(originalPrice),
-        };
+        const fallback = Number(spct?.giaKhuyenMai ?? originalPrice);
+        return { originalPrice, discountedPrice: fallback, unitPrice: fallback };
     };
 
     const fetchData = React.useCallback(async () => {
@@ -72,8 +72,32 @@ function OrderDetail() {
             const res = await axios.get(`http://localhost:8080/users/myOderDetail/${id}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            setBillDetail(res.data.result || []);
+            const details = res.data.result || [];
+
+            // Also fetch returns to get transaction unit prices and show full info in history
+            let returnHistory = [];
+            try {
+                const r = await axios.get(`http://localhost:8080/api/hoan-hang/hoa-don/${id}`);
+                if (r.data?.success) returnHistory = r.data.data || [];
+            } catch (e) {
+                console.warn('Không thể lấy lịch sử hoàn hàng:', e?.message || e);
+            }
+
+            // Build a unit-price map and attach to bill lines for stable display
+            const unitMap = {};
+            returnHistory.forEach((h) => {
+                if (h.hoaDonChiTietId && h.donGia) {
+                    if (!unitMap[h.hoaDonChiTietId]) unitMap[h.hoaDonChiTietId] = Number(h.donGia);
+                }
+            });
+
+            const attached = details.map((d) =>
+                unitMap[d.id] ? { ...d, returnUnitPrice: unitMap[d.id] } : d,
+            );
+
+            setBillDetail(attached);
             setVoucher(res.data.result?.[0]?.hoaDon?.voucher || null);
+            setReturnHistory(returnHistory);
         } catch (err) {
             toast.error('Không thể tải dữ liệu đơn hàng');
             console.error(err);
@@ -81,7 +105,22 @@ function OrderDetail() {
     }, [id]);
 
     useEffect(() => {
-        if (id) fetchData();
+        if (id) {
+            fetchData();
+            // Fetch thông tin hoàn hàng
+            const fetchReturnHistory = async () => {
+                try {
+                    const response = await axios.get(`http://localhost:8080/api/hoan-hang/hoa-don/${id}`);
+                    if (response.data.success) {
+                        setReturnHistory(response.data.data);
+                    }
+                } catch (error) {
+                    console.error('Lỗi khi lấy lịch sử hoàn hàng:', error);
+                    // Không hiển thị lỗi cho user vì đây không phải lỗi nghiêm trọng
+                }
+            };
+            fetchReturnHistory();
+        }
     }, [id, fetchData]);
 
     useEffect(() => {
@@ -160,6 +199,18 @@ function OrderDetail() {
     const hoaDon = billDetail[0]?.hoaDon;
     const phiShip = hoaDon?.phiShip || 0;
     const tongThanhToan = hoaDon?.tongTien || 0;
+    
+    // Tính tổng tiền hoàn hàng
+    const totalReturnAmount = returnHistory.reduce((total, returnItem) => {
+        if (returnItem.trangThai === 1) {
+            // Ưu tiên dùng tổng tiền từ DTO nếu có, nếu không thì soLuongHoan * donGia
+            const lineTotal =
+                (typeof returnItem.thanhTien === 'number' ? returnItem.thanhTien : null) ??
+                (Number(returnItem.soLuongHoan || returnItem.soLuong || 0) * Number(returnItem.donGia || 0));
+            return total + lineTotal;
+        }
+        return total;
+    }, 0);
 
     return (
         <Box>
@@ -251,9 +302,23 @@ function OrderDetail() {
                             <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                                 <Avatar
                                     variant="rounded"
-                                    src={bill.hinhAnh || bill.hinhAnhUrl || bill.sanPhamCT?.hinhAnhUrl || ''}
+                                    src={
+                                        bill.hinhAnh || 
+                                        bill.hinhAnhUrl || 
+                                        bill.sanPhamCT?.hinhAnh ||
+                                        bill.sanPhamCT?.hinhAnhUrl || 
+                                        bill.sanPhamCT?.sanPham?.hinhAnh ||
+                                        bill.sanPhamCT?.sanPham?.hinhAnhUrl ||
+                                        (bill.sanPhamCT?.sanPham?.hinhAnhs && bill.sanPhamCT.sanPham.hinhAnhs.length > 0 ? 
+                                            `http://localhost:8080/uploads/${bill.sanPhamCT.sanPham.hinhAnhs[0]}` : null) ||
+                                        'https://via.placeholder.com/96?text=No+Image'
+                                    }
                                     alt={bill.sanPhamCT?.sanPham?.ten}
                                     sx={{ width: 96, height: 96, borderRadius: 2 }}
+                                    onError={(e) => {
+                                        console.log('Bill detail image failed to load:', e.target.src);
+                                        e.target.src = 'https://via.placeholder.com/96?text=No+Image';
+                                    }}
                                 />
 
                                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -365,11 +430,17 @@ function OrderDetail() {
                         <div style={{ marginBottom: 6 }}>Tổng tiền hàng</div>
                         <div style={{ marginBottom: 6 }}>Phí vận chuyển</div>
                         <div style={{ marginBottom: 6 }}>Giảm giá</div>
+                        {totalReturnAmount > 0 && (
+                            <div style={{ marginBottom: 6 }}>Hoàn hàng</div>
+                        )}
                     </div>
                     <div style={{ textAlign: 'right' }}>
                         <div style={{ marginBottom: 6 }}>{formatCurrency(totalAmount)}</div>
                         <div style={{ marginBottom: 6 }}>+{formatCurrency(phiShip)}</div>
                         <div style={{ marginBottom: 6 }}>-{formatCurrency(discountAmount)}</div>
+                        {totalReturnAmount > 0 && (
+                            <div style={{ marginBottom: 6, color: '#ff6b35' }}>-{formatCurrency(totalReturnAmount)}</div>
+                        )}
                     </div>
                 </div>
                 <Divider sx={{ my: 2 }} />
@@ -383,6 +454,89 @@ function OrderDetail() {
                     </div>
                 </div>
             </Paper>
+
+            {/* Hiển thị lịch sử hoàn hàng nếu có */}
+            {returnHistory.length > 0 && (
+                <Paper sx={{ p: 3, mt: 3, borderRadius: 2 }} elevation={1}>
+                    <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box 
+                            sx={{ 
+                                backgroundColor: '#ff6b35', 
+                                borderRadius: '50%', 
+                                p: 0.5,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}
+                        >
+                            <RotateCcw style={{ color: 'white', fontSize: 16 }} />
+                        </Box>
+                        Lịch sử hoàn hàng
+                    </Typography>
+                    
+                    {returnHistory.map((returnItem, index) => (
+                        <Box 
+                            key={returnItem.id} 
+                            sx={{ 
+                                border: '1px solid #e0e0e0', 
+                                borderRadius: 2, 
+                                p: 2, 
+                                mb: 2,
+                                backgroundColor: returnItem.trangThai === 1 ? '#f0f9ff' : '#fff8f0'
+                            }}
+                        >
+                            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                                <img
+                                    src={
+                                        returnItem.hinhAnh ||
+                                        returnItem.hinhAnhUrl ||
+                                        'https://via.placeholder.com/60?text=No+Image'
+                                    }
+                                    alt={returnItem.tenSanPham || 'Sản phẩm'}
+                                    style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 8 }}
+                                    onError={(e) => {
+                                        console.log('Return history image failed to load:', e.target.src);
+                                        e.target.src = 'https://via.placeholder.com/60?text=No+Image';
+                                    }}
+                                />
+                                <div style={{ flex: 1 }}>
+                                    <Typography variant="subtitle2" fontWeight={600}>
+                                        {returnItem.tenSanPham || 'Không xác định'}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Màu: {returnItem.mauSac || 'Không có'} | Trọng lượng: {returnItem.trongLuong || 'Không có'}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Số lượng hoàn: {returnItem.soLuongHoan || 0} - Số tiền: {formatCurrency(returnItem.thanhTien || 0)}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Lý do: {returnItem.lyDoHoan || 'Không có'}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Thời gian: {returnItem.ngayTao ? dayjs(returnItem.ngayTao).format('DD/MM/YYYY HH:mm') : 'Không xác định'}
+                                    </Typography>
+                                </div>
+                                <Box sx={{ textAlign: 'center' }}>
+                                    <Typography 
+                                        variant="caption" 
+                                        sx={{
+                                            backgroundColor: returnItem.trangThai === 1 ? '#dcfce7' : '#fef3c7',
+                                            color: returnItem.trangThai === 1 ? '#15803d' : '#d97706',
+                                            px: 1,
+                                            py: 0.5,
+                                            borderRadius: 1,
+                                            fontWeight: 600
+                                        }}
+                                    >
+                                        {returnItem.trangThai === 1 ? 'Đã duyệt' : 
+                                         returnItem.trangThai === 0 ? 'Chờ duyệt' : 'Từ chối'}
+                                    </Typography>
+                                </Box>
+                            </div>
+                        </Box>
+                    ))}
+                </Paper>
+            )}
 
             {/* Sticky actions */}
             <Box

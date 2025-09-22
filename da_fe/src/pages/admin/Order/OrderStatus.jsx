@@ -24,11 +24,11 @@ import { useAdminAuth } from '../../../contexts/adminAuthContext';
 const ORDER_STEPS = [1, 2, 3, 4, 5, 6];
 const generateTimeline = (currentStatus, orderHistory = [], orderData = {}) => {
     const timeline = [];
-    
+
     // Tạo map để lưu thời gian thực từ orderHistory theo trạng thái
     const historyTimeMap = {};
     if (orderHistory && orderHistory.length > 0) {
-        orderHistory.forEach(history => {
+        orderHistory.forEach((history) => {
             if (history.trangThaiHoaDon && history.ngayTao) {
                 // Chuyển đổi tên trạng thái thành số
                 const statusNumber = getStatusNumberFromLabel(history.trangThaiHoaDon);
@@ -38,13 +38,13 @@ const generateTimeline = (currentStatus, orderHistory = [], orderData = {}) => {
             }
         });
     }
-    
+
     for (let i = 0; i < ORDER_STEPS.length; i++) {
         const step = ORDER_STEPS[i];
         let completed = currentStatus > step;
         let current = currentStatus === step;
         let time = 'Đang chờ...';
-        
+
         if (historyTimeMap[step]) {
             // Sử dụng thời gian thực từ orderHistory nếu có
             time = new Date(historyTimeMap[step]).toLocaleString('vi-VN', {
@@ -53,7 +53,7 @@ const generateTimeline = (currentStatus, orderHistory = [], orderData = {}) => {
                 day: '2-digit',
                 hour: '2-digit',
                 minute: '2-digit',
-                second: '2-digit'
+                second: '2-digit',
             });
         } else if (current) {
             // Hiển thị thời gian hiện tại cho trạng thái đang active
@@ -63,7 +63,7 @@ const generateTimeline = (currentStatus, orderHistory = [], orderData = {}) => {
                 day: '2-digit',
                 hour: '2-digit',
                 minute: '2-digit',
-                second: '2-digit'
+                second: '2-digit',
             });
         } else if (completed) {
             // Cho các trạng thái đã hoàn thành nhưng không có trong history
@@ -75,14 +75,14 @@ const generateTimeline = (currentStatus, orderHistory = [], orderData = {}) => {
                     day: '2-digit',
                     hour: '2-digit',
                     minute: '2-digit',
-                    second: '2-digit'
+                    second: '2-digit',
                 });
             } else {
                 // Hiển thị "Đã hoàn thành" thay vì "Đang chờ..." cho các trạng thái completed khác
                 time = 'Đã hoàn thành';
             }
         }
-        
+
         timeline.push({
             status: step,
             time,
@@ -105,7 +105,7 @@ const getStatusNumberFromLabel = (label) => {
         'Đã hủy': 7,
         'Trả hàng': 8,
         'Chờ nhập hàng': 9,
-        'Có sự cố - Tạm dừng vận chuyển': 10
+        'Có sự cố - Tạm dừng vận chuyển': 10,
     };
     return statusMap[label] || null;
 };
@@ -147,6 +147,8 @@ function OrderStatus() {
     const [showIncidentModal, setShowIncidentModal] = useState(false);
     const [incidentRefreshTrigger, setIncidentRefreshTrigger] = useState(0);
     const [timeline, setTimeline] = useState([]);
+    // State để theo dõi các sản phẩm hoàn hàng
+    const [totalReturnAmount, setTotalReturnAmount] = useState(0);
 
     const fetchPreOrders = async () => {
         try {
@@ -347,11 +349,13 @@ function OrderStatus() {
         if (hoaDonId) {
             const fetchReturnHistory = async () => {
                 try {
-                    const response = await axios.get(`http://localhost:8080/api/tra-hang/hoa-don/${hoaDonId}`);
-                    setReturnHistory(response.data);
+                    const response = await axios.get(`http://localhost:8080/api/hoan-hang/hoa-don/${hoaDonId}`);
+                    if (response.data.success) {
+                        setReturnHistory(response.data.data);
+                    }
                 } catch (error) {
-                    console.error('Lỗi khi lấy lịch sử trả hàng:', error);
-                    toast.error('Không thể lấy lịch sử trả hàng!');
+                    console.error('Lỗi khi lấy lịch sử hoàn hàng:', error);
+                    toast.error('Không thể lấy lịch sử hoàn hàng!');
                 }
             };
             fetchReturnHistory();
@@ -406,20 +410,53 @@ function OrderStatus() {
     // Resolve possible price fields for an order detail item and return unit original/discounted prices
     const resolvePrices = (item) => {
         // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
-        const qty = Number(item.soLuong) || 1;
+        const currentQty = Number(item.soLuong) || 1;
+
+        // Logic hybrid: Kiểm tra xem có đơn giá unit được lưu sẵn không
+        if (item.unitPriceOriginal && item.originalPriceCache) {
+            // Nếu có đơn giá gốc và giá gốc đã được cache trước đó
+            return {
+                originalPrice: Number(item.originalPriceCache),
+                discountedPrice: Number(item.unitPriceOriginal),
+                unitPrice: Number(item.unitPriceOriginal),
+            };
+        }
 
         // Giá đã lưu trong hóa đơn (giá tại thời điểm mua hàng)
         if (item.giaBan !== undefined && item.giaBan !== null) {
             const savedTotalPrice = Number(item.giaBan);
-            const unitPrice = savedTotalPrice / qty;
-
-            // Lấy giá gốc từ sản phẩm để tính phần trăm giảm giá
-            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? unitPrice;
+            
+            // Tính đơn giá từ tổng tiền và số lượng hiện tại
+            // Nếu chưa có hoàn hàng thì sẽ đúng, nếu có rồi thì sẽ sai
+            const calculatedUnitPrice = savedTotalPrice / currentQty;
+            
+            // Lấy giá gốc từ sản phẩm
+            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? calculatedUnitPrice;
+            
+            // LOGIC MỚI: Phân biệt discount vs hoàn hàng
+            const priceDifference = calculatedUnitPrice - originalPrice;
+            const priceThreshold = originalPrice * 0.1; // 10% threshold
+            
+            let finalUnitPrice;
+            if (Math.abs(priceDifference) <= priceThreshold) {
+                // Giá tính ra gần giá gốc → chưa hoàn hàng, không discount nhiều
+                finalUnitPrice = calculatedUnitPrice;
+            } else if (priceDifference < 0) {
+                // calculatedUnitPrice < originalPrice → CÓ DISCOUNT → GIỮ GIÁ DISCOUNT
+                finalUnitPrice = calculatedUnitPrice;
+            } else {
+                // calculatedUnitPrice > originalPrice → ĐÃ HOÀN HÀNG → DÙNG GIÁ GỐC
+                finalUnitPrice = originalPrice;
+            }
+            
+            // Lưu đơn giá này để dùng cho lần sau
+            item.unitPriceOriginal = finalUnitPrice;
+            item.originalPriceCache = originalPrice; // Lưu luôn giá gốc để hiển thị discount
 
             return {
                 originalPrice: Number(originalPrice),
-                discountedPrice: unitPrice,
-                unitPrice: unitPrice,
+                discountedPrice: finalUnitPrice,
+                unitPrice: finalUnitPrice,
             };
         }
 
@@ -738,6 +775,56 @@ function OrderStatus() {
         }
     };
 
+    // Hàm xử lý khi có sản phẩm hoàn hàng
+    const handleReturnSuccess = (returnItem) => {
+        console.log('handleReturnSuccess called with:', returnItem);
+        
+        // THÊM: Cập nhật orderDetailDatas từ updatedOrderDetails nếu có
+        if (returnItem.updatedOrderDetails) {
+            setOrderDetailDatas(returnItem.updatedOrderDetails);
+        } else {
+            // Fallback: cập nhật số lượng sản phẩm trong orderDetailDatas (logic cũ)
+            if (returnItem.orderDetailId) {
+                setOrderDetailDatas(prevItems => 
+                    prevItems.map(item => {
+                        if (item.id === returnItem.orderDetailId) {
+                            const newSoLuong = Math.max(0, item.soLuong - returnItem.quantity);
+                            return {
+                                ...item,
+                                soLuong: newSoLuong
+                            };
+                        }
+                        return item;
+                    })
+                );
+            }
+        }
+        
+        // Cập nhật với dữ liệu từ API backend (đã được xử lý trực tiếp)
+        if (returnItem.updatedOrderTotal !== undefined) {
+            // Sử dụng tổng tiền đã được cập nhật từ backend
+            setCurrentTongTien(returnItem.updatedOrderTotal);
+            setTotal(returnItem.updatedOrderTotal);
+        } else {
+            // Fallback: tính toán cục bộ (deprecated)
+            const newTotal = currentTongTien - returnItem.totalAmount;
+            setCurrentTongTien(newTotal);
+            setTotal(newTotal);
+        }
+        
+        // Cập nhật tổng tiền hoàn hàng
+        if (returnItem.totalReturnAmount !== undefined) {
+            console.log('Setting totalReturnAmount to:', returnItem.totalReturnAmount);
+            setTotalReturnAmount(returnItem.totalReturnAmount);
+        } else {
+            // Fallback: cộng dồn cục bộ
+            console.log('Using fallback totalReturnAmount calculation');
+            setTotalReturnAmount(prev => prev + returnItem.totalAmount);
+        }
+        
+        toast.success(`Đã hoàn ${returnItem.quantity} sản phẩm. Đơn hàng và tồn kho đã được cập nhật trực tiếp.`);
+    };
+
     const handleUpdateDeliveryInfo = async (deliveryInfo) => {
         try {
             const response = await axios.put(
@@ -927,7 +1014,7 @@ function OrderStatus() {
             // Lưu lịch sử đơn hàng sau khi đã cập nhật state
             console.log('Saving order history...');
             await saveOrderHistory(newStatus, description);
-            
+
             // Fetch lại order history để cập nhật timeline với thời gian thực
             await fetchOrderHistory();
 
@@ -953,8 +1040,10 @@ function OrderStatus() {
             }
 
             if (newStatus === 8) {
-                const response = await axios.get(`http://localhost:8080/api/tra-hang/hoa-don/${hoaDonId}`);
-                setReturnHistory(response.data);
+                const response = await axios.get(`http://localhost:8080/api/hoan-hang/hoa-don/${hoaDonId}`);
+                if (response.data.success) {
+                    setReturnHistory(response.data.data);
+                }
             }
 
             toast.success('Cập nhật trạng thái đơn hàng thành công!');
@@ -992,7 +1081,7 @@ function OrderStatus() {
             // Lưu lịch sử đơn hàng
             console.log('Saving order history...');
             await saveOrderHistory(2, description);
-            
+
             // Fetch lại order history để cập nhật timeline với thời gian thực
             await fetchOrderHistory();
 
@@ -1014,6 +1103,16 @@ function OrderStatus() {
             } catch (notificationError) {
                 console.error('Lỗi khi gửi thông báo đến người dùng:', notificationError);
                 toast.warning('Không thể gửi thông báo đến người dùng.');
+            }
+
+            // Refresh order details so ProductList (and other UI) reflects updated stock counts immediately
+            try {
+                if (hoaDonId) {
+                    console.log('Refreshing order details after confirm for hoaDonId:', hoaDonId);
+                    await fetchBillDetails(hoaDonId);
+                }
+            } catch (refreshErr) {
+                console.error('Không thể làm mới chi tiết hóa đơn sau khi xác nhận:', refreshErr);
             }
 
             toast.success('Xác nhận đơn hàng thành công! Stock allocation đã được chuyển sang trạng thái CONFIRMED.');
@@ -1059,7 +1158,7 @@ function OrderStatus() {
                 previousStatus,
                 description || `Quay lại trạng thái: ${getStatusLabel(previousStatus).label}`,
             );
-            
+
             // Fetch lại order history để cập nhật timeline với thời gian thực
             await fetchOrderHistory();
 
@@ -1337,8 +1436,10 @@ function OrderStatus() {
         if (isConfirmed) {
             try {
                 await axios.put(`http://localhost:8080/api/hoa-don-ct/return/${traHangId}/approve`);
-                const response = await axios.get(`http://localhost:8080/api/tra-hang/hoa-don/${hoaDonId}`);
-                setReturnHistory(response.data);
+                const response = await axios.get(`http://localhost:8080/api/hoan-hang/hoa-don/${hoaDonId}`);
+                if (response.data.success) {
+                    setReturnHistory(response.data.data);
+                }
                 const fetchResponse = await axios.get(`http://localhost:8080/api/hoa-don-ct/hoa-don/${hoaDonId}`);
                 setOrderDetailDatas(fetchResponse.data);
                 const hoaDonResponse = await axios.get(`http://localhost:8080/api/hoa-don/${hoaDonId}`);
@@ -1389,8 +1490,10 @@ function OrderStatus() {
         if (isConfirmed) {
             try {
                 await axios.put(`http://localhost:8080/api/hoa-don-ct/return/${traHangId}/reject`);
-                const response = await axios.get(`http://localhost:8080/api/tra-hang/hoa-don/${hoaDonId}`);
-                setReturnHistory(response.data);
+                const response = await axios.get(`http://localhost:8080/api/hoan-hang/hoa-don/${hoaDonId}`);
+                if (response.data.success) {
+                    setReturnHistory(response.data.data);
+                }
                 // Gửi thông báo đến người dùng khi từ chối trả hàng
                 const userNotification = {
                     khachHang: {
@@ -1446,7 +1549,7 @@ function OrderStatus() {
             </div>
 
             {/* Quản lý kho hàng - chỉ hiển thị cho admin */}
-            <div className="max-w-5xl mx-auto mt-8">
+            {/* <div className="max-w-5xl mx-auto mt-8">
                 <KhoHangManagement
                     hoaDon={orderData}
                     onRestoreComplete={() => {
@@ -1455,7 +1558,7 @@ function OrderStatus() {
                     }}
                     currentOrderStatus={currentOrderStatus}
                 />
-            </div>
+            </div> */}
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 max-w-5xl mx-auto mt-8">
                 <OrderInfo
@@ -1480,110 +1583,8 @@ function OrderStatus() {
                     hoaDonId={hoaDonId}
                     setReturnHistory={setReturnHistory}
                     currentOrderStatus={currentOrderStatus}
+                    onReturnSuccess={handleReturnSuccess}
                 />
-                {/* {preOrders.length > 0 && (
-                    <div className="p-6">
-                        <h2 className="text-xl font-bold text-gray-800 mb-4">Danh sách đặt trước</h2>
-                        <div className="space-y-4">
-                            {preOrders.map((preOrder) => (
-                                <div
-                                    key={preOrder.id}
-                                    className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200"
-                                >
-                                    <p className="text-sm text-gray-600">
-                                        <span className="font-medium">Sản phẩm:</span>{' '}
-                                        {preOrder.sanPhamCT?.sanPham?.ten}
-                                    </p>
-                                    <p className="text-sm text-gray-600">
-                                        <span className="font-medium">Số lượng đặt trước:</span> {preOrder.soLuong}
-                                    </p>
-                                    <p className="text-sm text-gray-600">
-                                        <span className="font-medium">Trạng thái:</span>{' '}
-                                        <span
-                                            className={`px-2 py-1 rounded-full ${
-                                                preOrder.trangThai === 0
-                                                    ? 'bg-orange-200 text-orange-800'
-                                                    : 'bg-green-200 text-green-800'
-                                            }`}
-                                        >
-                                            {preOrder.trangThai === 0 ? 'Chờ nhập hàng' : 'Đã nhập hàng'}
-                                        </span>
-                                    </p>
-                                    {preOrder.trangThai === 0 && (
-                                        <button
-                                            onClick={() => handleOpenImportModal(preOrder.sanPhamCT.id)}
-                                            className="mt-2 px-3 py-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
-                                        >
-                                            Nhập hàng
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )} */}
-                {returnHistory.length > 0 && (
-                    <div className="p-6">
-                        <h2 className="text-xl font-bold text-gray-800 mb-4">Lịch sử trả hàng</h2>
-                        <div className="space-y-4">
-                            {returnHistory.map((returnItem) => (
-                                <div
-                                    key={returnItem.id}
-                                    className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200"
-                                >
-                                    <p className="text-sm text-gray-600">
-                                        <span className="font-medium">Sản phẩm:</span>{' '}
-                                        {returnItem.hoaDonCT.sanPhamCT.ten}
-                                    </p>
-                                    <p className="text-sm text-gray-600">
-                                        <span className="font-medium">Số lượng trả:</span> {returnItem.soLuong}
-                                    </p>
-                                    <p className="text-sm text-gray-600">
-                                        <span className="font-medium">Lý do:</span> {returnItem.lyDo || 'Không có'}
-                                    </p>
-                                    <p className="text-sm text-gray-600">
-                                        <span className="font-medium">Ngày trả:</span>{' '}
-                                        {new Date(returnItem.ngayTao).toLocaleString('vi-VN')}
-                                    </p>
-                                    <p className="text-sm text-gray-600">
-                                        <span className="font-medium">Trạng thái:</span>{' '}
-                                        <span
-                                            className={`px-2 py-1 rounded-full ${
-                                                returnItem.trangThai === 0
-                                                    ? 'bg-yellow-200 text-yellow-800'
-                                                    : returnItem.trangThai === 1
-                                                      ? 'bg-green-200 text-green-800'
-                                                      : 'bg-red-200 text-red-800'
-                                            }`}
-                                        >
-                                            {returnItem.trangThai === 0
-                                                ? 'Chờ duyệt'
-                                                : returnItem.trangThai === 1
-                                                  ? 'Đã duyệt'
-                                                  : 'Từ chối'}
-                                        </span>
-                                    </p>
-                                    {returnItem.trangThai === 0 && (
-                                        <div className="flex space-x-2 mt-2">
-                                            <button
-                                                onClick={() => handleApproveReturn(returnItem.id)}
-                                                className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-                                            >
-                                                Duyệt
-                                            </button>
-                                            <button
-                                                onClick={() => handleRejectReturn(returnItem.id)}
-                                                className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-                                            >
-                                                Từ chối
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
             </div>
 
             {/* Sự cố vận chuyển - chỉ hiển thị khi đơn hàng đang vận chuyển hoặc có sự cố */}
@@ -1698,6 +1699,7 @@ function OrderStatus() {
                 hoaDonTotal={currentTongTien}
                 shippingFee={shippingFee}
                 items={orderDetailDatas}
+                totalReturnAmount={totalReturnAmount}
             />
             <PaymentModal
                 isOpen={isModalOpen}

@@ -113,36 +113,59 @@ const formatCurrency = (value) => {
 };
 
 // Resolve possible price fields for a product item and return unit original/discounted prices
+// Notes:
+// - Prefer the transaction unit price if we have it (sp.returnUnitPrice)
+// - Treat sp.giaBan (and thongTinSanPhamTra.giaBan) as UNIT price when it’s in a reasonable range
+// - Avoid mutating the source objects
 const resolveItemPrices = (sp, isReturn = false) => {
-    // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
     const qty = Number(isReturn ? sp?.soLuongTra || 0 : sp?.soLuong || 0) || 1;
+    const sanPhamCT = isReturn ? sp?.thongTinSanPhamTra?.sanPhamCT : sp?.sanPhamCT;
+    const originalPrice = Number(
+        sanPhamCT?.donGia ?? sanPhamCT?.sanPham?.donGia ?? 0
+    );
 
-    // Giá đã lưu trong hóa đơn (giá tại thời điểm mua hàng)
-    const orderGiaBan = isReturn ? (sp?.thongTinSanPhamTra?.giaBan ?? sp?.giaBan) : sp?.giaBan;
-
-    if (orderGiaBan !== undefined && orderGiaBan !== null) {
-        const savedTotalPrice = Number(orderGiaBan);
-        const unitPrice = savedTotalPrice / qty;
-
-        // Lấy giá gốc từ sản phẩm để tính phần trăm giảm giá
-        const sanPhamCT = isReturn ? sp?.thongTinSanPhamTra?.sanPhamCT : sp?.sanPhamCT;
-        const originalPrice = sanPhamCT?.donGia ?? sanPhamCT?.sanPham?.donGia ?? unitPrice;
-
+    // 1) Prefer transaction unit price that we attached from return history
+    if (sp?.returnUnitPrice) {
+        const unit = Number(sp.returnUnitPrice);
         return {
-            originalPrice: Number(originalPrice),
-            discountedPrice: unitPrice,
-            unitPrice: unitPrice,
+            originalPrice,
+            discountedPrice: unit,
+            unitPrice: unit,
         };
     }
 
-    // Fallback: nếu không có giá lưu, sử dụng giá gốc từ sản phẩm
-    const sanPhamCT = isReturn ? sp?.thongTinSanPhamTra?.sanPhamCT : sp?.sanPhamCT;
-    const originalPrice = sanPhamCT?.donGia ?? sanPhamCT?.sanPham?.donGia ?? 0;
+    // 2) Try direct unit price from order line
+    const orderGiaBan = isReturn
+        ? (sp?.thongTinSanPhamTra?.giaBan ?? sp?.giaBan)
+        : sp?.giaBan;
 
+    if (orderGiaBan !== undefined && orderGiaBan !== null) {
+        const candidate = Number(orderGiaBan);
+        // If candidate is within 150% of original, assume it’s a unit price
+        if (!originalPrice || candidate <= originalPrice * 1.5) {
+            return {
+                originalPrice,
+                discountedPrice: candidate,
+                unitPrice: candidate,
+            };
+        }
+        // Otherwise, attempt to derive a unit price by dividing by quantity as a fallback
+        if (qty > 0) {
+            const divided = candidate / qty;
+            return {
+                originalPrice,
+                discountedPrice: divided,
+                unitPrice: divided,
+            };
+        }
+    }
+
+    // 3) Fallback to product current price (may not reflect historical discount)
+    const fallback = Number(sanPhamCT?.giaKhuyenMai ?? originalPrice);
     return {
-        originalPrice: Number(originalPrice),
-        discountedPrice: Number(originalPrice),
-        unitPrice: Number(originalPrice),
+        originalPrice,
+        discountedPrice: fallback,
+        unitPrice: fallback,
     };
 };
 
@@ -248,6 +271,32 @@ function UserOrder() {
                             });
                             const chiTiet = detailRes.data.result;
 
+                            // Fetch returns (Hoàn hàng) for this order to obtain transaction unit prices
+                            let returnUnitMap = {};
+                            try {
+                                const hhRes = await axios.get(`http://localhost:8080/api/hoan-hang/hoa-don/${bill.id}`);
+                                if (hhRes.data?.success && Array.isArray(hhRes.data.data)) {
+                                    hhRes.data.data.forEach((r) => {
+                                        if (r.hoaDonChiTietId && r.donGia) {
+                                            if (!returnUnitMap[r.hoaDonChiTietId]) {
+                                                returnUnitMap[r.hoaDonChiTietId] = Number(r.donGia);
+                                            }
+                                        }
+                                    });
+                                }
+                            } catch (e) {
+                                console.warn('Không thể tải hoàn hàng cho bill', bill.id, e?.message || e);
+                            }
+
+                            // Attach return unit price to corresponding line items for stable display
+                            const chiTietWithReturnUnit = Array.isArray(chiTiet)
+                                ? chiTiet.map((ct) =>
+                                      returnUnitMap[ct.id]
+                                          ? { ...ct, returnUnitPrice: returnUnitMap[ct.id] }
+                                          : ct,
+                                  )
+                                : chiTiet;
+
                             let returnDetails = [];
                             if (bill.trangThai === 8) {
                                 try {
@@ -268,7 +317,7 @@ function UserOrder() {
 
                             return {
                                 ...bill,
-                                chiTiet,
+                                chiTiet: chiTietWithReturnUnit,
                                 returnDetails, // giữ thông tin sản phẩm hoàn trả
                                 ngayTao: chiTiet?.[0]?.hoaDon?.ngayTao || null,
                                 ngaySua: chiTiet?.[0]?.hoaDon?.ngaySua || null,

@@ -202,14 +202,46 @@ function OfflineSale() {
         }
     }, [selectedBill]);
 
+    // Hàm resolvePrices tương tự như trong PaymentDetails.jsx
+    const resolvePrices = (item) => {
+        // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
+        const qty = Number(item.soLuong) || 1;
+
+        // Giá đã lưu trong hóa đơn (giá tại thời điểm mua hàng)
+        if (item.giaBan !== undefined && item.giaBan !== null) {
+            const savedTotalPrice = Number(item.giaBan);
+            const unitPrice = savedTotalPrice / qty;
+
+            // Lấy giá gốc từ sản phẩm để tính phần trăm giảm giá
+            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? unitPrice;
+
+            return {
+                originalPrice: Number(originalPrice),
+                discountedPrice: unitPrice,
+                unitPrice: unitPrice,
+            };
+        }
+
+        // Fallback: nếu không có giá lưu, sử dụng giá gốc từ sản phẩm
+        const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? 0;
+
+        // Kiểm tra giá khuyến mãi
+        const discountedPrice =
+            item.sanPhamCT?.giaKhuyenMai && item.sanPhamCT.giaKhuyenMai < originalPrice
+                ? item.sanPhamCT.giaKhuyenMai
+                : originalPrice;
+
+        return {
+            originalPrice: Number(originalPrice),
+            discountedPrice: Number(discountedPrice),
+            unitPrice: Number(discountedPrice),
+        };
+    };
+
     useEffect(() => {
         const newSubtotal = billDetails.reduce((total, orderDetail) => {
-            const priceToUse =
-                orderDetail.sanPhamCT.giaKhuyenMai && orderDetail.sanPhamCT.giaKhuyenMai < orderDetail.sanPhamCT.donGia
-                    ? orderDetail.sanPhamCT.giaKhuyenMai
-                    : orderDetail.sanPhamCT.donGia;
-
-            return total + priceToUse * orderDetail.soLuong;
+            const { unitPrice } = resolvePrices(orderDetail);
+            return total + unitPrice * (orderDetail.soLuong || 0);
         }, 0);
         setSubtotal(newSubtotal);
     }, [billDetails]);
@@ -371,9 +403,9 @@ function OfflineSale() {
                             <div className="flex justify-between items-center mb-4">
                                 <h2 className="text-xl font-bold text-blue-700">Sản phẩm</h2>
                                 <div className="flex space-x-3">
-                                    <button className="border border-blue-600 text-blue-600 px-4 py-2 rounded-md text-sm hover:bg-blue-50 transition-colors">
+                                    {/* <button className="border border-blue-600 text-blue-600 px-4 py-2 rounded-md text-sm hover:bg-blue-50 transition-colors">
                                         QUÉT QR SẢN PHẨM
-                                    </button>
+                                    </button> */}
                                     <button
                                         className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition-colors"
                                         onClick={handleProductModal}

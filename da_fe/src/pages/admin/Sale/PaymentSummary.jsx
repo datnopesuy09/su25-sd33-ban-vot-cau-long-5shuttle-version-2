@@ -26,6 +26,34 @@ const PaymentSummary = ({ total, selectedBill, setSelectedBill, updateBills }) =
         fetchDiscounts();
     }, []);
 
+    // Tự động tính lại giảm giá khi total thay đổi và có phiếu giảm giá được chọn
+    useEffect(() => {
+        if (selectedDiscount && total > 0) {
+            // Kiểm tra điều kiện tối thiểu
+            if (total < selectedDiscount.dieuKienNhoNhat) {
+                // Nếu không đủ điều kiện, bỏ chọn phiếu giảm giá
+                Swal.fire(
+                    'Thông báo',
+                    `Phiếu giảm giá "${selectedDiscount.ten}" đã bị bỏ chọn vì đơn hàng không đủ điều kiện tối thiểu ${selectedDiscount.dieuKienNhoNhat.toLocaleString()} VNĐ`,
+                    'warning',
+                );
+                setSelectedDiscount(null);
+                setPromoDiscount(0);
+                return;
+            }
+
+            // Tính lại giảm giá theo total mới
+            let discountAmount = (total * selectedDiscount.giaTri) / 100;
+            const isMaxDiscount = discountAmount > selectedDiscount.giaTriMax;
+            if (isMaxDiscount) {
+                discountAmount = selectedDiscount.giaTriMax;
+            }
+            setPromoDiscount(discountAmount);
+        } else if (!selectedDiscount) {
+            setPromoDiscount(0);
+        }
+    }, [total, selectedDiscount]);
+
     const fetchDiscounts = async () => {
         try {
             const response = await axios.get('http://localhost:8080/api/phieu-giam-gia/hien-thi');
@@ -36,6 +64,7 @@ const PaymentSummary = ({ total, selectedBill, setSelectedBill, updateBills }) =
     };
 
     const handleSelectDiscount = (discount) => {
+        // Kiểm tra điều kiện tối thiểu
         if (total < discount.dieuKienNhoNhat) {
             Swal.fire(
                 'Lỗi',
@@ -45,15 +74,9 @@ const PaymentSummary = ({ total, selectedBill, setSelectedBill, updateBills }) =
             return;
         }
 
-        let discountAmount = (total * discount.giaTri) / 100;
-        if (discountAmount > discount.giaTriMax) {
-            discountAmount = discount.giaTriMax;
-            Swal.fire('Thông báo', `Giảm giá tối đa là ${discount.giaTriMax.toLocaleString()} VNĐ`, 'info');
-        }
-
         setSelectedDiscount(discount);
-        setPromoDiscount(discountAmount);
         setShowDiscountModal(false);
+        // Logic tính toán giảm giá sẽ được xử lý trong useEffect
     };
 
     const handleDeselectDiscount = () => {
@@ -235,10 +258,10 @@ const PaymentSummary = ({ total, selectedBill, setSelectedBill, updateBills }) =
                                 <span className="font-medium">{total.toLocaleString()} VNĐ</span>
                             </div>
 
-                            <div className="flex justify-between items-center">
+                            {/* <div className="flex justify-between items-center">
                                 <span className="text-gray-600">Phí vận chuyển</span>
                                 <span className="font-medium">0 VND</span>
-                            </div>
+                            </div> */}
 
                             <div className="flex justify-between items-center">
                                 <span className="text-gray-600">Giảm giá</span>

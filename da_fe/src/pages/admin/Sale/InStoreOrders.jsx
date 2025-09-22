@@ -15,11 +15,12 @@ function InStoreOrders() {
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredOrders, setFilteredOrders] = useState([]);
     const [showModal, setShowModal] = useState(false);
-    const [selectedOrder, setSelectedOrder] = useState(null);
+
     const [orderDetails, setOrderDetails] = useState(null);
     const [orderItems, setOrderItems] = useState([]);
     const [loading, setLoading] = useState(false);
     const [isAnimating, setIsAnimating] = useState(false);
+    const [orderQuantities, setOrderQuantities] = useState({}); // State để lưu tổng số lượng sản phẩm của mỗi đơn hàng
 
     const loadOrders = async () => {
         try {
@@ -28,8 +29,17 @@ function InStoreOrders() {
             const data = await response.json();
             const inStoreOrders = data.filter((order) => order.loaiHoaDon === 'Tại quầy');
             const sortedOrders = inStoreOrders.sort((a, b) => new Date(a.ngayTao) - new Date(b.ngayTao));
+
+            // Tính tổng số lượng sản phẩm cho mỗi đơn hàng
+            const quantities = {};
+            for (const order of sortedOrders) {
+                const totalQty = await getTotalProductQuantity(order.id);
+                quantities[order.id] = totalQty;
+            }
+
             setOrders(sortedOrders);
             setFilteredOrders(sortedOrders);
+            setOrderQuantities(quantities);
         } catch (error) {
             console.error('Error fetching in-store orders:', error);
         }
@@ -47,7 +57,6 @@ function InStoreOrders() {
             if (!response2.ok) throw new Error('Lỗi khi tải chi tiết hóa đơn con');
             const orderItems = await response2.json();
 
-            setSelectedOrder(order);
             setOrderDetails(orderDetails);
             setOrderItems(orderItems);
             setShowModal(true);
@@ -60,17 +69,30 @@ function InStoreOrders() {
         }
     };
 
+    // Hàm tính tổng số lượng sản phẩm trong đơn hàng
+    const getTotalProductQuantity = async (orderId) => {
+        try {
+            const response = await fetch(`http://localhost:8080/api/hoa-don-ct/hoa-don/${orderId}`);
+            if (!response.ok) return 0;
+            const orderItems = await response.json();
+            return orderItems.reduce((total, item) => total + (item.soLuong || 0), 0);
+        } catch (error) {
+            console.error('Error calculating total product quantity:', error);
+            return 0;
+        }
+    };
+
     const closeModal = () => {
         setIsAnimating(true);
         setTimeout(() => {
             setShowModal(false);
-            setSelectedOrder(null);
+
             setOrderDetails(null);
             setOrderItems([]);
             setIsAnimating(false);
         }, 300);
     };
-console.log('orderitems', orderItems);
+    console.log('orderitems', orderItems);
     const handlePrintInvoice = async (order) => {
         try {
             // Lấy chi tiết hóa đơn để in
@@ -164,23 +186,21 @@ console.log('orderitems', orderItems);
                     </thead>
                     <tbody>
                         ${orderItems
-                            .map(
-                                (item, index) => {
-                                    const { originalPrice, discountedPrice } = resolvePrices(item);
-                                    const totalPrice = discountedPrice * item.soLuong;
-                                    return `
+                            .map((item, index) => {
+                                const { unitPrice } = resolvePrices(item);
+                                const totalPrice = unitPrice * item.soLuong;
+                                return `
                             <tr>
                                 <td>${index + 1}</td>
                                 <td>${item.sanPhamCT?.ten || 'Không xác định'}</td>
                                 <td>${item.sanPhamCT?.thuongHieu?.ten || 'Không xác định'}</td>
                                 <td>${item.sanPhamCT?.mauSac?.ten || 'Không xác định'}</td>
                                 <td>${item.soLuong}</td>
-                                <td>${discountedPrice > 0 ? discountedPrice.toLocaleString() + ' VNĐ' : 'Không xác định'}</td>
+                                <td>${unitPrice > 0 ? unitPrice.toLocaleString() + ' VNĐ' : 'Không xác định'}</td>
                                 <td>${totalPrice > 0 ? totalPrice.toLocaleString() + ' VNĐ' : 'Không xác định'}</td>
                             </tr>
                         `;
-                                }
-                            )
+                            })
                             .join('')}
                     </tbody>
                 </table>
@@ -210,32 +230,43 @@ console.log('orderitems', orderItems);
 
     // Resolve possible price fields and return original and discounted prices
     const resolvePrices = (item) => {
-        // Prefer unit prices from sanPhamCT (variant) — these should be immutable unit prices.
-        const variantOriginal = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia;
-        const variantDiscounted = item.sanPhamCT?.giaKhuyenMai ?? item.sanPhamCT?.sanPham?.giaKhuyenMai;
-
-        if (variantOriginal !== undefined && variantOriginal !== null) {
-            const originalPrice = Number(variantOriginal);
-            const discountedPrice = variantDiscounted !== undefined && variantDiscounted !== null ? Number(variantDiscounted) : originalPrice;
-            return { originalPrice, discountedPrice };
-        }
-
-        // If variant-level price not available, try order-level fields. Sometimes backend stores line total in giaBan/giaKhuyenMai
-        // after quantity updates; to get unit price, divide by soLuong when appropriate.
+        // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
         const qty = Number(item.soLuong) || 1;
 
-        const orderGiaBan = item.giaBan;
-        const orderGiaKhuyenMai = item.giaKhuyenMai;
+        // Giá đã lưu trong hóa đơn (giá tại thời điểm mua hàng)
+        if (item.giaBan !== undefined && item.giaBan !== null) {
+            const savedTotalPrice = Number(item.giaBan);
+            const unitPrice = savedTotalPrice / qty;
 
-        const originalFromOrder = orderGiaBan !== undefined && orderGiaBan !== null ? Number(orderGiaBan) / qty : 0;
-        const discountedFromOrder = orderGiaKhuyenMai !== undefined && orderGiaKhuyenMai !== null ? Number(orderGiaKhuyenMai) / qty : originalFromOrder;
+            // Lấy giá gốc từ sản phẩm để tính phần trăm giảm giá
+            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? unitPrice;
 
-        return { originalPrice: originalFromOrder, discountedPrice: discountedFromOrder };
+            return {
+                originalPrice: Number(originalPrice),
+                discountedPrice: unitPrice,
+                unitPrice: unitPrice,
+            };
+        }
+
+        // Fallback: nếu không có giá lưu, sử dụng giá gốc từ sản phẩm
+        const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? 0;
+
+        // Kiểm tra giá khuyến mãi
+        const discountedPrice =
+            item.sanPhamCT?.giaKhuyenMai && item.sanPhamCT.giaKhuyenMai < originalPrice
+                ? item.sanPhamCT.giaKhuyenMai
+                : originalPrice;
+
+        return {
+            originalPrice: Number(originalPrice),
+            discountedPrice: Number(discountedPrice),
+            unitPrice: Number(discountedPrice),
+        };
     };
 
     useEffect(() => {
         loadOrders();
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
     console.log('orderdetails', orderDetails);
     useEffect(() => {
         let filtered = orders;
@@ -416,7 +447,7 @@ console.log('orderitems', orderItems);
                                             {order.ma}
                                         </td>
                                         <td className="py-2 px-2 text-xs text-gray-600 whitespace-nowrap">
-                                            {order.soLuong}
+                                            {orderQuantities[order.id] || 0}
                                         </td>
                                         <td className="py-2 px-2 text-xs font-medium text-gray-900 whitespace-nowrap">
                                             {order.tongTien
@@ -511,7 +542,7 @@ console.log('orderitems', orderItems);
 
                     {/* Modal Container */}
                     <div
-                        className={`relative bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[85vh] overflow-hidden transform transition-all duration-300 ${
+                        className={`relative bg-white rounded-2xl shadow-2xl max-w-7xl w-full max-h-[95vh] overflow-hidden transform transition-all duration-300 ${
                             isAnimating ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
                         }`}
                     >
@@ -540,7 +571,7 @@ console.log('orderitems', orderItems);
                                 <p className="mt-2 text-gray-600">Đang tải...</p>
                             </div>
                         ) : (
-                            <div className="p-6 space-y-4 overflow-y-auto max-h-[calc(85vh-200px)]">
+                            <div className="p-6 space-y-4 overflow-y-auto max-h-[calc(95vh-200px)]">
                                 {/* Thông tin hóa đơn */}
                                 {orderDetails && (
                                     <div className="bg-gray-50 rounded-xl p-4">
@@ -588,6 +619,59 @@ console.log('orderitems', orderItems);
                                                         : 'Chưa xác định'}
                                                 </span>
                                             </div>
+
+                                            {/* Thông tin giảm giá */}
+                                            {orderDetails.voucher && (
+                                                <div className="md:col-span-2 bg-green-50 p-3 rounded-lg border border-green-200">
+                                                    <h4 className="font-medium text-green-800 mb-2">
+                                                        Thông tin giảm giá
+                                                    </h4>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                                                        <div>
+                                                            <span className="font-medium text-gray-600">
+                                                                Mã giảm giá:
+                                                            </span>
+                                                            <span className="ml-2 text-gray-800">
+                                                                {orderDetails.voucher.ma}
+                                                            </span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-medium text-gray-600">
+                                                                Tên đợt giảm giá:
+                                                            </span>
+                                                            <span className="ml-2 text-gray-800">
+                                                                {orderDetails.voucher.ten}
+                                                            </span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-medium text-gray-600">
+                                                                Phần trăm giảm:
+                                                            </span>
+                                                            <span className="ml-2 text-green-600 font-medium">
+                                                                {orderDetails.voucher.giaTri}%
+                                                            </span>
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-medium text-gray-600">
+                                                                Giảm tối đa:
+                                                            </span>
+                                                            <span className="ml-2 text-gray-800">
+                                                                {orderDetails.voucher.giaTriMax?.toLocaleString()} VNĐ
+                                                            </span>
+                                                        </div>
+                                                        {orderDetails.giaGiam && orderDetails.giaGiam > 0 && (
+                                                            <div className="md:col-span-2">
+                                                                <span className="font-medium text-gray-600">
+                                                                    Số tiền được giảm:
+                                                                </span>
+                                                                <span className="ml-2 text-red-600 font-bold">
+                                                                    {orderDetails.giaGiam.toLocaleString()} VNĐ
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -668,15 +752,21 @@ console.log('orderitems', orderItems);
                                                             </td>
                                                             <td className="py-3 px-4 text-sm text-gray-600">
                                                                 {(() => {
-                                                                    const { originalPrice, discountedPrice } = resolvePrices(item);
-                                                                    const discountPercent = originalPrice > 0 && originalPrice > discountedPrice
-                                                                        ? Math.round(((originalPrice - discountedPrice) / originalPrice) * 100)
-                                                                        : 0;
+                                                                    const { originalPrice, unitPrice } =
+                                                                        resolvePrices(item);
+                                                                    const discountPercent =
+                                                                        originalPrice > 0 && originalPrice > unitPrice
+                                                                            ? Math.round(
+                                                                                  ((originalPrice - unitPrice) /
+                                                                                      originalPrice) *
+                                                                                      100,
+                                                                              )
+                                                                            : 0;
 
                                                                     return (
                                                                         <div className="flex flex-col">
                                                                             <span className="text-red-500 font-medium">
-                                                                                {formatCurrency(discountedPrice)}
+                                                                                {formatCurrency(unitPrice)}
                                                                             </span>
                                                                             {discountPercent > 0 && (
                                                                                 <div className="flex items-center gap-1">
@@ -694,9 +784,11 @@ console.log('orderitems', orderItems);
                                                             </td>
                                                             <td className="py-3 px-4 text-sm font-medium text-gray-900">
                                                                 {(() => {
-                                                                    const { discountedPrice } = resolvePrices(item);
-                                                                    const totalPrice = discountedPrice * item.soLuong;
-                                                                    return totalPrice > 0 ? formatCurrency(totalPrice) : 'Không xác định';
+                                                                    const { unitPrice } = resolvePrices(item);
+                                                                    const totalPrice = unitPrice * item.soLuong;
+                                                                    return totalPrice > 0
+                                                                        ? formatCurrency(totalPrice)
+                                                                        : 'Không xác định';
                                                                 })()}
                                                             </td>
                                                         </tr>
@@ -710,8 +802,59 @@ console.log('orderitems', orderItems);
                                 {/* Footer với tổng tiền */}
                                 {orderDetails && (
                                     <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                                        <h4 className="text-lg font-semibold text-gray-800 mb-3">
+                                            Chi tiết thanh toán
+                                        </h4>
+
+                                        {/* Subtotal (calculated from items using resolvePrices) */}
                                         <div className="flex justify-between items-center">
-                                            <span className="text-lg font-semibold text-gray-800">Tổng cộng:</span>
+                                            <span className="text-md font-medium text-gray-700">Tổng tiền hàng:</span>
+                                            <span className="text-md font-semibold text-gray-900">
+                                                {(orderItems || [])
+                                                    .reduce((s, it) => {
+                                                        const { unitPrice } = resolvePrices(it);
+                                                        return s + (Number(unitPrice) || 0) * (Number(it.soLuong) || 0);
+                                                    }, 0)
+                                                    .toLocaleString()}{' '}
+                                                VNĐ
+                                            </span>
+                                        </div>
+
+                                        {/* Voucher / Discount (if any) */}
+                                        {orderDetails.voucher
+                                            ? (() => {
+                                                  const subtotal = (orderItems || []).reduce((s, it) => {
+                                                      const { unitPrice } = resolvePrices(it);
+                                                      return s + (Number(unitPrice) || 0) * (Number(it.soLuong) || 0);
+                                                  }, 0);
+
+                                                  const apiGiaGiam = Number(orderDetails.giaGiam) || 0;
+                                                  // If API didn't provide giaGiam, infer it from subtotal - tongTien
+                                                  const inferredGiaGiam = Math.max(
+                                                      0,
+                                                      subtotal - (Number(orderDetails.tongTien) || 0),
+                                                  );
+                                                  const displayGiaGiam = apiGiaGiam > 0 ? apiGiaGiam : inferredGiaGiam;
+
+                                                  return displayGiaGiam > 0 ? (
+                                                      <>
+                                                          <div className="flex justify-between items-center mt-2">
+                                                              <span className="text-md font-medium text-gray-700">
+                                                                  Giảm giá ({orderDetails.voucher.ma}):
+                                                              </span>
+                                                              <span className="text-md font-semibold text-red-600">
+                                                                  -{displayGiaGiam.toLocaleString()} VNĐ
+                                                              </span>
+                                                          </div>
+                                                          <hr className="border-blue-200 my-2" />
+                                                      </>
+                                                  ) : null;
+                                              })()
+                                            : null}
+
+                                        {/* Total after discount */}
+                                        <div className="flex justify-between items-center mt-2">
+                                            <span className="text-lg font-bold text-gray-800">Tổng cộng:</span>
                                             <span className="text-xl font-bold text-blue-600">
                                                 {orderDetails.tongTien
                                                     ? orderDetails.tongTien.toLocaleString() + ' VNĐ'

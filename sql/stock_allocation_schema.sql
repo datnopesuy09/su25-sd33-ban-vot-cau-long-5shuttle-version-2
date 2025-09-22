@@ -1,21 +1,3 @@
--- =====================================================
--- SCHEMA CHO HỆ THỐNG QUẢN LÝ TỒN KHO ALLOCATION
--- Đã sửa đổi để phù hợp với database schema hiện tại
--- =====================================================
-
--- XÓA CÁC BẢNG CŨ NẾU TỒN TẠI (để rollback clean)
-DROP TABLE IF EXISTS stock_allocation_history;
-DROP TABLE IF EXISTS stock_allocation;
-
--- Xóa cột cũ nếu tồn tại
-SET @sql = CONCAT('ALTER TABLE HoaDonCT DROP COLUMN IF EXISTS is_stock_allocated');
-SET @sql2 = CONCAT('ALTER TABLE HoaDonCT DROP COLUMN IF EXISTS allocation_status');
-
--- Thực hiện xóa cột (ignore error nếu không tồn tại)
-SET sql_mode = '';
-ALTER TABLE HoaDonCT DROP COLUMN is_stock_allocated;
-ALTER TABLE HoaDonCT DROP COLUMN allocation_status;
-SET sql_mode = 'TRADITIONAL';
 
 -- 1. Bảng theo dõi allocation cho từng hóa đơn chi tiết
 CREATE TABLE stock_allocation (
