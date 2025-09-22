@@ -200,22 +200,23 @@ const PaymentDetails = ({
                                             let displaySubtotal;
                                             let productPromoSavings = 0;
 
-                                            if (calculatedSubtotal !== null) {
-                                                // Use calculated subtotal from items with promotion logic
-                                                displaySubtotal = calculatedSubtotal;
-                                                // Calculate savings if we have original subtotal to compare
-                                                if (subtotal) {
-                                                    productPromoSavings = Number(subtotal) - calculatedSubtotal;
-                                                }
-                                            } else if (
+                                            // FIX: Prefer parent-provided subtotalAfterProductDiscount (already correct after returns)
+                                            if (
                                                 subtotalAfterProductDiscount !== undefined &&
                                                 subtotalAfterProductDiscount !== null
                                             ) {
-                                                // Use provided promoted subtotal
                                                 displaySubtotal = Number(subtotalAfterProductDiscount);
-                                                productPromoSavings = Number(subtotal || 0) - displaySubtotal;
+                                                if (subtotal) {
+                                                    productPromoSavings = Number(subtotal) - displaySubtotal;
+                                                }
+                                            } else if (calculatedSubtotal !== null) {
+                                                // Fallback to locally calculated subtotal from items
+                                                displaySubtotal = calculatedSubtotal;
+                                                if (subtotal) {
+                                                    productPromoSavings = Number(subtotal) - calculatedSubtotal;
+                                                }
                                             } else {
-                                                // Fallback to original subtotal
+                                                // Last resort: original subtotal
                                                 displaySubtotal = Number(subtotal || 0);
                                             }
 

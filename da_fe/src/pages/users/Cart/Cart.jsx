@@ -121,7 +121,7 @@ const Cart = () => {
         }
     };
 
-    const shipping = totalPrice > 1000000 ? 0 : 30000;
+    const shipping = totalPrice > 1000000;
     const finalTotal = totalPrice + shipping;
 
     const handleSelectItem = (cartId) => {
