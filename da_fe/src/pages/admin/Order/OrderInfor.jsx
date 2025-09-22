@@ -38,6 +38,7 @@ const OrderInfo = ({
         xa: '',
         phiShip: orderData.phiShip || 0, // Thêm field phí ship với giá trị mặc định
     });
+    const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
     console.log('checkout', checkOut);
     // State for address API
     const [provinces, setProvinces] = useState([]);
@@ -128,6 +129,12 @@ const OrderInfo = ({
 
                                 if (foundWard) {
                                     setSelectedWard(foundWard);
+                                    // Sau khi parse xong địa chỉ, tự động tính phí ship
+                                    setTimeout(() => {
+                                        if (foundDistrict && foundWard) {
+                                            calculateShippingFee(foundDistrict.DistrictID, foundWard.WardCode, orderData);
+                                        }
+                                    }, 1000);
                                 }
                             } catch (error) {
                                 console.error('Error fetching wards:', error);
@@ -204,6 +211,16 @@ const OrderInfo = ({
         fetchProvinces();
     }, []);
 
+    // useEffect để tự động tính phí ship khi có đủ thông tin địa chỉ
+    useEffect(() => {
+        if (selectedDistrict && selectedWard && isModalOpen) {
+            // Đợi một chút để đảm bảo UI đã cập nhật
+            setTimeout(() => {
+                calculateShippingFee(selectedDistrict.DistrictID, selectedWard.WardCode, orderData);
+            }, 500);
+        }
+    }, [selectedDistrict, selectedWard, isModalOpen]);
+
     const handleOpenModal = async () => {
         setFormData({
             tenNguoiNhan: orderData.tenNguoiNhan || '',
@@ -248,6 +265,50 @@ const OrderInfo = ({
             ...prev,
             [name]: value,
         }));
+    };
+
+    // Function để tính phí ship tự động
+    const calculateShippingFee = async (districtId, wardCode, orderData) => {
+        if (!districtId || !wardCode || !orderData) return;
+        
+        setIsCalculatingShipping(true);
+        try {
+            // Tính tổng số lượng và giá trị đơn hàng để truyền cho API
+            const totalQuantity = orderData.orderDetails ? 
+                orderData.orderDetails.reduce((sum, item) => sum + (item.soLuong || 0), 0) : 1;
+            const totalValue = orderData.tongTien || 0;
+
+            console.log('Calculating shipping fee with:', { 
+                districtId, 
+                wardCode, 
+                quantity: totalQuantity, 
+                totalValue 
+            });
+
+            const response = await axios.post('http://localhost:8080/api/dat-hang/calculate-shipping-fee', {
+                districtId: parseInt(districtId),
+                wardCode: wardCode,
+                quantity: totalQuantity,
+                insuranceValue: totalValue,
+            });
+
+            if (response.status === 200 && response.data.shippingFee) {
+                const fee = response.data.shippingFee;
+                console.log('Phí ship từ API:', fee);
+                setFormData(prev => ({
+                    ...prev,
+                    phiShip: fee
+                }));
+                // Hiển thị thông báo thành công
+                console.log(`✅ Phí ship đã được cập nhật tự động: ${fee.toLocaleString('vi-VN')}đ`);
+                return fee;
+            }
+        } catch (error) {
+            console.error('Lỗi khi tính phí ship:', error);
+            console.log('⚠️ Giữ nguyên phí ship hiện tại do lỗi kết nối');
+        } finally {
+            setIsCalculatingShipping(false);
+        }
     };
 
     const handleProvinceChange = (e) => {
@@ -300,6 +361,11 @@ const OrderInfo = ({
             ...prev,
             xa: ward ? ward.WardName : '',
         }));
+
+        // Tự động tính phí ship khi chọn xong ward
+        if (ward && selectedDistrict) {
+            calculateShippingFee(selectedDistrict.DistrictID, ward.WardCode, orderData);
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -336,7 +402,6 @@ const OrderInfo = ({
                         </div>
                         <div>
                             <h2 className="text-xl font-semibold text-gray-800">Thông tin đơn hàng</h2>
-                            <p className="text-gray-600 text-sm">Đơn tại quầy</p>
                         </div>
                     </div>
 
@@ -773,8 +838,17 @@ const OrderInfo = ({
                                     </label>
 
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                                        <label className="block text-xs font-medium text-gray-600 mb-1 flex items-center gap-2">
                                             Phí ship (VNĐ) *
+                                            {isCalculatingShipping && (
+                                                <span className="text-blue-500 text-xs">
+                                                    <svg className="animate-spin h-3 w-3 inline mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    Đang tính...
+                                                </span>
+                                            )}
                                         </label>
                                         <input
                                             type="number"
@@ -786,13 +860,21 @@ const OrderInfo = ({
                                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200"
                                             placeholder="Nhập phí giao hàng"
                                             required
+                                            disabled={isCalculatingShipping}
                                         />
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Phí giao hàng hiện tại:{' '}
-                                            {formData.phiShip
-                                                ? `${parseInt(formData.phiShip).toLocaleString('vi-VN')}đ`
-                                                : '0đ'}
-                                        </p>
+                                        <div className="flex justify-between items-center mt-1">
+                                            <p className="text-xs text-gray-500">
+                                                Phí giao hàng hiện tại:{' '}
+                                                {formData.phiShip
+                                                    ? `${parseInt(formData.phiShip).toLocaleString('vi-VN')}đ`
+                                                    : '0đ'}
+                                            </p>
+                                            {selectedDistrict && selectedWard && (
+                                                <p className="text-xs text-blue-500">
+                                                    🚀 Tự động tính theo địa chỉ
+                                                </p>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </form>
