@@ -11,4 +11,6 @@ public interface PhieuTraHangChiTietRepository extends JpaRepository<PhieuTraHan
 
     List<PhieuTraHangChiTiet> findByHoaDonChiTiet_Id(Integer hoaDonChiTietId);
 
+    boolean existsByHoaDonChiTiet_Id(Integer hoaDonChiTietId);
+
 }

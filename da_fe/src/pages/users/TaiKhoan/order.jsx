@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Box, TextField, Typography, Paper, Button, Grid, Tabs, Tab, InputAdornment, Divider } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import { toast } from 'react-toastify';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import {
@@ -170,6 +170,7 @@ const resolveItemPrices = (sp, isReturn = false) => {
 };
 
 function UserOrder() {
+    const navigate = useNavigate();
     const [selectedTab, setSelectedTab] = useState('Tất cả');
     const [listHoaDon, setListHoaDon] = useState([]);
     const [listPhieuTraHang, setListPhieuTraHang] = useState([]);
@@ -201,6 +202,27 @@ function UserOrder() {
     };
 
     const orderCounts = getOrderCounts();
+
+    const goToReturnSlipByOrderId = async (orderId) => {
+        try {
+            const token = localStorage.getItem('userToken');
+            if (!token) {
+                toast.warning('Vui lòng đăng nhập');
+                return;
+            }
+            const headers = { Authorization: `Bearer ${token}` };
+            const res = await axios.get(`http://localhost:8080/phieu-tra-hang/by-order/${orderId}`, { headers });
+            const phieuTra = res?.data?.result;
+            if (!phieuTra?.id) {
+                toast.error('Không tìm thấy phiếu trả hàng');
+                return;
+            }
+            navigate(`/profile/return-order-detail/${phieuTra.id}`);
+        } catch (err) {
+            console.error('Không lấy được phiếu trả hàng:', err);
+            toast.error('Không thể mở phiếu trả hàng');
+        }
+    };
 
     useEffect(() => {
         const socket = new SockJS('http://localhost:8080/ws');
@@ -908,6 +930,15 @@ function UserOrder() {
                                                                         <Package className="w-3 h-3" />
                                                                         <span>x{quantity}</span>
                                                                     </div>
+                                                                    {!isReturn && sp?.trangThaiTraHang && (
+                                                                        <button
+                                                                            onClick={() => goToReturnSlipByOrderId(item.id)}
+                                                                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-orange-600 hover:bg-orange-700 text-white rounded"
+                                                                            title="Xem phiếu trả hàng"
+                                                                        >
+                                                                            <RotateCcw className="w-3 h-3" /> Xem phiếu trả
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             </div>
 

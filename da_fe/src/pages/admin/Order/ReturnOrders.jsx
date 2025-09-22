@@ -15,7 +15,7 @@ import { useAdminAuth } from '../../../contexts/adminAuthContext';
 function ReturnOrders() {
     const [returnOrders, setReturnOrders] = useState([]);
     const [filteredOrders, setFilteredOrders] = useState([]);
-    const [selectedStatus, setSelectedStatus] = useState('all');
+    const [selectedStatus, setSelectedStatus] = useState('PENDING');
     const [searchTerm, setSearchTerm] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -31,6 +31,8 @@ function ReturnOrders() {
     const [productSelections, setProductSelections] = useState({});
     const [productReasons, setProductReasons] = useState({});
     const [productQuantities, setProductQuantities] = useState({});
+    const [productRestock, setProductRestock] = useState({});
+    const [productBroken, setProductBroken] = useState({});
     const [successMessage, setSuccessMessage] = useState('');
     const [reasonErrors, setReasonErrors] = useState({});
     const [isProcessing, setIsProcessing] = useState(false);
@@ -105,9 +107,7 @@ function ReturnOrders() {
     useEffect(() => {
         let filtered = returnOrders;
 
-        if (selectedStatus !== 'all') {
-            filtered = filtered.filter((order) => order.trangThai === selectedStatus);
-        }
+        filtered = filtered.filter((order) => order.trangThai === selectedStatus);
 
         if (searchTerm) {
             const searchLower = searchTerm.toLowerCase();
@@ -125,17 +125,24 @@ function ReturnOrders() {
         if (startDate) {
             const startDateTime = new Date(startDate + 'T00:00:00');
             filtered = filtered.filter((order) => {
-                const orderDate = new Date(order.ngayTao);
+                const orderDate = new Date(order.ngayTao.replace(' ', 'T'));
                 return orderDate >= startDateTime;
             });
         }
         if (endDate) {
             const endDateTime = new Date(endDate + 'T23:59:59');
             filtered = filtered.filter((order) => {
-                const orderDate = new Date(order.ngayTao);
+                const orderDate = new Date(order.ngayTao.replace(' ', 'T'));
                 return orderDate <= endDateTime;
             });
         }
+
+        // Sắp xếp theo thời gian tạo tăng dần (gửi trước đứng trước)
+        filtered = [...filtered].sort((a, b) => {
+            const da = new Date((a.ngayTao || '').toString().replace(' ', 'T')).getTime();
+            const db = new Date((b.ngayTao || '').toString().replace(' ', 'T')).getTime();
+            return (isNaN(da) ? 0 : da) - (isNaN(db) ? 0 : db);
+        });
 
         setFilteredOrders(filtered);
         setCurrentPage(1);
@@ -185,6 +192,8 @@ function ReturnOrders() {
         const initialSelections = {};
         const initialReasons = {};
         const initialQuantities = {};
+        const initialRestock = {};
+        const initialBroken = {};
 
         if (order.chiTietTraHang && order.chiTietTraHang.length > 0) {
             order.chiTietTraHang.forEach((detail) => {
@@ -192,9 +201,13 @@ function ReturnOrders() {
                 if (order.trangThai === 'APPROVED') {
                     initialSelections[key] = detail.soLuongDuocPheDuyet > 0;
                     initialQuantities[key] = detail.soLuongDuocPheDuyet ?? 0;
+                    initialRestock[key] = typeof detail.soLuongNhapKho === 'number' ? detail.soLuongNhapKho : 0;
+                    initialBroken[key] = typeof detail.soLuongHong === 'number' ? detail.soLuongHong : 0;
                 } else {
                     initialSelections[key] = true;
                     initialQuantities[key] = detail.soLuongTra;
+                    initialRestock[key] = detail.soLuongTra; // mặc định nhập kho toàn bộ
+                    initialBroken[key] = 0;
                 }
                 initialReasons[key] = detail.lyDoXuLy || '';
             });
@@ -203,6 +216,8 @@ function ReturnOrders() {
         setProductSelections(initialSelections);
         setProductReasons(initialReasons);
         setProductQuantities(initialQuantities);
+        setProductRestock(initialRestock);
+        setProductBroken(initialBroken);
     };
 
     const openConfirmModal = (orderId) => {
@@ -215,6 +230,14 @@ function ReturnOrders() {
                 if (!reason) {
                     newReasonErrors[key] = true;
                     hasError = true;
+                }
+                // Validate tổng nhập kho + hỏng = số lượng được duyệt
+                const approvedQty = productSelections[key] ? (productQuantities[key] ?? 0) : 0;
+                const restockQty = productRestock[key] ?? 0;
+                const brokenQty = productBroken[key] ?? 0;
+                if (approvedQty !== restockQty + brokenQty) {
+                    hasError = true;
+                    newReasonErrors[key] = true;
                 }
             });
         }
@@ -251,10 +274,14 @@ function ReturnOrders() {
                 const isSelected = productSelections[key];
                 const soLuongDuocPheDuyet = isSelected ? (productQuantities[key] ?? 0) : 0;
                 const lyDoXuLy = (productReasons[key] || '').trim();
+                const soLuongNhapKho = isSelected ? (productRestock[key] ?? 0) : 0;
+                const soLuongHong = isSelected ? (productBroken[key] ?? 0) : 0;
                 return {
                     phieuTraHangChiTietId: detail.id,
                     hoaDonChiTietId: detail.thongTinSanPhamTra.hoaDonChiTietId,
                     soLuongDuocPheDuyet: soLuongDuocPheDuyet,
+                    soLuongNhapKho: soLuongNhapKho,
+                    soLuongHong: soLuongHong,
                     lyDoXuLy: lyDoXuLy || (isSelected ? 'Được phê duyệt' : 'Không được phê duyệt'),
                 };
             });
@@ -319,6 +346,14 @@ function ReturnOrders() {
                 ...prev,
                 [productKey]: 0,
             }));
+            setProductRestock((prev) => ({
+                ...prev,
+                [productKey]: 0,
+            }));
+            setProductBroken((prev) => ({
+                ...prev,
+                [productKey]: 0,
+            }));
         } else {
             if (selectedOrder && selectedOrder.chiTietTraHang) {
                 const detail = selectedOrder.chiTietTraHang.find((d) => {
@@ -328,6 +363,14 @@ function ReturnOrders() {
                 setProductQuantities((prev) => ({
                     ...prev,
                     [productKey]: detail ? detail.soLuongTra : 1,
+                }));
+                setProductRestock((prev) => ({
+                    ...prev,
+                    [productKey]: detail ? detail.soLuongTra : 1,
+                }));
+                setProductBroken((prev) => ({
+                    ...prev,
+                    [productKey]: 0,
                 }));
             }
         }
@@ -348,6 +391,20 @@ function ReturnOrders() {
 
     const handleProductQuantityChange = (productKey, quantity) => {
         setProductQuantities((prev) => ({
+            ...prev,
+            [productKey]: quantity,
+        }));
+    };
+
+    const handleProductRestockChange = (productKey, quantity) => {
+        setProductRestock((prev) => ({
+            ...prev,
+            [productKey]: quantity,
+        }));
+    };
+
+    const handleProductBrokenChange = (productKey, quantity) => {
+        setProductBroken((prev) => ({
             ...prev,
             [productKey]: quantity,
         }));
@@ -515,6 +572,29 @@ function ReturnOrders() {
                     </div>
                 </div>
 
+                {/* Tabs trạng thái */}
+                <div className="flex gap-2 mb-4 overflow-x-auto">
+                    {[
+                        { key: 'PENDING', label: 'Chờ phê duyệt' },
+                        { key: 'APPROVED', label: 'Đã duyệt' },
+                        { key: 'REFUNDED', label: 'Đã hoàn tiền' },
+                        { key: 'REJECTED', label: 'Đã từ chối' },
+                    ].map((tab) => (
+                        <button
+                            key={tab.key}
+                            onClick={() => setSelectedStatus(tab.key)}
+                            className={`px-4 py-2 text-sm rounded-md border transition-colors ${
+                                selectedStatus === tab.key
+                                    ? 'bg-blue-600 text-white border-blue-600'
+                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                            disabled={isProcessing}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                     <div className="relative">
                         <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -527,20 +607,7 @@ function ReturnOrders() {
                             disabled={isProcessing}
                         />
                     </div>
-                    <div>
-                        <select
-                            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            value={selectedStatus}
-                            onChange={(e) => setSelectedStatus(e.target.value)}
-                            disabled={isProcessing}
-                        >
-                            <option value="all">Tất cả trạng thái</option>
-                            <option value="PENDING">Chờ xử lý</option>
-                            <option value="APPROVED">Đã phê duyệt</option>
-                            <option value="REJECTED">Đã từ chối</option>
-                            <option value="REFUNDED">Đã hoàn tiền</option>
-                        </select>
-                    </div>
+                    <div></div>
                     <div>
                         <input
                             type="date"
@@ -747,8 +814,7 @@ function ReturnOrders() {
                             <h4 className="font-medium text-gray-900 mb-2">Chi tiết sản phẩm trả</h4>
                             <div className="mb-3 p-3 bg-blue-50 rounded-lg">
                                 <p className="text-sm text-blue-700">
-                                    <strong>Hướng dẫn:</strong> Chọn các sản phẩm được phép trả hàng và nhập lý do cho
-                                    từng sản phẩm. Những sản phẩm không được chọn sẽ bị từ chối trả hàng.
+                                    <strong>Hướng dẫn:</strong> Chọn các sản phẩm được phép trả hàng, nhập số lượng duyệt, số lượng nhập kho và số lượng hỏng. Tổng nhập kho + hỏng phải bằng số lượng được duyệt. Ghi chú nhân viên để mô tả lý do hàng hỏng.
                                 </p>
                             </div>
                             <div className="overflow-x-auto">
@@ -768,6 +834,8 @@ function ReturnOrders() {
                                                             return;
                                                         const newSelections = {};
                                                         const newQuantities = {};
+                                                        const newRestock = {};
+                                                        const newBroken = {};
                                                         selectedOrder.chiTietTraHang?.forEach((detail) => {
                                                             const key =
                                                                 detail.thongTinSanPhamTra?.hoaDonChiTietId ?? detail.id;
@@ -775,9 +843,13 @@ function ReturnOrders() {
                                                             newQuantities[key] = e.target.checked
                                                                 ? detail.soLuongTra
                                                                 : 0;
+                                                            newRestock[key] = e.target.checked ? detail.soLuongTra : 0;
+                                                            newBroken[key] = 0;
                                                         });
                                                         setProductSelections(newSelections);
                                                         setProductQuantities(newQuantities);
+                                                        setProductRestock(newRestock);
+                                                        setProductBroken(newBroken);
                                                     }}
                                                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                                     disabled={selectedOrder.trangThai === 'APPROVED' || isProcessing}
@@ -801,15 +873,18 @@ function ReturnOrders() {
                                                 Điểm cân bằng
                                             </th>
                                             <th className="py-2 px-3 text-left text-xs font-medium w-16">Độ cứng</th>
-                                            <th className="py-2 px-3 text-left text-xs font-medium w-25">
-                                                Số lượng trả
+                                            <th className="py-2 px-3 text-left text-xs font-medium w-20">
+                                                SL trả
                                             </th>
-                                            <th className="py-2 px-3 text-left text-xs font-medium w-24">Giá bán</th>
-                                            <th className="py-2 px-3 text-left text-xs font-medium w-48">
+                                            <th className="py-2 px-3 text-left text-xs font-medium w-20">Đơn giá</th>
+                                            <th className="py-2 px-3 text-left text-xs font-medium w-100">
                                                 Lý do trả hàng
                                             </th>
-                                            <th className="py-2 px-3 text-left text-xs font-medium w-48">
-                                                Lý do xử lý
+                                            <th className="py-2 px-3 text-left text-xs font-medium w-28">
+                                                SL duyệt
+                                            </th>
+                                            <th className="py-2 px-3 text-left text-xs font-medium w-96">
+                                                Lý do xử lí
                                             </th>
                                         </tr>
                                     </thead>
@@ -876,9 +951,7 @@ function ReturnOrders() {
                                                     </td>
                                                     <td className="py-2 px-3 text-sm text-gray-900 font-medium">
                                                         <div className="flex flex-col">
-                                                            <div className="text-xs text-gray-500">
-                                                                Yêu cầu: {detail.soLuongTra}
-                                                            </div>
+                                                            <div className="text-xs text-gray-500">Yêu cầu: {detail.soLuongTra}</div>
                                                             {isApproved ? (
                                                                 <>
                                                                     <div className="text-xs text-green-700 font-semibold mt-1">
@@ -896,8 +969,7 @@ function ReturnOrders() {
                                                                         type="number"
                                                                         value={
                                                                             productSelections[key]
-                                                                                ? (productQuantities[key] ??
-                                                                                  detail.soLuongTra)
+                                                                                ? (productQuantities[key] ?? detail.soLuongTra)
                                                                                 : ''
                                                                         }
                                                                         onChange={(e) => {
@@ -905,24 +977,23 @@ function ReturnOrders() {
                                                                             const maxValue = detail.soLuongTra;
                                                                             if (value >= 0 && value <= maxValue) {
                                                                                 handleProductQuantityChange(key, value);
+                                                                                // điều chỉnh mặc định: nhập kho = value nếu hiện tại lớn hơn value
+                                                                                if ((productRestock[key] ?? 0) > value) {
+                                                                                    handleProductRestockChange(key, value);
+                                                                                }
+                                                                                // đảm bảo tổng restock+broken không vượt approved
+                                                                                const broken = productBroken[key] ?? 0;
+                                                                                if (broken > value) {
+                                                                                    handleProductBrokenChange(key, Math.max(0, value - (productRestock[key] ?? 0)));
+                                                                                }
                                                                             }
                                                                         }}
                                                                         className="w-16 px-2 py-1 border border-gray-300 rounded-md text-center text-sm"
                                                                         min="0"
                                                                         max={detail.soLuongTra}
-                                                                        disabled={
-                                                                            !productSelections[key] || isProcessing
-                                                                        }
-                                                                        placeholder={
-                                                                            !productSelections[key] ? '-' : undefined
-                                                                        }
+                                                                        disabled={!productSelections[key] || isProcessing}
+                                                                        placeholder={!productSelections[key] ? '-' : undefined}
                                                                     />
-                                                                    {getRejectedQuantity(detail) > 0 && (
-                                                                        <div className="text-xs text-red-700 font-semibold mt-1">
-                                                                            Không được duyệt:{' '}
-                                                                            {getRejectedQuantity(detail)}
-                                                                        </div>
-                                                                    )}
                                                                 </>
                                                             )}
                                                         </div>
@@ -935,17 +1006,22 @@ function ReturnOrders() {
                                                             {detail.lyDoTraHang || 'Không có lý do'}
                                                         </div>
                                                     </td>
+                                                    <td className="py-2 px-3 text-sm text-gray-900">
+                                                        {isApproved ? (
+                                                            <div className="text-center font-medium">{soLuongDuocPheDuyet}</div>
+                                                        ) : (
+                                                            <div className="text-center font-medium">{productSelections[key] ? (productQuantities[key] ?? 0) : 0}</div>
+                                                        )}
+                                                    </td>
                                                     <td className="py-2 px-3">
                                                         <textarea
                                                             placeholder={
                                                                 productSelections[key]
-                                                                    ? 'Lý do được trả...'
+                                                                    ? 'Nhập lý do xử lí...'
                                                                     : 'Lý do không được trả...'
                                                             }
                                                             value={productReasons[key] || ''}
-                                                            onChange={(e) =>
-                                                                handleProductReasonChange(key, e.target.value)
-                                                            }
+                                                            onChange={(e) => handleProductReasonChange(key, e.target.value)}
                                                             className={`w-full p-2 text-xs border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
                                                                 reasonErrors[key] ? 'border-red-500' : 'border-gray-300'
                                                             }`}
@@ -954,7 +1030,7 @@ function ReturnOrders() {
                                                         />
                                                         {reasonErrors[key] && (
                                                             <p className="text-xs text-red-500 mt-1">
-                                                                Vui lòng nhập lý do xử lý
+                                                                Vui lòng nhập lý do xử lí và đảm bảo tổng nhập kho + hỏng = số lượng duyệt
                                                             </p>
                                                         )}
                                                     </td>
@@ -963,6 +1039,76 @@ function ReturnOrders() {
                                         })}
                                     </tbody>
                                 </table>
+                            </div>
+
+                            {/* Khu vực nhập SL nhập kho và SL hỏng cho từng sản phẩm (ngoài bảng) */}
+                            <div className="mt-4 p-4 border border-gray-200 rounded-lg">
+                                <div className="font-medium text-gray-800 mb-2">Phân bổ SL nhập kho / SL hỏng</div>
+                                <div className="space-y-3">
+                                    {selectedOrder.chiTietTraHang.map((detail) => {
+                                        const key = detail.thongTinSanPhamTra?.hoaDonChiTietId ?? detail.id;
+                                        const isApproved = selectedOrder.trangThai === 'APPROVED';
+                                        const approved = productQuantities[key] ?? 0;
+                                        return (
+                                            <div key={key} className={`grid grid-cols-1 md:grid-cols-3 gap-3 items-center ${!productSelections[key] ? 'opacity-60' : ''}`}>
+                                                <div className="text-sm text-gray-800">
+                                                    <div className="font-medium">{detail.thongTinSanPhamTra.tenSanPham}</div>
+                                                    <div className="text-xs text-gray-500">SL duyệt: {isApproved ? (typeof detail.soLuongDuocPheDuyet === 'number' ? detail.soLuongDuocPheDuyet : 0) : approved}</div>
+                                                </div>
+                                                <div>
+                                                    {isApproved ? (
+                                                        <div className="text-sm">SL nhập kho: {typeof detail.soLuongNhapKho === 'number' ? detail.soLuongNhapKho : 0}</div>
+                                                    ) : (
+                                                        <input
+                                                            type="number"
+                                                            value={productSelections[key] ? (productRestock[key] ?? 0) : ''}
+                                                            onChange={(e) => {
+                                                                let val = parseInt(e.target.value) || 0;
+                                                                if (val < 0) val = 0;
+                                                                if (val > approved) val = approved;
+                                                                handleProductRestockChange(key, val);
+                                                                const broken = productBroken[key] ?? 0;
+                                                                if (val + broken > approved) {
+                                                                    handleProductBrokenChange(key, Math.max(0, approved - val));
+                                                                }
+                                                            }}
+                                                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                                            min="0"
+                                                            max={approved}
+                                                            disabled={!productSelections[key] || isProcessing}
+                                                            placeholder={!productSelections[key] ? '-' : 'SL nhập kho'}
+                                                        />
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    {isApproved ? (
+                                                        <div className="text-sm">SL hỏng: {typeof detail.soLuongHong === 'number' ? detail.soLuongHong : 0}</div>
+                                                    ) : (
+                                                        <input
+                                                            type="number"
+                                                            value={productSelections[key] ? (productBroken[key] ?? 0) : ''}
+                                                            onChange={(e) => {
+                                                                let val = parseInt(e.target.value) || 0;
+                                                                if (val < 0) val = 0;
+                                                                if (val > approved) val = approved;
+                                                                handleProductBrokenChange(key, val);
+                                                                const restock = productRestock[key] ?? 0;
+                                                                if (val + restock > approved) {
+                                                                    handleProductRestockChange(key, Math.max(0, approved - val));
+                                                                }
+                                                            }}
+                                                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                                            min="0"
+                                                            max={approved}
+                                                            disabled={!productSelections[key] || isProcessing}
+                                                            placeholder={!productSelections[key] ? '-' : 'SL hỏng'}
+                                                        />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
 
                             <div className="mt-4 grid grid-cols-2 gap-4">
@@ -1048,7 +1194,7 @@ function ReturnOrders() {
                                                     return (
                                                         <li key={key} className="text-green-600">
                                                             • {product.thongTinSanPhamTra.tenSanPham}(
-                                                            {soLuongDuocPheDuyet}/{product.soLuongTra} cái -{' '}
+                                                            {soLuongDuocPheDuyet}/{product.soLuongTra} duyệt -{' '}
                                                             {formatCurrency(
                                                                 soLuongDuocPheDuyet * product.thongTinSanPhamTra.giaBan,
                                                             )}

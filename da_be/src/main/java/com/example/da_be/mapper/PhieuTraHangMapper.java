@@ -30,6 +30,8 @@ public interface PhieuTraHangMapper {
     @Mapping(source = "hoaDonChiTiet", target = "thongTinSanPhamTra", qualifiedByName = "mapHoaDonCTToSanPhamTra")
     @Mapping(source = "ghiChuNhanVien", target = "ghiChuNhanVien")
     @Mapping(source = "soLuongPheDuyet", target = "soLuongPheDuyet")
+    @Mapping(source = "soLuongNhapKho", target = "soLuongNhapKho")
+    @Mapping(source = "soLuongHong", target = "soLuongHong")
     @Mapping(source = "lyDoTraHang", target = "lyDoTraHang") // Thêm dòng này
     PhieuTraHangChiTietResponse toPhieuTraHangChiTietResponse(PhieuTraHangChiTiet phieuTraHangChiTiet);
 

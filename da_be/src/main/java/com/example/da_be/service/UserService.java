@@ -139,11 +139,9 @@ UserService {
 
         List<HoaDonCT> hdctList = hoaDonCTRepository.findByHoaDonId(idHoaDon);
 
-        boolean trangThaiTraHang = phieuTraHangRepository.existsByHoaDonId(idHoaDon);
-
-        log.info("Trang thai tra hang: " + trangThaiTraHang);
         return hdctList.stream()
                 .map(hdct -> {
+                    boolean trangThaiTraHang = phieuTraHangChiTietRepository.existsByHoaDonChiTiet_Id(hdct.getId());
                     HoaDonCTResponse response = hoaDonCTMapper.toHoaDonChiTietResponse(hdct);
                     response.setTrangThaiTraHang(trangThaiTraHang); // gán cho từng item
                     return response;

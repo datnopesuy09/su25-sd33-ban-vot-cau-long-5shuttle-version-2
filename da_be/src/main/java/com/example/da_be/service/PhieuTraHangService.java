@@ -44,6 +44,7 @@ public class PhieuTraHangService {
     HoaDonRepository hoaDonRepository;
     HoaDonCTRepository hoaDonCTRepository;
     EmailSender emailSender;
+    SanPhamCTRepository sanPhamCTRepository;
 
     @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_STAFF')")
     public List<PhieuTraHangResponse> getAllOnlineOrders() {
@@ -186,6 +187,16 @@ public class PhieuTraHangService {
                 phieuTraHangChiTiet.setGhiChuNhanVien(chiTietRequest.getLyDoXuLy());
                 phieuTraHangChiTiet.setSoLuongPheDuyet(chiTietRequest.getSoLuongDuocPheDuyet());
                 phieuTraHangChiTiet.setTrangThai(TrangThaiTra.APPROVED);
+                phieuTraHangChiTiet.setSoLuongNhapKho(chiTietRequest.getSoLuongNhapKho());
+                phieuTraHangChiTiet.setSoLuongHong(chiTietRequest.getSoLuongHong());
+                hoaDonCT.setTrangThai(8);
+            }
+
+            // Nếu có số lượng nhập kho thì cộng lại tồn kho
+            if (chiTietRequest.getSoLuongNhapKho() > 0) {
+                SanPhamCT spct = hoaDonCT.getSanPhamCT();
+                spct.setSoLuong(spct.getSoLuong() + chiTietRequest.getSoLuongNhapKho());
+                sanPhamCTRepository.save(spct);
             }
 
             phieuTraHangChiTietRepository.save(phieuTraHangChiTiet);
@@ -197,15 +208,18 @@ public class PhieuTraHangService {
 
         HoaDon hoaDon = phieuTraHang.getHoaDon();
 
-        boolean yeuCauTraToanBo = phieuTraHang.getChiTietPhieuTraHang().stream()
+        boolean yeuCauTraToanBoSoLuong = phieuTraHang.getChiTietPhieuTraHang().stream()
                 .allMatch(ct -> ct.getSoLuongTra().equals(ct.getHoaDonChiTiet().getSoLuong()));
 
         boolean adminDuyetToanBo = phieuTraHang.getChiTietPhieuTraHang().stream()
                 .allMatch(ct -> ct.getSoLuongPheDuyet() != null
                         && ct.getSoLuongPheDuyet().equals(ct.getSoLuongTra()));
 
+        // điều kiện: tổng số chi tiết trong phiếu trả = tổng số chi tiết trong hóa đơn
+        boolean traTatCaChiTiet = phieuTraHang.getChiTietPhieuTraHang().size() == hoaDon.getChiTietHoaDon().size();
+
         // Nếu cả hai đúng → set trạng thái hóa đơn = 8
-        if (yeuCauTraToanBo && adminDuyetToanBo) {
+        if (yeuCauTraToanBoSoLuong && adminDuyetToanBo && traTatCaChiTiet) {
             hoaDon.setTrangThai(8); // 8 = TRẢ HÀNG
             hoaDonRepository.save(hoaDon);
             log.info("Hóa đơn {} đã được cập nhật trạng thái TRẢ HÀNG (8)", hoaDon.getMa());
@@ -230,7 +244,6 @@ public class PhieuTraHangService {
             log.error("Lỗi khi gửi email xác nhận duyệt trả hàng: " + e.getMessage(), e);
             // Không ném ngoại lệ ở đây để đảm bảo quá trình phê duyệt vẫn hoàn tất
         }
-
         return phieuTraHangMapper.toPhieuTraHangResponse(phieuTraHang);
     }
 
@@ -254,15 +267,5 @@ public class PhieuTraHangService {
         }
         return phieuTraHangMapper.toPhieuTraHangResponse(phieu);
     }
-
-//
-//    public List<SanPhamTraResponse> getReturnProductsByPhieuTraHangId(Integer phieuTraHangId) {
-//        PhieuTraHang phieuTraHang = phieuTraHangRepository.findById(phieuTraHangId)
-//                .orElseThrow(() -> new AppException(ErrorCode.RETURN_NOT_EXISTS));
-//
-//        return phieuTraHang.getChiTietPhieuTraHang().stream()
-//                .map(chiTiet -> phieuTraHangMapper.mapHoaDonCTToSanPhamTra(chiTiet.getHoaDonChiTiet()))
-//                .toList();
-//    }
 
 }

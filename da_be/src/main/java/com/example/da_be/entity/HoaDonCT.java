@@ -1,7 +1,10 @@
 package com.example.da_be.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "HoaDonCT")
@@ -15,6 +18,7 @@ public class HoaDonCT {
     @JoinColumn(name = "IdSanPhamCT")
     private SanPhamCT sanPhamCT;
 
+    @JsonBackReference
     @ManyToOne
     @JoinColumn(name = "IdHoaDon")
     private HoaDon hoaDon;
@@ -27,6 +31,8 @@ public class HoaDonCT {
 
     @Column(name = "TrangThai")
     private Integer trangThai;
+
+
 
     public HoaDonCT() {
     }

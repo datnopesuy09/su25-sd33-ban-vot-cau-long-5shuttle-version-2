@@ -212,6 +212,27 @@ function OrderDetail() {
         return total;
     }, 0);
 
+    const goToReturnSlipByOrderId = async (orderId) => {
+        try {
+            const token = localStorage.getItem('userToken');
+            if (!token) {
+                toast.warning('Vui lòng đăng nhập');
+                return;
+            }
+            const headers = { Authorization: `Bearer ${token}` };
+            const res = await axios.get(`http://localhost:8080/phieu-tra-hang/by-order/${orderId}`, { headers });
+            const phieuTra = res?.data?.result;
+            if (!phieuTra?.id) {
+                toast.error('Không tìm thấy phiếu trả hàng');
+                return;
+            }
+            navigate(`/profile/return-order-detail/${phieuTra.id}`);
+        } catch (err) {
+            console.error('Không lấy được phiếu trả hàng:', err);
+            toast.error('Không thể mở phiếu trả hàng');
+        }
+    };
+
     return (
         <Box>
             {/* Header similar to order.jsx */}
@@ -327,18 +348,28 @@ function OrderDetail() {
                                             {bill.sanPhamCT?.sanPham?.ten || bill.ten || 'Sản phẩm'}
                                         </Typography>
                                         {bill.trangThaiTraHang && (
-                                            <Chip
-                                                label="Đã tạo phiếu trả"
-                                                size="small"
-                                                sx={{
-                                                    backgroundColor: '#fff3cd',
-                                                    color: '#856404',
-                                                    border: '1px solid #ffeaa7',
-                                                    fontSize: '0.75rem',
-                                                    height: 24,
-                                                }}
-                                                icon={<span style={{ fontSize: '12px' }}>↻</span>}
-                                            />
+                                            <Stack direction="row" spacing={1} alignItems="center">
+                                                <Chip
+                                                    label="Đã tạo phiếu trả"
+                                                    size="small"
+                                                    sx={{
+                                                        backgroundColor: '#fff3cd',
+                                                        color: '#856404',
+                                                        border: '1px solid #ffeaa7',
+                                                        fontSize: '0.75rem',
+                                                        height: 24,
+                                                    }}
+                                                    icon={<span style={{ fontSize: '12px' }}>↻</span>}
+                                                />
+                                                <Button
+                                                    size="small"
+                                                    variant="contained"
+                                                    color="warning"
+                                                    onClick={() => goToReturnSlipByOrderId(hoaDon?.id)}
+                                                >
+                                                    Xem phiếu trả
+                                                </Button>
+                                            </Stack>
                                         )}
                                     </div>
                                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }} noWrap>

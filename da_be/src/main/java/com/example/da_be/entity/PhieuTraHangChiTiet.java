@@ -1,6 +1,7 @@
 package com.example.da_be.entity;
 
 import com.example.da_be.enums.TrangThaiTra;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -23,6 +24,7 @@ public class PhieuTraHangChiTiet {
     String maPhieuTraHangChiTiet;
 
     // Khóa ngoại đến PhieuTraHang (IdPhieuTraHang INT NOT NULL)
+    @JsonBackReference
     @ManyToOne
     @JoinColumn(name = "IdPhieuTraHang", nullable = false)
     PhieuTraHang phieuTraHang; // Giả sử bạn đã có entity PhieuTraHang
@@ -37,6 +39,12 @@ public class PhieuTraHangChiTiet {
 
     @Column(name = "SoLuongPheDuyet", nullable = false)
     Integer soLuongPheDuyet;
+
+    @Column(name = "SoLuongNhapKho")
+    Integer soLuongNhapKho;
+
+    @Column(name = "SoLuongHong")
+    Integer soLuongHong;
 
     @Column(name = "LyDoTraHang", length = 500)
     String lyDoTraHang;
