@@ -153,10 +153,21 @@ function AddProduct() {
             }
         } catch (error) {
             console.error('Error adding product:', error);
-            toast.error(`Có lỗi xảy ra khi thêm sản phẩm: ${error.response?.data?.message || error.message}`, {
-                position: 'top-right',
-                autoClose: 3000,
-            });
+            const errorMessage = error.response?.data || error.message;
+            
+            // Kiểm tra nếu là lỗi trùng tên sản phẩm
+            if (errorMessage === 'Tên sản phẩm đã tồn tại') {
+                setErrors({ productName: 'Tên sản phẩm đã tồn tại' });
+                toast.error('Tên sản phẩm đã tồn tại. Vui lòng chọn tên khác.', {
+                    position: 'top-right',
+                    autoClose: 3000,
+                });
+            } else {
+                toast.error(`Có lỗi xảy ra khi thêm sản phẩm: ${errorMessage}`, {
+                    position: 'top-right',
+                    autoClose: 3000,
+                });
+            }
         } finally {
             setLoading(false);
         }

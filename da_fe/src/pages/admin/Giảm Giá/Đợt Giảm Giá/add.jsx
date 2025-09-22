@@ -957,7 +957,7 @@ function AddDotGiamGia() {
             const params = { ten: tenSanPhamSearch };
             const res = await axios.get(`http://localhost:8080/api/dot-giam-gia/list-san-pham`, { params });
             if (res && res.data) {
-                const filteredData = res.data.filter((item) => item.trangthai === 1);
+                const filteredData = res.data.filter((item) => item.trangThai === 1);
                 const dataWithKey = filteredData.map((item) => ({ ...item, key: item.id }));
                 setTableDataSanPham(dataWithKey);
             }

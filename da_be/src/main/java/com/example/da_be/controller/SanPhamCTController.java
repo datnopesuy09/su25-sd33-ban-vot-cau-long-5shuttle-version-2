@@ -5,6 +5,7 @@ import com.example.da_be.dto.*;
 import com.example.da_be.entity.HinhAnh;
 import com.example.da_be.entity.SanPham;
 import com.example.da_be.entity.SanPhamCT;
+import com.example.da_be.exception.ErrorCode;
 import com.example.da_be.exception.ResourceNotFoundException;
 import com.example.da_be.repository.*;
 import com.example.da_be.service.SanPhamCTService;
@@ -328,6 +329,12 @@ public class SanPhamCTController {
     @PostMapping("/add-with-variants")
     public ResponseEntity<?> addProductWithVariants(@RequestBody AddProductRequest request) {
         try {
+            // Kiểm tra tên sản phẩm đã tồn tại chưa
+            if (sanPhamRepository.findByTenIgnoreCase(request.getProductName()).isPresent()) {
+                return ResponseEntity.status(ErrorCode.PRODUCT_NAME_EXISTS.getHttpStatus())
+                        .body(ErrorCode.PRODUCT_NAME_EXISTS.getMessage());
+            }
+
             // 1. Tạo sản phẩm chính
             SanPham sanPham = new SanPham();
             sanPham.setTen(request.getProductName());

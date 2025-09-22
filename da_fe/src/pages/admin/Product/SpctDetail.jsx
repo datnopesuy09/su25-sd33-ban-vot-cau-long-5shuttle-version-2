@@ -225,9 +225,6 @@ function SpctDetail() {
             setIsLoading(false);
         }
     };
-    
-    
-      
 
     useEffect(() => {
         const fetchProductDetail = async () => {
@@ -661,7 +658,7 @@ function SpctDetail() {
                                                 }`}
                                                 title={item.status === 'Active' ? 'Hoạt động' : 'Không hoạt động'}
                                             >
-                                                {item.status === 'Active' ? 'ON' : 'OFF'}
+                                                {item.status === 'Active' ? 'Hoạt động' : 'Không hoat động'}
                                             </span>
                                         </td>
                                         <td className="px-2 py-3 text-center">

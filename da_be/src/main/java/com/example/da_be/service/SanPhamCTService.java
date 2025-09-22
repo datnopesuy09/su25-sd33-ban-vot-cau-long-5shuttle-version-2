@@ -130,13 +130,10 @@ public class SanPhamCTService {
 
     // Lấy thông tin chi tiết sản phẩm
     public SanPhamCTDetailDTO getSanPhamCTDetail(Integer sanPhamId) {
-        // Lấy danh sách tất cả SanPhamCT theo sản phẩm cha và chỉ lấy những biến thể active (trangThai = 1)
-        List<SanPhamCT> sanPhamCTList = sanPhamCTRepository.findBySanPham_Id(sanPhamId)
-                .stream()
-                .filter(spct -> spct.getTrangThai() != null && spct.getTrangThai() == 1)
-                .collect(Collectors.toList());
+        // Lấy danh sách tất cả SanPhamCT theo sản phẩm cha (bao gồm cả active và inactive)
+        List<SanPhamCT> sanPhamCTList = sanPhamCTRepository.findBySanPham_Id(sanPhamId);
         if (sanPhamCTList.isEmpty()) {
-            throw new ResourceNotFoundException("No active SanPhamCT found for SanPham id " + sanPhamId);
+            throw new ResourceNotFoundException("No SanPhamCT found for SanPham id " + sanPhamId);
         }
         // Lấy thông tin chung sản phẩm từ sản phẩm cha
         SanPham sanPham = sanPhamCTList.get(0).getSanPham();
@@ -251,13 +248,10 @@ public class SanPhamCTService {
 
 
     public SanPhamCTDetailDTO getSanPhamCTDetailWithPromotion(Integer sanPhamId) {
-        // Lấy danh sách tất cả SanPhamCT theo sản phẩm cha và chỉ lấy những biến thể active (trangThai = 1)
-        List<SanPhamCT> sanPhamCTList = sanPhamCTRepository.findBySanPham_Id(sanPhamId)
-                .stream()
-                .filter(spct -> spct.getTrangThai() != null && spct.getTrangThai() == 1)
-                .collect(Collectors.toList());
+        // Lấy danh sách tất cả SanPhamCT theo sản phẩm cha (bao gồm cả active và inactive)
+        List<SanPhamCT> sanPhamCTList = sanPhamCTRepository.findBySanPham_Id(sanPhamId);
         if (sanPhamCTList.isEmpty()) {
-            throw new ResourceNotFoundException("No active SanPhamCT found for SanPham id " + sanPhamId);
+            throw new ResourceNotFoundException("No SanPhamCT found for SanPham id " + sanPhamId);
         }
 
         // Lấy thông tin chung sản phẩm từ sản phẩm cha
