@@ -14,6 +14,8 @@ public class PhieuTraHangChiTietApprovalDetail {
     Integer phieuTraHangChiTietId;
     Integer hoaDonChiTietId;
     Integer soLuongDuocPheDuyet;
+    Integer soLuongNhapKho;
+    Integer soLuongHong;
     String lyDoXuLy;
 
 }

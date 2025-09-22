@@ -191,7 +191,7 @@ public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
         SELECT
             CONCAT_WS(' - ', sp.Ten, ms.Ten, cl.Ten, th.Ten, tl.Ten, dc.Ten) as tenSanPham,
             SUM(hdct.SoLuong) as soLuongDaBan,
-            COALESCE(MIN(hdct.DonGia), 0) as giaTien
+            COALESCE(MIN(spct.DonGia), 0) as giaTien
         FROM 5SHUTTLE.HoaDonCT hdct
         JOIN 5SHUTTLE.HoaDon hd ON hdct.IdHoaDon = hd.Id
         JOIN 5SHUTTLE.SanPhamCT spct ON hdct.IdSanPhamCT = spct.Id
@@ -214,7 +214,7 @@ public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
         SELECT
             CONCAT_WS(' - ', sp.Ten, ms.Ten, cl.Ten, th.Ten, tl.Ten, dc.Ten) as tenSanPham,
             SUM(hdct.SoLuong) as soLuongDaBan,
-            COALESCE(MIN(hdct.DonGia), 0) as giaTien
+            COALESCE(MIN(spct.DonGia), 0) as giaTien
         FROM 5SHUTTLE.HoaDonCT hdct
         JOIN 5SHUTTLE.HoaDon hd ON hdct.IdHoaDon = hd.Id
         JOIN 5SHUTTLE.SanPhamCT spct ON hdct.IdSanPhamCT = spct.Id
@@ -237,7 +237,7 @@ public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
         SELECT
             CONCAT_WS(' - ', sp.Ten, ms.Ten, cl.Ten, th.Ten, tl.Ten, dc.Ten) as tenSanPham,
             SUM(hdct.SoLuong) as soLuongDaBan,
-            COALESCE(MIN(hdct.DonGia), 0) as giaTien
+            COALESCE(MIN(spct.DonGia), 0) as giaTien
         FROM 5SHUTTLE.HoaDonCT hdct
         JOIN 5SHUTTLE.HoaDon hd ON hdct.IdHoaDon = hd.Id
         JOIN 5SHUTTLE.SanPhamCT spct ON hdct.IdSanPhamCT = spct.Id
@@ -260,7 +260,7 @@ public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
         SELECT
             CONCAT_WS(' - ', sp.Ten, ms.Ten, cl.Ten, th.Ten, tl.Ten, dc.Ten) as tenSanPham,
             SUM(hdct.SoLuong) as soLuongDaBan,
-            COALESCE(MIN(hdct.DonGia), 0) as giaTien
+            COALESCE(MIN(spct.DonGia), 0) as giaTien
         FROM 5SHUTTLE.HoaDonCT hdct
         JOIN 5SHUTTLE.HoaDon hd ON hdct.IdHoaDon = hd.Id
         JOIN 5SHUTTLE.SanPhamCT spct ON hdct.IdSanPhamCT = spct.Id

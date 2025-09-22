@@ -10,6 +10,8 @@ public interface PhieuTraHangChiTietMapper {
 
     @Mapping(source = "phieuTraHang.id", target = "phieuTraHangId")
     @Mapping(source = "hoaDonChiTiet.sanPhamCT", target = "thongTinSanPhamTra")
+    @Mapping(source = "soLuongNhapKho", target = "soLuongNhapKho")
+    @Mapping(source = "soLuongHong", target = "soLuongHong")
     PhieuTraHangChiTietResponse toResponse(PhieuTraHangChiTiet entity);
 }
 

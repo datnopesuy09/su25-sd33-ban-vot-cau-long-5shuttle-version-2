@@ -2,6 +2,7 @@ package com.example.da_be.entity;
 
 
 import com.example.da_be.enums.TrangThaiTra;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -63,6 +64,7 @@ public class PhieuTraHang {
     @JoinColumn(name = "IdNhanVienXuLy") // nullable mặc định là true
     User nhanVienXuLy; // Giả sử bạn đã có entity User
 
+    @JsonManagedReference
     @OneToMany(mappedBy = "phieuTraHang", cascade = CascadeType.ALL, orphanRemoval = true)
     List<PhieuTraHangChiTiet> chiTietPhieuTraHang;
 

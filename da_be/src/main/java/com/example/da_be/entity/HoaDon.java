@@ -1,8 +1,11 @@
 package com.example.da_be.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 @Entity
 @Table(name = "HoaDon")
@@ -60,6 +63,16 @@ public class HoaDon {
 
     @Column(name = "TrangThai")
     private Integer trangThai;
+
+    @JsonManagedReference
+    @OneToMany(mappedBy = "hoaDon", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<HoaDonCT> chiTietHoaDon = new ArrayList<>();
+
+    // Getter/Setter cho chiTietHoaDon
+    public List<HoaDonCT> getChiTietHoaDon() {
+        return chiTietHoaDon;
+    }
+
 
 
     public HoaDon() {

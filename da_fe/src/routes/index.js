@@ -63,8 +63,6 @@ import InStoreOrders from '../pages/admin/Sale/InStoreOrders.jsx';
 import OrderReturn from '../pages/users/TaiKhoan/orderReturn.jsx';
 import BulkOrderManagement from '../pages/admin/BulkOrder/BulkOrderManagement.jsx';
 import PolicyPage from '../pages/users/Policy/policy.jsx';
-
-import ReturnOrderDetail from '../pages/users/TaiKhoan/returnOrderDetail.jsx';
 // Public routes
 const publicRoutes = [
     { path: '/', component: Home },
@@ -116,7 +114,6 @@ const publicRoutes = [
             { path: 'order', component: UserOrder, layout: null },
             { path: 'return-order-detail/:id', component: ReturnOrderDetail, layout: null },
             { path: 'order-detail/:id', component: OrderDetail, layout: null },
-            { path: 'return-order-detail/:id', component: ReturnOrderDetail, layout: null },
             { path: 'change-password', component: ChangePassword, layout: null },
             { path: 'address', component: AddressUser, layout: null },
             { path: 'my-voucher', component: MyVoucher, layout: null },

@@ -23,8 +23,11 @@ public class PhieuTraHangChiTietResponse {
 
     Integer soLuongPheDuyet;
 
-    String ghiChuNhanVien;
+    Integer soLuongNhapKho;
 
+    Integer soLuongHong;
+
+    String ghiChuNhanVien;
 
     String lyDoTraHang;
 
