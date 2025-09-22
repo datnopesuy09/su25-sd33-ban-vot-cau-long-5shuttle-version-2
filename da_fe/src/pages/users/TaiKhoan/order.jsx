@@ -36,6 +36,8 @@ const tabs = [
     { key: 'Chờ xác nhận', label: 'Chờ xác nhận', icon: <Clock className="w-4 h-4" />, count: 0 },
     { key: 'Chờ giao hàng', label: 'Chờ giao hàng', icon: <ShoppingBag className="w-4 h-4" />, count: 0 },
     { key: 'Đang vận chuyển', label: 'Đang vận chuyển', icon: <Truck className="w-4 h-4" />, count: 0 },
+    { key: 'Đã giao hàng', label: 'Đã giao hàng', icon: <PackageCheck className="w-4 h-4" />, count: 0 },
+    { key: 'Đã thanh toán', label: 'Đã thanh toán', icon: <CheckCircle className="w-4 h-4" />, count: 0 },
     { key: 'Hoàn thành', label: 'Hoàn thành', icon: <CheckCircle className="w-4 h-4" />, count: 0 },
     { key: 'Đã hủy', label: 'Đã hủy', icon: <XCircle className="w-4 h-4" />, count: 0 },
     { key: 'Trả hàng', label: 'Phiếu trả hàng', icon: <RotateCcw className="w-4 h-4" />, count: 0 },
@@ -45,7 +47,9 @@ const tabStatusMap = {
     'Tất cả': null,
     'Chờ xác nhận': [1],
     'Chờ giao hàng': [2],
-    'Đang vận chuyển': [3, 4],
+    'Đang vận chuyển': [3],
+    'Đã giao hàng': [4],
+    'Đã thanh toán': [5],
     'Hoàn thành': [6],
     'Đã hủy': [7],
     'Trả hàng': [8],
@@ -75,6 +79,12 @@ const statusMap = {
         color: 'bg-green-50 text-green-700 border-green-200',
         icon: <PackageCheck className="w-3 h-3" />,
         dotColor: 'bg-green-400',
+    },
+    5: {
+        label: 'Đã thanh toán',
+        color: 'bg-teal-50 text-teal-700 border-teal-200',
+        icon: <CheckCircle className="w-3 h-3" />,
+        dotColor: 'bg-teal-400',
     },
     6: {
         label: 'Hoàn thành',
@@ -181,6 +191,22 @@ function UserOrder() {
     const [itemsPerPage, setItemsPerPage] = useState(5); // Số đơn hàng mỗi trang
     const [isChangingPage, setIsChangingPage] = useState(false);
     const itemsPerPageOptions = [5, 10, 15, 20];
+
+    // State for tracking expanded orders (show all products)
+    const [expandedOrders, setExpandedOrders] = useState(new Set());
+
+    // Function to toggle product list expansion for an order
+    const toggleOrderExpansion = (orderId) => {
+        setExpandedOrders(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(orderId)) {
+                newSet.delete(orderId);
+            } else {
+                newSet.add(orderId);
+            }
+            return newSet;
+        });
+    };
 
     // Tính số lượng đơn hàng cho mỗi tab
     const getOrderCounts = () => {
@@ -635,93 +661,126 @@ function UserOrder() {
                                         {/* Chi tiết sản phẩm trả */}
                                         <div className="p-6">
                                             <div className="space-y-4">
-                                                {item.chiTietTraHang?.map((chiTiet, idx) => {
-                                                    const sanPham = chiTiet.thongTinSanPhamTra;
-                                                    const soLuongTra = chiTiet.soLuongTra;
-                                                    const soLuongPheDuyet = chiTiet.soLuongPheDuyet;
-                                                    const giaBan = sanPham?.giaBan || 0;
-                                                    const tongTienTra = giaBan * soLuongPheDuyet;
+                                                {(() => {
+                                                    const allReturnProducts = item.chiTietTraHang;
+                                                    const isExpanded = expandedOrders.has(item.id);
+                                                    const productsToShow = isExpanded ? allReturnProducts : allReturnProducts?.slice(0, 1);
+                                                    const hasMoreProducts = allReturnProducts?.length > 1;
 
                                                     return (
-                                                        <div
-                                                            key={idx}
-                                                            className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
-                                                        >
-                                                            {/* Product Image */}
-                                                            <div className="flex-shrink-0">
-                                                                <div className="w-20 h-20 bg-gray-200 rounded-xl border border-gray-200 flex items-center justify-center">
-                                                                    <Package className="w-8 h-8 text-gray-400" />
-                                                                </div>
-                                                            </div>
+                                                        <>
+                                                            {productsToShow?.map((chiTiet, idx) => {
+                                                                const sanPham = chiTiet.thongTinSanPhamTra;
+                                                                const soLuongTra = chiTiet.soLuongTra;
+                                                                const soLuongPheDuyet = chiTiet.soLuongPheDuyet;
+                                                                const giaBan = sanPham?.giaBan || 0;
+                                                                const tongTienTra = giaBan * soLuongPheDuyet;
 
-                                                            {/* Product Info */}
-                                                            <div className="flex-grow min-w-0">
-                                                                <h4 className="font-medium text-gray-800 text-base line-clamp-2 mb-2">
-                                                                    {sanPham?.tenSanPham || 'Sản phẩm'}
-                                                                </h4>
+                                                                return (
+                                                                    <div
+                                                                        key={idx}
+                                                                        className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                                                                    >
+                                                                        {/* Product Image */}
+                                                                        <div className="flex-shrink-0">
+                                                                            <div className="w-20 h-20 bg-gray-200 rounded-xl border border-gray-200 flex items-center justify-center">
+                                                                                <Package className="w-8 h-8 text-gray-400" />
+                                                                            </div>
+                                                                        </div>
 
-                                                                <div className="flex items-center gap-4 text-sm text-gray-600">
-                                                                    <div className="flex items-center gap-1">
-                                                                        <Tag className="w-3 h-3" />
-                                                                        <span>
-                                                                            {sanPham?.tenMauSac || ''},{' '}
-                                                                            {sanPham?.tenTrongLuong || ''},{' '}
-                                                                            {sanPham?.tenDoCung || ''}
-                                                                        </span>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-1">
-                                                                        <Package className="w-3 h-3" />
-                                                                        <span>Yêu cầu: x{soLuongTra}</span>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-1">
-                                                                        <CheckCircle className="w-3 h-3" />
-                                                                        <span>
-                                                                            Duyệt:{' '}
-                                                                            {soLuongPheDuyet > 0
-                                                                                ? `x${soLuongPheDuyet}`
-                                                                                : 'Chờ duyệt'}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
+                                                                        {/* Product Info */}
+                                                                        <div className="flex-grow min-w-0">
+                                                                            <h4 className="font-medium text-gray-800 text-base line-clamp-2 mb-2">
+                                                                                {sanPham?.tenSanPham || 'Sản phẩm'}
+                                                                            </h4>
 
-                                                                {chiTiet.lyDoTraHang && (
-                                                                    <div className="mt-2 text-sm text-gray-600">
-                                                                        <span className="font-medium">Lý do:</span>{' '}
-                                                                        {chiTiet.lyDoTraHang}
-                                                                    </div>
-                                                                )}
+                                                                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <Tag className="w-3 h-3" />
+                                                                                    <span>
+                                                                                        {sanPham?.tenMauSac || ''},{' '}
+                                                                                        {sanPham?.tenTrongLuong || ''},{' '}
+                                                                                        {sanPham?.tenDoCung || ''}
+                                                                                    </span>
+                                                                                </div>
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <Package className="w-3 h-3" />
+                                                                                    <span>Yêu cầu: x{soLuongTra}</span>
+                                                                                </div>
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <CheckCircle className="w-3 h-3" />
+                                                                                    <span>
+                                                                                        Duyệt:{' '}
+                                                                                        {soLuongPheDuyet > 0
+                                                                                            ? `x${soLuongPheDuyet}`
+                                                                                            : 'Chờ duyệt'}
+                                                                                    </span>
+                                                                                </div>
+                                                                            </div>
 
-                                                                {chiTiet.ghiChuNhanVien ? (
-                                                                    <div className="mt-1 text-sm text-gray-600">
-                                                                        <span className="font-medium">Ghi chú NV:</span>{' '}
-                                                                        {chiTiet.ghiChuNhanVien}
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="mt-1 text-sm text-gray-500 italic">
-                                                                        <span className="font-medium">Ghi chú NV:</span>{' '}
-                                                                        Chưa có ghi chú
-                                                                    </div>
-                                                                )}
-                                                            </div>
+                                                                            {chiTiet.lyDoTraHang && (
+                                                                                <div className="mt-2 text-sm text-gray-600">
+                                                                                    <span className="font-medium">Lý do:</span>{' '}
+                                                                                    {chiTiet.lyDoTraHang}
+                                                                                </div>
+                                                                            )}
 
-                                                            {/* Price */}
-                                                            <div className="text-right min-w-[140px]">
-                                                                <div className="text-sm text-gray-500 mb-1">
-                                                                    Đơn giá:
+                                                                            {chiTiet.ghiChuNhanVien ? (
+                                                                                <div className="mt-1 text-sm text-gray-600">
+                                                                                    <span className="font-medium">Ghi chú NV:</span>{' '}
+                                                                                    {chiTiet.ghiChuNhanVien}
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="mt-1 text-sm text-gray-500 italic">
+                                                                                    <span className="font-medium">Ghi chú NV:</span>{' '}
+                                                                                    Chưa có ghi chú
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {/* Price */}
+                                                                        <div className="text-right min-w-[140px]">
+                                                                            <div className="text-sm text-gray-500 mb-1">
+                                                                                Đơn giá:
+                                                                            </div>
+                                                                            <div className="text-md font-semibold text-red-600 mb-2">
+                                                                                {formatCurrency(giaBan)}
+                                                                            </div>
+                                                                            <div className="text-sm text-gray-600">Tổng:</div>
+                                                                            <div className="text-lg font-bold text-gray-800">
+                                                                                {soLuongPheDuyet > 0
+                                                                                    ? formatCurrency(tongTienTra)
+                                                                                    : 'Chờ duyệt'}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                            
+                                                            {/* Show "xem thêm" button if there are more return products */}
+                                                            {hasMoreProducts && (
+                                                                <div className="flex justify-center pt-2">
+                                                                    <button
+                                                                        onClick={() => toggleOrderExpansion(item.id)}
+                                                                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                                                                    >
+                                                                        {isExpanded ? (
+                                                                            <>
+                                                                                <span>Thu gọn</span>
+                                                                                <ChevronLeft className="w-4 h-4 rotate-90" />
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <span>Xem thêm {allReturnProducts.length - 1} sản phẩm</span>
+                                                                                <ChevronRight className="w-4 h-4 rotate-90" />
+                                                                            </>
+                                                                        )}
+                                                                    </button>
                                                                 </div>
-                                                                <div className="text-md font-semibold text-red-600 mb-2">
-                                                                    {formatCurrency(giaBan)}
-                                                                </div>
-                                                                <div className="text-sm text-gray-600">Tổng:</div>
-                                                                <div className="text-lg font-bold text-gray-800">
-                                                                    {soLuongPheDuyet > 0
-                                                                        ? formatCurrency(tongTienTra)
-                                                                        : 'Chờ duyệt'}
-                                                                </div>
-                                                            </div>
-                                                        </div>
+                                                            )}
+                                                        </>
                                                     );
-                                                })}
+                                                })()}
                                             </div>
                                         </div>
 
@@ -814,149 +873,152 @@ function UserOrder() {
                                     {/* Products */}
                                     <div className="p-6">
                                         <div className="space-y-4">
-                                            {(item.trangThai === 8 ? item.returnDetails : item.chiTiet)?.map(
-                                                (sp, idx) => {
-                                                    const isReturn = item.trangThai === 8;
-                                                    const quantity = isReturn ? sp?.soLuongTra || 0 : sp?.soLuong || 0;
+                                            {(() => {
+                                                const allProducts = item.trangThai === 8 ? item.returnDetails : item.chiTiet;
+                                                const isExpanded = expandedOrders.has(item.id);
+                                                const productsToShow = isExpanded ? allProducts : allProducts?.slice(0, 1);
+                                                const hasMoreProducts = allProducts?.length > 1;
 
-                                                    // // Try to extract variant/product pricing
-                                                    // const sanPhamCT = isReturn
-                                                    //     ? sp?.thongTinSanPhamTra?.sanPhamCT
-                                                    //     : sp?.sanPhamCT;
+                                                return (
+                                                    <>
+                                                        {productsToShow?.map((sp, idx) => {
+                                                            const isReturn = item.trangThai === 8;
+                                                            const quantity = isReturn ? sp?.soLuongTra || 0 : sp?.soLuong || 0;
 
-                                                    // const originalPrice =
-                                                    //     sanPhamCT?.donGia ??
-                                                    //     sp?.giaGoc ??
-                                                    //     (isReturn ? sp?.thongTinSanPhamTra?.giaBan : sp?.giaBan) ??
-                                                    //     0;
-                                                    // const discountedPrice =
-                                                    //     sanPhamCT?.giaKhuyenMai ??
-                                                    //     (isReturn ? sp?.thongTinSanPhamTra?.giaBan : sp?.giaBan) ??
-                                                    //     originalPrice;
+                                                            // Resolve prices using helper (handles variant or order-level totals)
+                                                            const { originalPrice, discountedPrice, unitPrice } =
+                                                                resolveItemPrices(sp, isReturn);
+                                                            const lineTotal = unitPrice * quantity;
 
-                                                    // const unitPrice = discountedPrice;
+                                                            const discountPercent =
+                                                                originalPrice > 0 && originalPrice > discountedPrice
+                                                                    ? Math.round(
+                                                                          ((originalPrice - discountedPrice) / originalPrice) *
+                                                                              100,
+                                                                      )
+                                                                    : 0;
 
-                                                    // Resolve prices using helper (handles variant or order-level totals)
-                                                    const { originalPrice, discountedPrice, unitPrice } =
-                                                        resolveItemPrices(sp, isReturn);
-                                                    const lineTotal = unitPrice * quantity;
+                                                            return (
+                                                                <div
+                                                                    key={idx}
+                                                                    className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                                                                >
+                                                                    {/* Product Image */}
+                                                                    <div className="flex-shrink-0">
+                                                                        <img
+                                                                            src={
+                                                                                sp?.hinhAnhUrl ||
+                                                                                sp?.sanPhamCT?.hinhAnhUrl ||
+                                                                                sp?.sanPhamCT?.hinhAnh ||
+                                                                                sp?.thongTinSanPhamTra?.hinhAnhUrl ||
+                                                                                'https://via.placeholder.com/80'
+                                                                            }
+                                                                            alt={
+                                                                                isReturn
+                                                                                    ? sp?.thongTinSanPhamTra?.tenSanPham
+                                                                                    : sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'
+                                                                            }
+                                                                            className="w-20 h-20 object-cover rounded-xl border border-gray-200"
+                                                                        />
+                                                                    </div>
 
-                                                    const discountPercent =
-                                                        originalPrice > 0 && originalPrice > discountedPrice
-                                                            ? Math.round(
-                                                                  ((originalPrice - discountedPrice) / originalPrice) *
-                                                                      100,
-                                                              )
-                                                            : 0;
-
-                                                    return (
-                                                        <div
-                                                            key={idx}
-                                                            className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
-                                                        >
-                                                            {/* Product Image */}
-                                                            <div className="flex-shrink-0">
-                                                                <img
-                                                                    src={
-                                                                        sp?.hinhAnhUrl ||
-                                                                        sp?.sanPhamCT?.hinhAnhUrl ||
-                                                                        sp?.sanPhamCT?.hinhAnh ||
-                                                                        sp?.thongTinSanPhamTra?.hinhAnhUrl ||
-                                                                        'https://via.placeholder.com/80'
-                                                                    }
-                                                                    alt={
-                                                                        isReturn
-                                                                            ? sp?.thongTinSanPhamTra?.tenSanPham
-                                                                            : sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'
-                                                                    }
-                                                                    className="w-20 h-20 object-cover rounded-xl border border-gray-200"
-                                                                />
-                                                            </div>
-
-                                                            {/* Product Info */}
-                                                            <div className="flex-grow min-w-0">
-                                                                <div className="flex items-center gap-2 mb-2">
-                                                                    <h4 className="font-medium text-gray-800 text-base line-clamp-2">
-                                                                        {isReturn
-                                                                            ? sp?.thongTinSanPhamTra?.tenSanPham
-                                                                            : sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'}
-                                                                    </h4>
-                                                                    {!isReturn && sp?.trangThaiTraHang && (
-                                                                        <div className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-orange-100 text-orange-700 rounded-full border border-orange-200">
-                                                                            <RotateCcw className="w-3 h-3" />
-                                                                            <span>Đã tạo phiếu trả</span>
+                                                                    {/* Product Info */}
+                                                                    <div className="flex-grow min-w-0">
+                                                                        <div className="flex items-center gap-2 mb-2">
+                                                                            <h4 className="font-medium text-gray-800 text-base line-clamp-2">
+                                                                                {isReturn
+                                                                                    ? sp?.thongTinSanPhamTra?.tenSanPham
+                                                                                    : sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'}
+                                                                            </h4>
+                                                                            {!isReturn && sp?.trangThaiTraHang && (
+                                                                                <div className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-orange-100 text-orange-700 rounded-full border border-orange-200">
+                                                                                    <RotateCcw className="w-3 h-3" />
+                                                                                    <span>Đã tạo phiếu trả</span>
+                                                                                </div>
+                                                                            )}
                                                                         </div>
-                                                                    )}
-                                                                </div>
 
-                                                                {/* <h4 className="font-medium text-gray-800 text-base line-clamp-2 mb-2">
-                                                                    {isReturn
-                                                                        ? sp?.thongTinSanPhamTra?.tenSanPham
-                                                                        : sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'}
-                                                                </h4> */}
-
-                                                                <div className="flex items-center gap-4 text-sm text-gray-600">
-                                                                    <div className="flex items-center gap-1">
-                                                                        <Tag className="w-3 h-3" />
-                                                                        <span>
-                                                                            {isReturn
-                                                                                ? `${sp?.thongTinSanPhamTra?.tenMauSac || ''}, ${sp?.thongTinSanPhamTra?.tenTrongLuong || ''}, ${sp?.thongTinSanPhamTra?.tenDoCung || ''}`
-                                                                                : `${sp?.sanPhamCT?.mauSac?.ten || ''}, ${sp?.sanPhamCT?.trongLuong?.ten || ''}, ${sp?.sanPhamCT?.doCung?.ten || ''}`}
-                                                                        </span>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-1">
-                                                                        <Package className="w-3 h-3" />
-                                                                        <span>x{quantity}</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Price */}
-                                                            <div className="text-right min-w-[140px]">
-                                                                <div className="flex items-center justify-end gap-2">
-                                                                    <div className="text-sm text-gray-500">
-                                                                        Đơn giá:
-                                                                    </div>
-                                                                    <div className="text-md font-semibold text-red-600">
-                                                                        {formatCurrency(unitPrice)}
-                                                                    </div>
-                                                                    {discountPercent > 0 && (
-                                                                        //<div className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded">
-
-                                                                        <div className="text-xs font-semibold text-white bg-red-500 px-2 py-0.5 rounded">
-                                                                            -{discountPercent}%
+                                                                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                                                                            <div className="flex items-center gap-1">
+                                                                                <Tag className="w-3 h-3" />
+                                                                                <span>
+                                                                                    {isReturn
+                                                                                        ? `${sp?.thongTinSanPhamTra?.tenMauSac || ''}, ${sp?.thongTinSanPhamTra?.tenTrongLuong || ''}, ${sp?.thongTinSanPhamTra?.tenDoCung || ''}`
+                                                                                        : `${sp?.sanPhamCT?.mauSac?.ten || ''}, ${sp?.sanPhamCT?.trongLuong?.ten || ''}, ${sp?.sanPhamCT?.doCung?.ten || ''}`}
+                                                                                </span>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-1">
+                                                                                <Package className="w-3 h-3" />
+                                                                                <span>x{quantity}</span>
+                                                                            </div>
                                                                         </div>
-                                                                    )}
-                                                                </div>
-
-                                                                {discountPercent > 0 && (
-                                                                    // <div className="text-xs text-gray-500 line-through mt-1">
-                                                                    //     {formatCurrency(originalPrice)}
-
-                                                                    <div className="text-xs text-gray-500 line-through mt-1 text-right">
-                                                                        Giá gốc: {formatCurrency(originalPrice)}
                                                                     </div>
-                                                                )}
 
-                                                                <div className="text-sm text-gray-600 mt-2 text-right">
-                                                                    Thành tiền:
-                                                                </div>
-                                                                <div className="text-lg font-bold text-gray-800 text-right">
-                                                                    {formatCurrency(lineTotal)}
-                                                                </div>
-                                                                {discountPercent > 0 && (
-                                                                    <div className="text-xs text-gray-500 mt-1 text-right">
-                                                                        Tiết kiệm:{' '}
-                                                                        {formatCurrency(
-                                                                            (originalPrice - unitPrice) * quantity,
+                                                                    {/* Price */}
+                                                                    <div className="text-right min-w-[140px]">
+                                                                        <div className="flex items-center justify-end gap-2">
+                                                                            <div className="text-sm text-gray-500">
+                                                                                Đơn giá:
+                                                                            </div>
+                                                                            <div className="text-md font-semibold text-red-600">
+                                                                                {formatCurrency(unitPrice)}
+                                                                            </div>
+                                                                            {discountPercent > 0 && (
+                                                                                <div className="text-xs font-semibold text-white bg-red-500 px-2 py-0.5 rounded">
+                                                                                    -{discountPercent}%
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+
+                                                                        {discountPercent > 0 && (
+                                                                            <div className="text-xs text-gray-500 line-through mt-1 text-right">
+                                                                                Giá gốc: {formatCurrency(originalPrice)}
+                                                                            </div>
+                                                                        )}
+
+                                                                        <div className="text-sm text-gray-600 mt-2 text-right">
+                                                                            Thành tiền:
+                                                                        </div>
+                                                                        <div className="text-lg font-bold text-gray-800 text-right">
+                                                                            {formatCurrency(lineTotal)}
+                                                                        </div>
+                                                                        {discountPercent > 0 && (
+                                                                            <div className="text-xs text-gray-500 mt-1 text-right">
+                                                                                Tiết kiệm:{' '}
+                                                                                {formatCurrency(
+                                                                                    (originalPrice - unitPrice) * quantity,
+                                                                                )}
+                                                                            </div>
                                                                         )}
                                                                     </div>
-                                                                )}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                        
+                                                        {/* Show "xem thêm" button if there are more products */}
+                                                        {hasMoreProducts && (
+                                                            <div className="flex justify-center pt-2">
+                                                                <button
+                                                                    onClick={() => toggleOrderExpansion(item.id)}
+                                                                    className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                                                                >
+                                                                    {isExpanded ? (
+                                                                        <>
+                                                                            <span>Thu gọn</span>
+                                                                            <ChevronLeft className="w-4 h-4 rotate-90" />
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <span>Xem thêm {allProducts.length - 1} sản phẩm</span>
+                                                                            <ChevronRight className="w-4 h-4 rotate-90" />
+                                                                        </>
+                                                                    )}
+                                                                </button>
                                                             </div>
-                                                        </div>
-                                                    );
-                                                },
-                                            )}
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
 
