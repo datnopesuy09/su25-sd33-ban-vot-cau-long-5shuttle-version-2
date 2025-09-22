@@ -257,9 +257,25 @@ function OrderDetail() {
                                 />
 
                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                    <Typography fontWeight={700} noWrap>
-                                        {bill.sanPhamCT?.sanPham?.ten || bill.ten || 'Sản phẩm'}
-                                    </Typography>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                        <Typography fontWeight={700} noWrap>
+                                            {bill.sanPhamCT?.sanPham?.ten || bill.ten || 'Sản phẩm'}
+                                        </Typography>
+                                        {bill.trangThaiTraHang && (
+                                            <Chip
+                                                label="Đã tạo phiếu trả"
+                                                size="small"
+                                                sx={{
+                                                    backgroundColor: '#fff3cd',
+                                                    color: '#856404',
+                                                    border: '1px solid #ffeaa7',
+                                                    fontSize: '0.75rem',
+                                                    height: 24,
+                                                }}
+                                                icon={<span style={{ fontSize: '12px' }}>↻</span>}
+                                            />
+                                        )}
+                                    </div>
                                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }} noWrap>
                                         {`Phân loại: ${bill.sanPhamCT?.mauSac?.ten || bill.mauSac?.ten || '-'}, ${bill.sanPhamCT?.trongLuong?.ten || bill.trongLuong?.ten || '-'}, ${bill.sanPhamCT?.doCung?.ten || bill.doCung?.ten || '-'}`}
                                     </Typography>

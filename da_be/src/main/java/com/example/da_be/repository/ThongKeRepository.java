@@ -15,12 +15,19 @@ import java.util.Set;
 public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
 
     @Query(value = """
-SELECT
-            COALESCE(SUM(hdct.SoLuong * hdct.GiaBan), 0)
-              - COALESCE(SUM(ptrct.SoLuongPheDuyet * hdct.GiaBan), 0) AS tongTien,
-            COALESCE(SUM(hdct.SoLuong), 0)
-              - COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPham,
-            COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPhamTra,
+        SELECT
+            -- Tổng tiền chỉ tính khi hdct.TrangThai = 6
+            COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong * hdct.GiaBan END), 0)
+              - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet * hdct.GiaBan END), 0) AS tongTien,
+        
+            -- Tổng sản phẩm chỉ tính khi hdct.TrangThai = 6
+            COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong END), 0)
+              - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPham,
+        
+            -- Tổng sản phẩm trả chỉ tính khi hdct.TrangThai = 6
+            COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPhamTra,
+        
+            -- Các chỉ số khác thì không áp dụng hdct.TrangThai = 6
             SUM(CASE WHEN h.TrangThai = 6 THEN 1 ELSE 0 END) AS tongDonThanhCong,
             SUM(CASE WHEN h.TrangThai = 7 THEN 1 ELSE 0 END) AS tongDonHuy,
             SUM(CASE WHEN h.TrangThai = 8 THEN 1 ELSE 0 END) AS tongDonTra
@@ -33,19 +40,22 @@ SELECT
         LEFT JOIN 5SHUTTLE.PhieuTraHangCT ptrct
             ON ptrct.IdPhieuTraHang = ptr.Id
            AND ptrct.IdHoaDonCT = hdct.Id
-        WHERE hdct.TrangThai = 6
-          AND h.NgayTao >= CURDATE()
+        WHERE h.NgayTao >= CURDATE()
           AND h.NgayTao < CURDATE() + INTERVAL 1 DAY;
     """, nativeQuery = true)
     OrderStatsProjection getStatsByCurrentDate();
 
     @Query(value = """
         SELECT
-            COALESCE(SUM(hdct.SoLuong * hdct.GiaBan), 0)\s
-              - COALESCE(SUM(ptrct.SoLuongPheDuyet * hdct.GiaBan), 0) AS tongTien,
-            COALESCE(SUM(hdct.SoLuong), 0)\s
-              - COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPham,
-            COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPhamTra,
+            COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong * hdct.GiaBan END), 0)
+              - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet * hdct.GiaBan END), 0) AS tongTien,
+        
+            -- Tổng sản phẩm chỉ tính khi hdct.TrangThai = 6
+            COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong END), 0)
+              - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPham,
+        
+            -- Tổng sản phẩm trả chỉ tính khi hdct.TrangThai = 6
+            COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPhamTra,
             SUM(CASE WHEN h.TrangThai = 6 THEN 1 ELSE 0 END) AS tongDonThanhCong,
             SUM(CASE WHEN h.TrangThai = 7 THEN 1 ELSE 0 END) AS tongDonHuy,
             SUM(CASE WHEN h.TrangThai = 8 THEN 1 ELSE 0 END) AS tongDonTra
@@ -66,11 +76,15 @@ SELECT
 
     @Query(value = """
         SELECT
-            COALESCE(SUM(hdct.SoLuong * hdct.GiaBan), 0)
-              - COALESCE(SUM(ptrct.SoLuongPheDuyet * hdct.GiaBan), 0) AS tongTien,
-            COALESCE(SUM(hdct.SoLuong), 0)
-              - COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPham,
-            COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPhamTra,
+            COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong * hdct.GiaBan END), 0)
+              - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet * hdct.GiaBan END), 0) AS tongTien,
+        
+            -- Tổng sản phẩm chỉ tính khi hdct.TrangThai = 6
+            COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong END), 0)
+              - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPham,
+        
+            -- Tổng sản phẩm trả chỉ tính khi hdct.TrangThai = 6
+            COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPhamTra,
             SUM(CASE WHEN h.TrangThai = 6 THEN 1 ELSE 0 END) AS tongDonThanhCong,
             SUM(CASE WHEN h.TrangThai = 7 THEN 1 ELSE 0 END) AS tongDonHuy,
             SUM(CASE WHEN h.TrangThai = 8 THEN 1 ELSE 0 END) AS tongDonTra
@@ -92,11 +106,15 @@ SELECT
 
     @Query(value = """
         SELECT
-            COALESCE(SUM(hdct.SoLuong * hdct.GiaBan), 0)
-              - COALESCE(SUM(ptrct.SoLuongPheDuyet * hdct.GiaBan), 0) AS tongTien,
-            COALESCE(SUM(hdct.SoLuong), 0)
-              - COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPham,
-            COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPhamTra,
+            COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong * hdct.GiaBan END), 0)
+              - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet * hdct.GiaBan END), 0) AS tongTien,
+        
+            -- Tổng sản phẩm chỉ tính khi hdct.TrangThai = 6
+            COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong END), 0)
+              - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPham,
+        
+            -- Tổng sản phẩm trả chỉ tính khi hdct.TrangThai = 6
+            COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPhamTra,
             SUM(CASE WHEN h.TrangThai = 6 THEN 1 ELSE 0 END) AS tongDonThanhCong,
             SUM(CASE WHEN h.TrangThai = 7 THEN 1 ELSE 0 END) AS tongDonHuy,
             SUM(CASE WHEN h.TrangThai = 8 THEN 1 ELSE 0 END) AS tongDonTra
@@ -117,11 +135,15 @@ SELECT
 
     @Query(value = """
         SELECT
-            COALESCE(SUM(hdct.SoLuong * hdct.GiaBan), 0)
-              - COALESCE(SUM(ptrct.SoLuongPheDuyet * hdct.GiaBan), 0) AS tongTien,
-            COALESCE(SUM(hdct.SoLuong), 0)
-              - COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPham,
-            COALESCE(SUM(ptrct.SoLuongPheDuyet), 0) AS tongSanPhamTra,
+            COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong * hdct.GiaBan END), 0)
+              - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet * hdct.GiaBan END), 0) AS tongTien,
+        
+            -- Tổng sản phẩm chỉ tính khi hdct.TrangThai = 6
+            COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong END), 0)
+              - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPham,
+        
+            -- Tổng sản phẩm trả chỉ tính khi hdct.TrangThai = 6
+            COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPhamTra,
             SUM(CASE WHEN h.TrangThai = 6 THEN 1 ELSE 0 END) AS tongDonThanhCong,
             SUM(CASE WHEN h.TrangThai = 7 THEN 1 ELSE 0 END) AS tongDonHuy,
             SUM(CASE WHEN h.TrangThai = 8 THEN 1 ELSE 0 END) AS tongDonTra
@@ -147,7 +169,7 @@ SELECT
         SELECT
             CONCAT_WS(' - ', sp.Ten, ms.Ten, cl.Ten, th.Ten, tl.Ten, dc.Ten) as tenSanPham,
             SUM(hdct.SoLuong) as soLuongDaBan,
-            COALESCE(MIN(hdct.GiaBan), 0) as giaTien
+            COALESCE(MIN(spct.DonGia), 0) as giaTien
         FROM 5SHUTTLE.HoaDonCT hdct
         JOIN 5SHUTTLE.HoaDon hd ON hdct.IdHoaDon = hd.Id
         JOIN 5SHUTTLE.SanPhamCT spct ON hdct.IdSanPhamCT = spct.Id
@@ -169,7 +191,7 @@ SELECT
         SELECT
             CONCAT_WS(' - ', sp.Ten, ms.Ten, cl.Ten, th.Ten, tl.Ten, dc.Ten) as tenSanPham,
             SUM(hdct.SoLuong) as soLuongDaBan,
-            COALESCE(MIN(hdct.GiaBan), 0) as giaTien
+            COALESCE(MIN(hdct.DonGia), 0) as giaTien
         FROM 5SHUTTLE.HoaDonCT hdct
         JOIN 5SHUTTLE.HoaDon hd ON hdct.IdHoaDon = hd.Id
         JOIN 5SHUTTLE.SanPhamCT spct ON hdct.IdSanPhamCT = spct.Id
@@ -192,7 +214,7 @@ SELECT
         SELECT
             CONCAT_WS(' - ', sp.Ten, ms.Ten, cl.Ten, th.Ten, tl.Ten, dc.Ten) as tenSanPham,
             SUM(hdct.SoLuong) as soLuongDaBan,
-            COALESCE(MIN(hdct.GiaBan), 0) as giaTien
+            COALESCE(MIN(hdct.DonGia), 0) as giaTien
         FROM 5SHUTTLE.HoaDonCT hdct
         JOIN 5SHUTTLE.HoaDon hd ON hdct.IdHoaDon = hd.Id
         JOIN 5SHUTTLE.SanPhamCT spct ON hdct.IdSanPhamCT = spct.Id
@@ -215,7 +237,7 @@ SELECT
         SELECT
             CONCAT_WS(' - ', sp.Ten, ms.Ten, cl.Ten, th.Ten, tl.Ten, dc.Ten) as tenSanPham,
             SUM(hdct.SoLuong) as soLuongDaBan,
-            COALESCE(MIN(hdct.GiaBan), 0) as giaTien
+            COALESCE(MIN(hdct.DonGia), 0) as giaTien
         FROM 5SHUTTLE.HoaDonCT hdct
         JOIN 5SHUTTLE.HoaDon hd ON hdct.IdHoaDon = hd.Id
         JOIN 5SHUTTLE.SanPhamCT spct ON hdct.IdSanPhamCT = spct.Id
@@ -238,7 +260,7 @@ SELECT
         SELECT
             CONCAT_WS(' - ', sp.Ten, ms.Ten, cl.Ten, th.Ten, tl.Ten, dc.Ten) as tenSanPham,
             SUM(hdct.SoLuong) as soLuongDaBan,
-            COALESCE(MIN(hdct.GiaBan), 0) as giaTien
+            COALESCE(MIN(hdct.DonGia), 0) as giaTien
         FROM 5SHUTTLE.HoaDonCT hdct
         JOIN 5SHUTTLE.HoaDon hd ON hdct.IdHoaDon = hd.Id
         JOIN 5SHUTTLE.SanPhamCT spct ON hdct.IdSanPhamCT = spct.Id
