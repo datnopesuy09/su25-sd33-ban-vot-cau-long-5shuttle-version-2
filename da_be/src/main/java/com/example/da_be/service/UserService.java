@@ -37,6 +37,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class
 UserService {
+    private final HoaDonChiTietMapper hoaDonChiTietMapper;
 
     UserRepository userRepository;
     UserMapper userMapper;

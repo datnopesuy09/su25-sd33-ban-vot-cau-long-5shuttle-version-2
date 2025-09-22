@@ -44,6 +44,7 @@ import PhieuGiamGia from '../pages/admin/Giảm Giá/PhieuGiamGia/index.jsx';
 import UpdatePhieuGiamGia from '../pages/admin/Giảm Giá/PhieuGiamGia/update.jsx';
 import UserOrder from '../pages/users/TaiKhoan/order.jsx';
 import OrderDetail from '../pages/users/TaiKhoan/orderDetail.jsx';
+import ReturnOrderDetail from '../pages/users/TaiKhoan/returnOrderDetail.jsx';
 import ThongKe from '../pages/admin/HoaDon/ThongKe';
 import ResponsiveAppBar from '../pages/admin';
 import ChangePassword from '../pages/users/TaiKhoan/changePass.jsx';
@@ -115,6 +116,7 @@ const publicRoutes = [
             { path: 'order', component: UserOrder, layout: null },
             { path: 'return-order-detail/:id', component: ReturnOrderDetail, layout: null },
             { path: 'order-detail/:id', component: OrderDetail, layout: null },
+            { path: 'return-order-detail/:id', component: ReturnOrderDetail, layout: null },
             { path: 'change-password', component: ChangePassword, layout: null },
             { path: 'address', component: AddressUser, layout: null },
             { path: 'my-voucher', component: MyVoucher, layout: null },

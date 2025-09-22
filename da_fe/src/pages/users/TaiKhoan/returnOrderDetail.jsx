@@ -178,7 +178,6 @@ function ReturnOrderDetail() {
                                 <FileText className="w-5 h-5" />
                                 Thông tin phiếu trả hàng
                             </h2>
-
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="text-sm font-medium text-gray-600">Mã phiếu trả hàng</label>
@@ -207,6 +206,7 @@ function ReturnOrderDetail() {
                                     <label className="text-sm font-medium text-gray-600">Ngày xử lý</label>
                                     <p className="text-gray-800 flex items-center gap-1">
                                         <Clock className="w-4 h-4" />
+
                                         {phieuTraHang.ngayXuLy
                                             ? dayjs(phieuTraHang.ngayXuLy).format('DD/MM/YYYY HH:mm')
                                             : 'Chưa xử lý'}
@@ -230,7 +230,6 @@ function ReturnOrderDetail() {
                                 <Package className="w-5 h-5" />
                                 Chi tiết sản phẩm trả
                             </h2>
-
                             <div className="space-y-4">
                                 {phieuTraHang.chiTietTraHang?.map((chiTiet, idx) => {
                                     const sanPham = chiTiet.thongTinSanPhamTra;
@@ -257,7 +256,6 @@ function ReturnOrderDetail() {
                                                     <h3 className="font-semibold text-gray-800 text-lg mb-2">
                                                         {sanPham?.tenSanPham || 'Sản phẩm'}
                                                     </h3>
-
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600 mb-3">
                                                         <div className="flex items-center gap-1">
                                                             <Tag className="w-4 h-4" />
@@ -326,6 +324,7 @@ function ReturnOrderDetail() {
                                                         </div>
                                                         <div className="bg-gray-50 p-3 rounded-lg">
                                                             <div className="font-medium text-gray-800">Tồn kho</div>
+
                                                             <div className="text-gray-600 font-semibold text-lg">
                                                                 {sanPham?.soLuongTrongKho || 0}
                                                             </div>
@@ -355,6 +354,7 @@ function ReturnOrderDetail() {
                                                             <div className="font-medium text-gray-600 mb-1">
                                                                 Ghi chú nhân viên:
                                                             </div>
+
                                                             <div className="text-gray-500 italic">Chưa có ghi chú</div>
                                                         </div>
                                                     )}
@@ -389,7 +389,6 @@ function ReturnOrderDetail() {
                                 <User className="w-5 h-5" />
                                 Thông tin khách hàng
                             </h2>
-
                             <div className="space-y-3">
                                 <div className="flex items-center gap-2">
                                     <User className="w-4 h-4 text-gray-400" />
@@ -416,7 +415,6 @@ function ReturnOrderDetail() {
                                 <DollarSign className="w-5 h-5" />
                                 Tổng kết
                             </h2>
-
                             <div className="space-y-3">
                                 <div className="flex justify-between items-center">
                                     <span className="text-gray-600">Tổng sản phẩm:</span>
