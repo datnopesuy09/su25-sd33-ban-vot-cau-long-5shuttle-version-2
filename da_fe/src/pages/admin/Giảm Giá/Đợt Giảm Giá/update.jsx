@@ -198,7 +198,7 @@ function UpdateDotGiamGia() {
                 params: params,
             });
             if (res && res.data) {
-                const filteredData = res.data.filter((item) => item.trangthai === 1);
+                const filteredData = res.data.filter((item) => item.trangThai === 1);
 
                 // Thêm key vào dữ liệu đã lọc
                 const dataWithKey = filteredData.map((item) => ({

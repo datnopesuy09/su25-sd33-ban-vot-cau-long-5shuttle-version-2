@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
@@ -18,5 +19,8 @@ public interface SanPhamRepository extends JpaRepository<SanPham, Integer> {
     ORDER BY sp.id DESC
 """)
     List<Object[]> getAllSanPham();
+
+    // Tìm sản phẩm theo tên (không phân biệt hoa thường)
+    Optional<SanPham> findByTenIgnoreCase(String ten);
 
 }
