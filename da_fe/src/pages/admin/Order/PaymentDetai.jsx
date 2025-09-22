@@ -17,6 +17,8 @@ const PaymentDetails = ({
     shippingFee = 0,
     // Optional: items array for calculating subtotal using promotion logic
     items = null,
+    // Optional: tổng tiền hoàn hàng
+    totalReturnAmount = 0,
 }) => {
     // Local state for inputs so we don't overwrite parent values
     const [localDiscountCode, setLocalDiscountCode] = useState(discountCode || '');
@@ -25,20 +27,59 @@ const PaymentDetails = ({
     // Hàm resolvePrices tương tự như trong orderDetail.jsx
     const resolvePrices = (item) => {
         // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
-        const qty = Number(item.soLuong) || 1;
+        const currentQty = Number(item.soLuong) || 1;
+
+        // Logic hybrid: Kiểm tra xem có đơn giá unit được lưu sẵn không
+        if (item.unitPriceOriginal && item.originalPriceCache) {
+            // Nếu có đơn giá gốc và giá gốc đã được cache trước đó
+            return {
+                originalPrice: Number(item.originalPriceCache),
+                discountedPrice: Number(item.unitPriceOriginal),
+                unitPrice: Number(item.unitPriceOriginal),
+            };
+        }
 
         // Giá đã lưu trong hóa đơn (giá tại thời điểm mua hàng)
         if (item.giaBan !== undefined && item.giaBan !== null) {
             const savedTotalPrice = Number(item.giaBan);
-            const unitPrice = savedTotalPrice / qty;
-
-            // Lấy giá gốc từ sản phẩm để tính phần trăm giảm giá
-            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? unitPrice;
+            
+            // Tính đơn giá từ tổng tiền và số lượng hiện tại
+            // Nếu chưa có hoàn hàng thì sẽ đúng, nếu có rồi thì sẽ sai
+            const calculatedUnitPrice = savedTotalPrice / currentQty;
+            
+            // Lấy giá gốc từ sản phẩm
+            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? calculatedUnitPrice;
+            
+            // LOGIC MỚI: Phân biệt discount vs hoàn hàng
+            const priceDifference = calculatedUnitPrice - originalPrice;
+            const priceThreshold = originalPrice * 0.1; // 10% threshold
+            
+            let finalUnitPrice;
+            let isDiscountApplied = false;
+            
+            if (Math.abs(priceDifference) <= priceThreshold) {
+                // Giá tính ra gần giá gốc → chưa hoàn hàng, không discount nhiều
+                finalUnitPrice = calculatedUnitPrice;
+            } else if (priceDifference < 0) {
+                // calculatedUnitPrice < originalPrice → CÓ DISCOUNT → GIỮ GIÁ DISCOUNT
+                finalUnitPrice = calculatedUnitPrice;
+                isDiscountApplied = true;
+            } else {
+                // calculatedUnitPrice > originalPrice → ĐÃ HOÀN HÀNG → DÙNG GIÁ GỐC
+                finalUnitPrice = originalPrice;
+            }
+            
+            // Lưu đơn giá này để dùng cho lần sau
+            item.unitPriceOriginal = finalUnitPrice;
+            // Chỉ lưu originalPriceCache khi có discount để phân biệt
+            if (isDiscountApplied) {
+                item.originalPriceCache = originalPrice;
+            }
 
             return {
                 originalPrice: Number(originalPrice),
-                discountedPrice: unitPrice,
-                unitPrice: unitPrice,
+                discountedPrice: finalUnitPrice,
+                unitPrice: finalUnitPrice,
             };
         }
 
@@ -216,6 +257,16 @@ const PaymentDetails = ({
                                                         <span className="text-gray-700">Phí vận chuyển:</span>
                                                         <span className="font-semibold text-gray-900">{`+${Number(shippingFee).toLocaleString('vi-VN')} VNĐ`}</span>
                                                     </div>
+
+                                                    {/* Hiển thị tiền hoàn hàng nếu có */}
+                                                    {totalReturnAmount > 0 && (
+                                                        <div className="flex justify-between items-center text-sm">
+                                                            <span className="text-gray-700">Tiền hoàn hàng:</span>
+                                                            <span className="font-semibold text-orange-600">
+                                                                -{Number(totalReturnAmount).toLocaleString('vi-VN')} VNĐ
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </>
                                             );
                                         })()}
