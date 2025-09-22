@@ -814,7 +814,9 @@ function ReturnOrders() {
                             <h4 className="font-medium text-gray-900 mb-2">Chi tiết sản phẩm trả</h4>
                             <div className="mb-3 p-3 bg-blue-50 rounded-lg">
                                 <p className="text-sm text-blue-700">
-                                    <strong>Hướng dẫn:</strong> Chọn các sản phẩm được phép trả hàng, nhập số lượng duyệt, số lượng nhập kho và số lượng hỏng. Tổng nhập kho + hỏng phải bằng số lượng được duyệt. Ghi chú nhân viên để mô tả lý do hàng hỏng.
+                                    <strong>Hướng dẫn:</strong> Chọn các sản phẩm được phép trả hàng, nhập số lượng
+                                    duyệt, số lượng nhập kho và số lượng hỏng. Tổng nhập kho + hỏng phải bằng số lượng
+                                    được duyệt. Ghi chú nhân viên để mô tả lý do hàng hỏng.
                                 </p>
                             </div>
                             <div className="overflow-x-auto">
@@ -873,16 +875,12 @@ function ReturnOrders() {
                                                 Điểm cân bằng
                                             </th>
                                             <th className="py-2 px-3 text-left text-xs font-medium w-16">Độ cứng</th>
-                                            <th className="py-2 px-3 text-left text-xs font-medium w-20">
-                                                SL trả
-                                            </th>
+                                            <th className="py-2 px-3 text-left text-xs font-medium w-20">SL trả</th>
                                             <th className="py-2 px-3 text-left text-xs font-medium w-20">Đơn giá</th>
                                             <th className="py-2 px-3 text-left text-xs font-medium w-100">
                                                 Lý do trả hàng
                                             </th>
-                                            <th className="py-2 px-3 text-left text-xs font-medium w-28">
-                                                SL duyệt
-                                            </th>
+                                            <th className="py-2 px-3 text-left text-xs font-medium w-28">SL duyệt</th>
                                             <th className="py-2 px-3 text-left text-xs font-medium w-96">
                                                 Lý do xử lí
                                             </th>
@@ -951,7 +949,9 @@ function ReturnOrders() {
                                                     </td>
                                                     <td className="py-2 px-3 text-sm text-gray-900 font-medium">
                                                         <div className="flex flex-col">
-                                                            <div className="text-xs text-gray-500">Yêu cầu: {detail.soLuongTra}</div>
+                                                            <div className="text-xs text-gray-500">
+                                                                Yêu cầu: {detail.soLuongTra}
+                                                            </div>
                                                             {isApproved ? (
                                                                 <>
                                                                     <div className="text-xs text-green-700 font-semibold mt-1">
@@ -969,7 +969,8 @@ function ReturnOrders() {
                                                                         type="number"
                                                                         value={
                                                                             productSelections[key]
-                                                                                ? (productQuantities[key] ?? detail.soLuongTra)
+                                                                                ? (productQuantities[key] ??
+                                                                                  detail.soLuongTra)
                                                                                 : ''
                                                                         }
                                                                         onChange={(e) => {
@@ -978,21 +979,38 @@ function ReturnOrders() {
                                                                             if (value >= 0 && value <= maxValue) {
                                                                                 handleProductQuantityChange(key, value);
                                                                                 // điều chỉnh mặc định: nhập kho = value nếu hiện tại lớn hơn value
-                                                                                if ((productRestock[key] ?? 0) > value) {
-                                                                                    handleProductRestockChange(key, value);
+                                                                                if (
+                                                                                    (productRestock[key] ?? 0) > value
+                                                                                ) {
+                                                                                    handleProductRestockChange(
+                                                                                        key,
+                                                                                        value,
+                                                                                    );
                                                                                 }
                                                                                 // đảm bảo tổng restock+broken không vượt approved
                                                                                 const broken = productBroken[key] ?? 0;
                                                                                 if (broken > value) {
-                                                                                    handleProductBrokenChange(key, Math.max(0, value - (productRestock[key] ?? 0)));
+                                                                                    handleProductBrokenChange(
+                                                                                        key,
+                                                                                        Math.max(
+                                                                                            0,
+                                                                                            value -
+                                                                                                (productRestock[key] ??
+                                                                                                    0),
+                                                                                        ),
+                                                                                    );
                                                                                 }
                                                                             }
                                                                         }}
                                                                         className="w-16 px-2 py-1 border border-gray-300 rounded-md text-center text-sm"
                                                                         min="0"
                                                                         max={detail.soLuongTra}
-                                                                        disabled={!productSelections[key] || isProcessing}
-                                                                        placeholder={!productSelections[key] ? '-' : undefined}
+                                                                        disabled={
+                                                                            !productSelections[key] || isProcessing
+                                                                        }
+                                                                        placeholder={
+                                                                            !productSelections[key] ? '-' : undefined
+                                                                        }
                                                                     />
                                                                 </>
                                                             )}
@@ -1008,9 +1026,15 @@ function ReturnOrders() {
                                                     </td>
                                                     <td className="py-2 px-3 text-sm text-gray-900">
                                                         {isApproved ? (
-                                                            <div className="text-center font-medium">{soLuongDuocPheDuyet}</div>
+                                                            <div className="text-center font-medium">
+                                                                {soLuongDuocPheDuyet}
+                                                            </div>
                                                         ) : (
-                                                            <div className="text-center font-medium">{productSelections[key] ? (productQuantities[key] ?? 0) : 0}</div>
+                                                            <div className="text-center font-medium">
+                                                                {productSelections[key]
+                                                                    ? (productQuantities[key] ?? 0)
+                                                                    : 0}
+                                                            </div>
                                                         )}
                                                     </td>
                                                     <td className="py-2 px-3">
@@ -1021,7 +1045,9 @@ function ReturnOrders() {
                                                                     : 'Lý do không được trả...'
                                                             }
                                                             value={productReasons[key] || ''}
-                                                            onChange={(e) => handleProductReasonChange(key, e.target.value)}
+                                                            onChange={(e) =>
+                                                                handleProductReasonChange(key, e.target.value)
+                                                            }
                                                             className={`w-full p-2 text-xs border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
                                                                 reasonErrors[key] ? 'border-red-500' : 'border-gray-300'
                                                             }`}
@@ -1030,7 +1056,8 @@ function ReturnOrders() {
                                                         />
                                                         {reasonErrors[key] && (
                                                             <p className="text-xs text-red-500 mt-1">
-                                                                Vui lòng nhập lý do xử lí và đảm bảo tổng nhập kho + hỏng = số lượng duyệt
+                                                                Vui lòng nhập lý do xử lí và đảm bảo tổng nhập kho +
+                                                                hỏng = số lượng duyệt
                                                             </p>
                                                         )}
                                                     </td>
@@ -1050,18 +1077,43 @@ function ReturnOrders() {
                                         const isApproved = selectedOrder.trangThai === 'APPROVED';
                                         const approved = productQuantities[key] ?? 0;
                                         return (
-                                            <div key={key} className={`grid grid-cols-1 md:grid-cols-3 gap-3 items-center ${!productSelections[key] ? 'opacity-60' : ''}`}>
+                                            <div
+                                                key={key}
+                                                className={`grid grid-cols-1 md:grid-cols-3 gap-3 items-center ${!productSelections[key] ? 'opacity-60' : ''}`}
+                                            >
                                                 <div className="text-sm text-gray-800">
-                                                    <div className="font-medium">{detail.thongTinSanPhamTra.tenSanPham}</div>
-                                                    <div className="text-xs text-gray-500">SL duyệt: {isApproved ? (typeof detail.soLuongDuocPheDuyet === 'number' ? detail.soLuongDuocPheDuyet : 0) : approved}</div>
+                                                    <div className="font-medium">
+                                                        {detail.thongTinSanPhamTra.tenSanPham +
+                                                            ' - ' +
+                                                            detail.thongTinSanPhamTra.tenMauSac +
+                                                            ' - ' +
+                                                            detail.thongTinSanPhamTra.tenDoCung +
+                                                            ' - ' +
+                                                            detail.thongTinSanPhamTra.tenChatLieu}
+                                                    </div>
+                                                    <div className="text-xs text-gray-500">
+                                                        SL duyệt:{' '}
+                                                        {isApproved
+                                                            ? typeof detail.soLuongDuocPheDuyet === 'number'
+                                                                ? detail.soLuongDuocPheDuyet
+                                                                : 0
+                                                            : approved}
+                                                    </div>
                                                 </div>
                                                 <div>
                                                     {isApproved ? (
-                                                        <div className="text-sm">SL nhập kho: {typeof detail.soLuongNhapKho === 'number' ? detail.soLuongNhapKho : 0}</div>
+                                                        <div className="text-sm">
+                                                            SL nhập kho:{' '}
+                                                            {typeof detail.soLuongNhapKho === 'number'
+                                                                ? detail.soLuongNhapKho
+                                                                : 0}
+                                                        </div>
                                                     ) : (
                                                         <input
                                                             type="number"
-                                                            value={productSelections[key] ? (productRestock[key] ?? 0) : ''}
+                                                            value={
+                                                                productSelections[key] ? (productRestock[key] ?? 0) : ''
+                                                            }
                                                             onChange={(e) => {
                                                                 let val = parseInt(e.target.value) || 0;
                                                                 if (val < 0) val = 0;
@@ -1069,7 +1121,10 @@ function ReturnOrders() {
                                                                 handleProductRestockChange(key, val);
                                                                 const broken = productBroken[key] ?? 0;
                                                                 if (val + broken > approved) {
-                                                                    handleProductBrokenChange(key, Math.max(0, approved - val));
+                                                                    handleProductBrokenChange(
+                                                                        key,
+                                                                        Math.max(0, approved - val),
+                                                                    );
                                                                 }
                                                             }}
                                                             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
@@ -1082,11 +1137,18 @@ function ReturnOrders() {
                                                 </div>
                                                 <div>
                                                     {isApproved ? (
-                                                        <div className="text-sm">SL hỏng: {typeof detail.soLuongHong === 'number' ? detail.soLuongHong : 0}</div>
+                                                        <div className="text-sm">
+                                                            SL hỏng:{' '}
+                                                            {typeof detail.soLuongHong === 'number'
+                                                                ? detail.soLuongHong
+                                                                : 0}
+                                                        </div>
                                                     ) : (
                                                         <input
                                                             type="number"
-                                                            value={productSelections[key] ? (productBroken[key] ?? 0) : ''}
+                                                            value={
+                                                                productSelections[key] ? (productBroken[key] ?? 0) : ''
+                                                            }
                                                             onChange={(e) => {
                                                                 let val = parseInt(e.target.value) || 0;
                                                                 if (val < 0) val = 0;
@@ -1094,7 +1156,10 @@ function ReturnOrders() {
                                                                 handleProductBrokenChange(key, val);
                                                                 const restock = productRestock[key] ?? 0;
                                                                 if (val + restock > approved) {
-                                                                    handleProductRestockChange(key, Math.max(0, approved - val));
+                                                                    handleProductRestockChange(
+                                                                        key,
+                                                                        Math.max(0, approved - val),
+                                                                    );
                                                                 }
                                                             }}
                                                             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"

@@ -45,9 +45,16 @@ export default function OrderReturn() {
             });
             const items = res.data.result.map((item) => ({
                 id: item.id,
-                name: item.sanPhamCT?.sanPham?.ten,
+                name:
+                    item.sanPhamCT?.sanPham?.ten +
+                    '-' +
+                    item.sanPhamCT?.mauSac.ten +
+                    ' - ' +
+                    item.sanPhamCT?.doCung.ten +
+                    ' - ' +
+                    item.sanPhamCT?.chatLieu.ten,
                 image: item.hinhAnhUrl,
-                price: item.giaBan,
+                price: item.giaBan / item.soLuong,
                 quantity: item.soLuong,
                 quantityReturn: 0,
                 selected: false,
