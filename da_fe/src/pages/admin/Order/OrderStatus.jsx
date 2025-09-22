@@ -1016,6 +1016,16 @@ function OrderStatus() {
                 toast.warning('Không thể gửi thông báo đến người dùng.');
             }
 
+            // Refresh order details so ProductList (and other UI) reflects updated stock counts immediately
+            try {
+                if (hoaDonId) {
+                    console.log('Refreshing order details after confirm for hoaDonId:', hoaDonId);
+                    await fetchBillDetails(hoaDonId);
+                }
+            } catch (refreshErr) {
+                console.error('Không thể làm mới chi tiết hóa đơn sau khi xác nhận:', refreshErr);
+            }
+
             toast.success('Xác nhận đơn hàng thành công! Stock allocation đã được chuyển sang trạng thái CONFIRMED.');
         } catch (error) {
             console.error('Lỗi khi xác nhận đơn hàng:', error);
@@ -1446,7 +1456,7 @@ function OrderStatus() {
             </div>
 
             {/* Quản lý kho hàng - chỉ hiển thị cho admin */}
-            <div className="max-w-5xl mx-auto mt-8">
+            {/* <div className="max-w-5xl mx-auto mt-8">
                 <KhoHangManagement
                     hoaDon={orderData}
                     onRestoreComplete={() => {
@@ -1455,7 +1465,7 @@ function OrderStatus() {
                     }}
                     currentOrderStatus={currentOrderStatus}
                 />
-            </div>
+            </div> */}
 
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 max-w-5xl mx-auto mt-8">
                 <OrderInfo
