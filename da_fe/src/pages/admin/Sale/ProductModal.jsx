@@ -3,7 +3,7 @@ import { X, Receipt, Search, Filter, Plus, Minus } from 'lucide-react';
 import axios from 'axios';
 import swal from 'sweetalert';
 
-const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill, handleConfirmAddProduct, fetchProducts }) => {
+const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill, handleConfirmAddProduct, fetchProducts, currentOrderDetails = [] }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [brandFilter, setBrandFilter] = useState('');
     const [colorFilter, setColorFilter] = useState('');
@@ -13,6 +13,13 @@ const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill,
     const [showDetailModal, setShowDetailModal] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [quantity, setQuantity] = useState(1);
+
+    // Hàm kiểm tra trùng sản phẩm
+    const checkDuplicateProduct = (productId) => {
+        return currentOrderDetails.find(detail => 
+            detail.sanPhamCT?.id === productId || detail.sanPhamCTId === productId
+        );
+    };
 
     
 
@@ -55,6 +62,46 @@ const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill,
             swal('Lỗi', 'Vui lòng chọn hóa đơn trước khi thêm sản phẩm', 'error');
             return;
         }
+
+        // Kiểm tra trùng sản phẩm
+        const existingProduct = checkDuplicateProduct(product.id);
+        if (existingProduct) {
+            swal({
+                title: 'Sản phẩm đã tồn tại',
+                text: `Sản phẩm "${product.tenSanPham}" đã có trong đơn hàng với số lượng ${existingProduct.soLuong}. Bạn có muốn tăng số lượng thay vì thêm mới?`,
+                icon: 'warning',
+                buttons: {
+                    cancel: 'Hủy',
+                    confirm: 'Tăng số lượng',
+                },
+            }).then(async (willIncrease) => {
+                if (willIncrease) {
+                    // Gọi hàm tăng số lượng (nếu có truyền từ parent component)
+                    if (window.increaseProductQuantity) {
+                        await window.increaseProductQuantity(existingProduct.id, 1);
+                        
+                        // Cập nhật trực tiếp tồn kho trong state để hiển thị ngay lập tức
+                        setProducts(prevProducts => 
+                            prevProducts.map(p => 
+                                p.id === product.id 
+                                    ? { ...p, soLuong: p.soLuong - 1 } 
+                                    : p
+                            )
+                        );
+
+                        // Refresh danh sách sản phẩm từ server để đảm bảo tính chính xác
+                        try {
+                            const response = await axios.get('http://localhost:8080/api/san-pham-ct/all');
+                            setProducts(response.data);
+                        } catch (error) {
+                            console.error('Lỗi khi làm mới danh sách sản phẩm:', error);
+                        }
+                    }
+                }
+            });
+            return;
+        }
+
         setSelectedProduct(product);
         setQuantity(1);
         setShowDetailModal(true);
@@ -91,6 +138,32 @@ const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill,
         // Chỉ cho phép nhập số
         if (!/[0-9]/.test(e.key) && e.key !== 'Backspace' && e.key !== 'Delete' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
             e.preventDefault();
+        }
+    };
+
+    // Wrapper function để xử lý thêm sản phẩm và cập nhật tồn kho
+    const handleConfirmAddProductWithUpdate = async (selectedProduct, quantity) => {
+        // Cập nhật tồn kho ngay lập tức trong UI
+        setProducts(prevProducts => 
+            prevProducts.map(p => 
+                p.id === selectedProduct.id 
+                    ? { ...p, soLuong: p.soLuong - quantity } 
+                    : p
+            )
+        );
+
+        // Đóng modal detail trước
+        setShowDetailModal(false);
+
+        // Gọi hàm thêm sản phẩm từ parent component
+        await handleConfirmAddProduct(selectedProduct, quantity);
+
+        // Refresh danh sách sản phẩm từ server để đảm bảo tính chính xác
+        try {
+            const response = await axios.get('http://localhost:8080/api/san-pham-ct/all');
+            setProducts(response.data);
+        } catch (error) {
+            console.error('Lỗi khi làm mới danh sách sản phẩm:', error);
         }
     };
 
@@ -405,7 +478,7 @@ const ProductModal = ({ showProductModal, handleCloseProductModal, selectedBill,
                                 Hủy
                             </button>
                             <button
-                                onClick={() => handleConfirmAddProduct(selectedProduct, quantity === '' ? 1 : quantity)}
+                                onClick={() => handleConfirmAddProductWithUpdate(selectedProduct, quantity === '' ? 1 : quantity)}
                                 className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
                                 disabled={quantity === '' || quantity < 1 || quantity > selectedProduct.soLuong}
                             >

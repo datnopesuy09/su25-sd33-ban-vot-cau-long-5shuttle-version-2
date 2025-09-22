@@ -149,6 +149,10 @@ function OrderStatus() {
     const [timeline, setTimeline] = useState([]);
     // State để theo dõi các sản phẩm hoàn hàng
     const [totalReturnAmount, setTotalReturnAmount] = useState(0);
+    // Map đơn giá giao dịch lấy từ lịch sử hoàn hàng: hoaDonCTId -> donGia  
+    const [returnPriceMap, setReturnPriceMap] = useState({});
+    // Map of hoaDonChiTietId -> total returned quantity (approved returns)
+    const [returnedQtyMap, setReturnedQtyMap] = useState({});
 
     const fetchPreOrders = async () => {
         try {
@@ -352,6 +356,29 @@ function OrderStatus() {
                     const response = await axios.get(`http://localhost:8080/api/hoan-hang/hoa-don/${hoaDonId}`);
                     if (response.data.success) {
                         setReturnHistory(response.data.data);
+                        
+                        // FIX: Xây dựng returnPriceMap để lấy đơn giá giao dịch chính xác
+                        try {
+                            const map = {};
+                            const qtyMap = {};
+                            response.data.data.forEach((r) => {
+                                if (r.hoaDonChiTietId && r.donGia) {
+                                    // Lấy đơn giá đầu tiên (tại thời điểm mua), các lần sau cùng 1 đơn giá
+                                    if (!map[r.hoaDonChiTietId]) map[r.hoaDonChiTietId] = Number(r.donGia);
+                                }
+                                // Tính tổng số lượng đã hoàn cho mỗi chi tiết hóa đơn
+                                if (r.hoaDonChiTietId && r.soLuongHoan) {
+                                    const key = r.hoaDonChiTietId;
+                                    qtyMap[key] = (qtyMap[key] || 0) + Number(r.soLuongHoan);
+                                }
+                            });
+                            setReturnPriceMap(map);
+                            setReturnedQtyMap(qtyMap);
+                            console.log('Built returnPriceMap:', map);
+                            console.log('Built returnedQtyMap:', qtyMap);
+                        } catch (e) {
+                            console.warn('Không thể build returnPriceMap:', e);
+                        }
                     }
                 } catch (error) {
                     console.error('Lỗi khi lấy lịch sử hoàn hàng:', error);
@@ -390,6 +417,13 @@ function OrderStatus() {
         }
     }, [orderData.id]);
 
+    // Ensure we always refresh order details from server once hoaDonId is known (avoid stale location.state data)
+    useEffect(() => {
+        if (hoaDonId) {
+            fetchBillDetails(hoaDonId);
+        }
+    }, [hoaDonId]);
+
     // Update timeline when orderHistory or currentOrderStatus changes
     useEffect(() => {
         const newTimeline = generateTimeline(currentOrderStatus, orderHistory, orderData);
@@ -411,10 +445,33 @@ function OrderStatus() {
     const resolvePrices = (item) => {
         // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
         const currentQty = Number(item.soLuong) || 1;
+        const returnedQty = Number(returnedQtyMap[item.id] || 0);
+
+        // FIX: Ưu tiên dùng đơn giá từ returnPriceMap (đã xác định chính xác từ lịch sử hoàn hàng)
+        if (returnPriceMap[item.id]) {
+            const transactionUnitPrice = returnPriceMap[item.id];
+            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? transactionUnitPrice;
+            
+            console.log(`Using returnPriceMap for item ${item.id}:`, {
+                transactionUnitPrice,
+                originalPrice,
+                currentQty
+            });
+            
+            return {
+                originalPrice: Number(originalPrice),
+                discountedPrice: transactionUnitPrice,
+                unitPrice: transactionUnitPrice,
+            };
+        }
 
         // Logic hybrid: Kiểm tra xem có đơn giá unit được lưu sẵn không
         if (item.unitPriceOriginal && item.originalPriceCache) {
-            // Nếu có đơn giá gốc và giá gốc đã được cache trước đó
+            console.log(`Using cached price for item ${item.id}:`, {
+                unitPriceOriginal: item.unitPriceOriginal,
+                originalPriceCache: item.originalPriceCache
+            });
+            
             return {
                 originalPrice: Number(item.originalPriceCache),
                 discountedPrice: Number(item.unitPriceOriginal),
@@ -426,42 +483,64 @@ function OrderStatus() {
         if (item.giaBan !== undefined && item.giaBan !== null) {
             const savedTotalPrice = Number(item.giaBan);
             
-            // Tính đơn giá từ tổng tiền và số lượng hiện tại
-            // Nếu chưa có hoàn hàng thì sẽ đúng, nếu có rồi thì sẽ sai
-            const calculatedUnitPrice = savedTotalPrice / currentQty;
+            // Lấy giá gốc từ sản phẩm (chưa discount)
+            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? 0;
             
-            // Lấy giá gốc từ sản phẩm
-            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? calculatedUnitPrice;
+            console.log(`Processing giaBan for item ${item.id}:`, {
+                savedTotalPrice,
+                currentQty,
+                originalPrice,
+                sanPhamTen: item.sanPhamCT?.sanPham?.ten
+            });
             
-            // LOGIC MỚI: Phân biệt discount vs hoàn hàng
-            const priceDifference = calculatedUnitPrice - originalPrice;
-            const priceThreshold = originalPrice * 0.1; // 10% threshold
+            // FIX: Ưu tiên dùng số lượng gốc từ database nếu có
+            // Nếu không có thì ước tính bằng cách so sánh với giá gốc
+            // Nếu có dữ liệu số lượng đã hoàn, tính số lượng gốc = hiện tại + đã hoàn
+            let originalQtyAtPurchase = currentQty + returnedQty;
             
-            let finalUnitPrice;
-            if (Math.abs(priceDifference) <= priceThreshold) {
-                // Giá tính ra gần giá gốc → chưa hoàn hàng, không discount nhiều
-                finalUnitPrice = calculatedUnitPrice;
-            } else if (priceDifference < 0) {
-                // calculatedUnitPrice < originalPrice → CÓ DISCOUNT → GIỮ GIÁ DISCOUNT
-                finalUnitPrice = calculatedUnitPrice;
+            // Tính đơn giá tạm thời để so sánh
+            const tempUnitPrice = savedTotalPrice / currentQty;
+            
+            // Nếu đơn giá tính ra > giá gốc sản phẩm thì có thể đã có hoàn hàng
+            // Trong trường hợp này, tìm số lượng gốc để có đơn giá đúng
+            if (returnedQty === 0) {
+                // Chỉ dùng heuristic khi không có dữ liệu returnedQty từ lịch sử
+                if (tempUnitPrice > originalPrice * 1.05) { // 5% tolerance
+                    // Ước tính số lượng gốc = tổng tiền / giá gốc, làm tròn lên
+                    const estimatedOriginalQty = Math.ceil(savedTotalPrice / originalPrice);
+                    if (estimatedOriginalQty > currentQty) {
+                        originalQtyAtPurchase = estimatedOriginalQty;
+                        console.log(`Estimated original qty for item ${item.id}: ${estimatedOriginalQty} (was ${currentQty})`);
+                    }
+                }
             } else {
-                // calculatedUnitPrice > originalPrice → ĐÃ HOÀN HÀNG → DÙNG GIÁ GỐC
-                finalUnitPrice = originalPrice;
+                console.log(`Using returnedQty for item ${item.id}:`, { currentQty, returnedQty, originalQtyAtPurchase });
             }
             
-            // Lưu đơn giá này để dùng cho lần sau
-            item.unitPriceOriginal = finalUnitPrice;
-            item.originalPriceCache = originalPrice; // Lưu luôn giá gốc để hiển thị discount
+            // Tính đơn giá thực tế (đã discount) từ số lượng gốc
+            const actualUnitPrice = savedTotalPrice / originalQtyAtPurchase;
+            
+            console.log(`Final calculation for item ${item.id}:`, {
+                originalQtyAtPurchase,
+                actualUnitPrice,
+                tempUnitPrice
+            });
+            
+            // Lưu để cache cho lần sau
+            item.unitPriceOriginal = actualUnitPrice;
+            item.originalPriceCache = originalPrice;
 
             return {
                 originalPrice: Number(originalPrice),
-                discountedPrice: finalUnitPrice,
-                unitPrice: finalUnitPrice,
+                discountedPrice: actualUnitPrice,
+                unitPrice: actualUnitPrice,
             };
         }
 
         // Fallback: nếu không có giá lưu, sử dụng giá gốc từ sản phẩm
         const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? 0;
+
+        console.log(`Using fallback price for item ${item.id}:`, { originalPrice });
 
         return {
             originalPrice: Number(originalPrice),
@@ -474,7 +553,20 @@ function OrderStatus() {
         const newSubtotal = orderDetailDatas.reduce((sum, item) => {
             const { unitPrice } = resolvePrices(item);
             const qty = Number(item.soLuong) || 0;
-            return sum + unitPrice * qty;
+            const lineTotal = unitPrice * qty;
+            
+            console.log(`Item ${item.id}:`, {
+                sanPham: item.sanPhamCT?.sanPham?.ten,
+                soLuong: qty,
+                giaBan: item.giaBan,
+                unitPrice,
+                lineTotal,
+                hasReturnPrice: !!returnPriceMap[item.id],
+                returnPrice: returnPriceMap[item.id],
+                returnedQty: returnedQtyMap[item.id] || 0
+            });
+            
+            return sum + lineTotal;
         }, 0);
 
         let voucher = orderData.voucher || null;
@@ -484,7 +576,18 @@ function OrderStatus() {
         setSubtotal(newSubtotal);
         setDiscountAmount(newDiscountAmount);
         setTotal(newTotal);
-    }, [orderDetailDatas, orderData.voucher]);
+        
+        console.log('=== SUBTOTAL CALCULATION ===', {
+            orderDetailDatas: orderDetailDatas.length,
+            returnPriceMapKeys: Object.keys(returnPriceMap),
+            returnPriceMap,
+            returnedQtyMap,
+            newSubtotal,
+            newDiscountAmount,
+            newTotal,
+            voucher: voucher?.ma
+        });
+    }, [orderDetailDatas, orderData.voucher, returnPriceMap, returnedQtyMap]);
 
     useEffect(() => {
         if (orderData.voucher) {
@@ -643,6 +746,26 @@ function OrderStatus() {
         await updateQuantity(orderDetailId, newQuantity);
     };
 
+    // Hàm để tăng số lượng sản phẩm từ ProductModal khi phát hiện trùng lặp
+    const increaseProductQuantityFromModal = async (orderDetailId, delta = 1) => {
+        const currentItem = orderDetailDatas.find((item) => item.id === orderDetailId);
+        if (currentItem) {
+            const newQuantity = currentItem.soLuong + delta;
+            await updateQuantity(orderDetailId, newQuantity);
+            setShowProductModal(false); // Đóng modal sau khi tăng số lượng
+            return Promise.resolve(); // Đảm bảo return Promise
+        }
+        return Promise.resolve();
+    };
+
+    // Đặt hàm vào window object để ProductModal có thể gọi
+    useEffect(() => {
+        window.increaseProductQuantity = increaseProductQuantityFromModal;
+        return () => {
+            delete window.increaseProductQuantity;
+        };
+    }, [orderDetailDatas]);
+
     const handleDeleteProduct = async (orderDetailId) => {
         const currentItem = orderDetailDatas.find((item) => item.id === orderDetailId);
 
@@ -779,14 +902,17 @@ function OrderStatus() {
     const handleReturnSuccess = (returnItem) => {
         console.log('handleReturnSuccess called with:', returnItem);
         
+        let updatedOrderDetails;
+        
         // THÊM: Cập nhật orderDetailDatas từ updatedOrderDetails nếu có
         if (returnItem.updatedOrderDetails) {
-            setOrderDetailDatas(returnItem.updatedOrderDetails);
+            updatedOrderDetails = returnItem.updatedOrderDetails;
+            setOrderDetailDatas(updatedOrderDetails);
         } else {
             // Fallback: cập nhật số lượng sản phẩm trong orderDetailDatas (logic cũ)
             if (returnItem.orderDetailId) {
-                setOrderDetailDatas(prevItems => 
-                    prevItems.map(item => {
+                setOrderDetailDatas(prevItems => {
+                    const updated = prevItems.map(item => {
                         if (item.id === returnItem.orderDetailId) {
                             const newSoLuong = Math.max(0, item.soLuong - returnItem.quantity);
                             return {
@@ -795,21 +921,53 @@ function OrderStatus() {
                             };
                         }
                         return item;
-                    })
-                );
+                    });
+                    updatedOrderDetails = updated;
+                    return updated;
+                });
             }
         }
         
-        // Cập nhật với dữ liệu từ API backend (đã được xử lý trực tiếp)
-        if (returnItem.updatedOrderTotal !== undefined) {
-            // Sử dụng tổng tiền đã được cập nhật từ backend
-            setCurrentTongTien(returnItem.updatedOrderTotal);
-            setTotal(returnItem.updatedOrderTotal);
+        // FIX: Recalculate voucher discount properly after returns
+        if (updatedOrderDetails) {
+            // Calculate new subtotal based on updated order details
+            const newSubtotal = updatedOrderDetails.reduce((sum, item) => {
+                const { unitPrice } = resolvePrices(item);
+                const qty = Number(item.soLuong) || 0;
+                return sum + unitPrice * qty;
+            }, 0);
+            
+            // Recalculate discount amount using voucher constraints
+            const voucher = orderData.voucher || null;
+            const newDiscountAmount = validateDiscount(newSubtotal, voucher);
+            const correctedTotal = newSubtotal - newDiscountAmount + shippingFee;
+            
+            // Update all related states with corrected values
+            setSubtotal(newSubtotal);
+            setDiscountAmount(newDiscountAmount);
+            setTotal(correctedTotal);
+            setCurrentTongTien(correctedTotal);
+            
+            // Persist the corrected total to backend
+            persistHoaDonTotal(correctedTotal);
+            
+            console.log('Return success - recalculated:', {
+                newSubtotal,
+                voucher: voucher?.ma,
+                originalDiscount: returnItem.updatedOrderTotal ? 'backend provided' : 'none',
+                newDiscountAmount,
+                correctedTotal
+            });
         } else {
-            // Fallback: tính toán cục bộ (deprecated)
-            const newTotal = currentTongTien - returnItem.totalAmount;
-            setCurrentTongTien(newTotal);
-            setTotal(newTotal);
+            // Fallback to backend total if no order details update
+            if (returnItem.updatedOrderTotal !== undefined) {
+                setCurrentTongTien(returnItem.updatedOrderTotal);
+                setTotal(returnItem.updatedOrderTotal);
+            } else {
+                const newTotal = currentTongTien - returnItem.totalAmount;
+                setCurrentTongTien(newTotal);
+                setTotal(newTotal);
+            }
         }
         
         // Cập nhật tổng tiền hoàn hàng
@@ -1685,6 +1843,7 @@ function OrderStatus() {
                     selectedBill={orderData}
                     fetchBillDetails={fetchBillDetails}
                     handleConfirmAddProduct={handleConfirmAddProduct}
+                    currentOrderDetails={orderDetailDatas}
                 />
             )}
             <PaymentDetails

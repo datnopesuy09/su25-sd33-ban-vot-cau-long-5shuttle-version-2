@@ -289,6 +289,27 @@ function OfflineSale() {
         // Nếu cần cập nhật lại danh sách sản phẩm trong ProductModal, có thể truyền callback xuống và gọi lại fetchProducts
     };
 
+    // Hàm để tăng số lượng sản phẩm từ ProductModal khi phát hiện trùng lặp
+    const increaseProductQuantityFromModal = async (orderDetailId, delta = 1) => {
+        const currentItem = billDetails.find((item) => item.id === orderDetailId);
+        if (currentItem) {
+            const newQuantity = currentItem.soLuong + delta;
+            await updateQuantity(orderDetailId, newQuantity);
+            await fetchBillDetails(selectedBill.id); // Refresh bill details
+            setShowProductModal(false); // Đóng modal sau khi tăng số lượng
+            return Promise.resolve(); // Đảm bảo return Promise
+        }
+        return Promise.resolve();
+    };
+
+    // Đặt hàm vào window object để ProductModal có thể gọi
+    useEffect(() => {
+        window.increaseProductQuantity = increaseProductQuantityFromModal;
+        return () => {
+            delete window.increaseProductQuantity;
+        };
+    }, [billDetails]);
+
     const handleProductModal = () => {
         if (!selectedBill) {
             swal('Lỗi', 'Vui lòng chọn hoặc tạo một hóa đơn trước!', 'error');
@@ -490,7 +511,8 @@ function OfflineSale() {
                 selectedBill={selectedBill}
                 fetchBillDetails={fetchBillDetails}
                 handleConfirmAddProduct={handleConfirmAddProduct}
-                fetchProducts={fetchProducts} // truyền th
+                fetchProducts={fetchProducts}
+                currentOrderDetails={billDetails}
             />
 
             {showImportModal && (
