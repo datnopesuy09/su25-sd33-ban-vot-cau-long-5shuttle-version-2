@@ -630,7 +630,7 @@ function OrderStatus() {
                 toast.warning('Stock allocation đã cập nhật, nhưng không thể cập nhật tổng tiền trên server');
             }
 
-            toast.success('Cập nhật số lượng thành công! Stock allocation đã được điều chỉnh.');
+            toast.success('Cập nhật số lượng thành công!.');
         } catch (error) {
             console.error('Error updating quantity:', error);
             toast.error('Không thể cập nhật số lượng: ' + (error.message || 'Lỗi không xác định'));
@@ -1115,7 +1115,7 @@ function OrderStatus() {
                 console.error('Không thể làm mới chi tiết hóa đơn sau khi xác nhận:', refreshErr);
             }
 
-            toast.success('Xác nhận đơn hàng thành công! Stock allocation đã được chuyển sang trạng thái CONFIRMED.');
+            toast.success('Xác nhận đơn hàng thành công! ');
         } catch (error) {
             console.error('Lỗi khi xác nhận đơn hàng:', error);
             toast.error('Không thể xác nhận đơn hàng: ' + error.message);

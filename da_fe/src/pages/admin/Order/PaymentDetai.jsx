@@ -55,15 +55,12 @@ const PaymentDetails = ({
             const priceThreshold = originalPrice * 0.1; // 10% threshold
             
             let finalUnitPrice;
-            let isDiscountApplied = false;
-            
             if (Math.abs(priceDifference) <= priceThreshold) {
                 // Giá tính ra gần giá gốc → chưa hoàn hàng, không discount nhiều
                 finalUnitPrice = calculatedUnitPrice;
             } else if (priceDifference < 0) {
                 // calculatedUnitPrice < originalPrice → CÓ DISCOUNT → GIỮ GIÁ DISCOUNT
                 finalUnitPrice = calculatedUnitPrice;
-                isDiscountApplied = true;
             } else {
                 // calculatedUnitPrice > originalPrice → ĐÃ HOÀN HÀNG → DÙNG GIÁ GỐC
                 finalUnitPrice = originalPrice;
@@ -71,10 +68,7 @@ const PaymentDetails = ({
             
             // Lưu đơn giá này để dùng cho lần sau
             item.unitPriceOriginal = finalUnitPrice;
-            // Chỉ lưu originalPriceCache khi có discount để phân biệt
-            if (isDiscountApplied) {
-                item.originalPriceCache = originalPrice;
-            }
+            item.originalPriceCache = originalPrice; // Lưu luôn giá gốc để hiển thị discount
 
             return {
                 originalPrice: Number(originalPrice),
@@ -259,14 +253,14 @@ const PaymentDetails = ({
                                                     </div>
 
                                                     {/* Hiển thị tiền hoàn hàng nếu có */}
-                                                    {totalReturnAmount > 0 && (
+                                                    {/* {totalReturnAmount > 0 && (
                                                         <div className="flex justify-between items-center text-sm">
                                                             <span className="text-gray-700">Tiền hoàn hàng:</span>
                                                             <span className="font-semibold text-orange-600">
                                                                 -{Number(totalReturnAmount).toLocaleString('vi-VN')} VNĐ
                                                             </span>
                                                         </div>
-                                                    )}
+                                                    )} */}
                                                 </>
                                             );
                                         })()}

@@ -430,17 +430,17 @@ function OrderDetail() {
                         <div style={{ marginBottom: 6 }}>Tổng tiền hàng</div>
                         <div style={{ marginBottom: 6 }}>Phí vận chuyển</div>
                         <div style={{ marginBottom: 6 }}>Giảm giá</div>
-                        {totalReturnAmount > 0 && (
+                        {/* {totalReturnAmount > 0 && (
                             <div style={{ marginBottom: 6 }}>Hoàn hàng</div>
-                        )}
+                        )} */}
                     </div>
                     <div style={{ textAlign: 'right' }}>
                         <div style={{ marginBottom: 6 }}>{formatCurrency(totalAmount)}</div>
                         <div style={{ marginBottom: 6 }}>+{formatCurrency(phiShip)}</div>
                         <div style={{ marginBottom: 6 }}>-{formatCurrency(discountAmount)}</div>
-                        {totalReturnAmount > 0 && (
+                        {/* {totalReturnAmount > 0 && (
                             <div style={{ marginBottom: 6, color: '#ff6b35' }}>-{formatCurrency(totalReturnAmount)}</div>
-                        )}
+                        )} */}
                     </div>
                 </div>
                 <Divider sx={{ my: 2 }} />
