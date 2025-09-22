@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import SkipNextIcon from '@mui/icons-material/SkipNext';
-import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
 import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
 import TrashIcon from '@heroicons/react/24/outline/TrashIcon';
 import PencilIcon from '@heroicons/react/24/outline/PencilIcon';
 import { useForm } from 'react-hook-form';
-import swal from 'sweetalert';
+import { toast } from 'react-toastify';
+import Swal from 'sweetalert2';
 
 function Material() {
     const [materials, setMaterials] = useState([]);
@@ -15,10 +16,12 @@ function Material() {
     const [showUpdateModal, setShowUpdateModal] = useState(false);
     const [materialToDelete, setMaterialToDelete] = useState(null);
     const [materialToUpdate, setMaterialToUpdate] = useState(null);
+    const [filterStatus, setFilterStatus] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
 
     // Pagination
-    const [currentPage, setCurrentPage] = useState(1);
-    const materialsPerPage = 4;
+    const [currentPage, setCurrentPage] = useState(0);
+    const materialsPerPage = 5;
 
     const {
         register,
@@ -28,12 +31,30 @@ function Material() {
         formState: { errors },
     } = useForm();
 
+    // Filter materials based on status and search term
+    const filteredMaterials = materials.filter((material) => {
+        const matchesStatus = filterStatus === '' || material.trangThai.toString() === filterStatus;
+        const matchesSearch = material.ten.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesStatus && matchesSearch;
+    });
+
+    // Calculate pagination based on filtered data
+    const totalPages = Math.ceil(filteredMaterials.length / materialsPerPage);
+    const startIndex = currentPage * materialsPerPage;
+    const currentMaterials = filteredMaterials.slice(startIndex, startIndex + materialsPerPage);
+
+    // Reset to first page when filter changes
+    useEffect(() => {
+        setCurrentPage(0);
+    }, [filterStatus, searchTerm]);
+
     const loadMaterials = async () => {
         try {
             const response = await axios.get('http://localhost:8080/api/chat-lieu');
             setMaterials(response.data);
         } catch (error) {
             console.error('Failed to fetch materials', error);
+            toast.error('Không thể tải danh sách chất liệu!');
         }
     };
 
@@ -47,8 +68,10 @@ function Material() {
             await axios.delete(`http://localhost:8080/api/chat-lieu/${id}`);
             loadMaterials();
             setShowModal(false);
+            toast.success('Xóa chất liệu thành công!');
         } catch (error) {
             console.error('Failed to delete material', error);
+            toast.error('Có lỗi xảy ra khi xóa chất liệu!');
         }
     };
 
@@ -60,13 +83,13 @@ function Material() {
         };
         try {
             await axios.post('http://localhost:8080/api/chat-lieu', newmaterial);
-            swal('Thành công!', 'chất liệu đã được thêm!', 'success');
+            toast.success('Thêm chất liệu thành công!');
             setShowAddModal(false);
             loadMaterials();
             reset(); // Reset form values after adding
         } catch (error) {
             console.error('Có lỗi xảy ra khi thêm chất liệu!', error);
-            swal('Thất bại!', 'Có lỗi xảy ra khi thêm chất liệu!', 'error');
+            toast.error('Có lỗi xảy ra khi thêm chất liệu!');
         }
     };
 
@@ -98,267 +121,453 @@ function Material() {
         };
         try {
             await axios.put(`http://localhost:8080/api/chat-lieu/${materialToUpdate}`, updatedmaterial);
-            swal('Thành công!', 'chất liệu đã được cập nhật!', 'success');
+            toast.success('Cập nhật chất liệu thành công!');
             setShowUpdateModal(false);
             loadMaterials();
             reset(); // Reset form values after updating
         } catch (error) {
             console.error('Có lỗi xảy ra khi cập nhật chất liệu!', error);
-            swal('Thất bại!', 'Có lỗi xảy ra khi cập nhật chất liệu!', 'error');
+            toast.error('Có lỗi xảy ra khi cập nhật chất liệu!');
         }
     };
-
-    // Get current materials based on pagination
-    const indexOfLastMaterial = currentPage * materialsPerPage;
-    const indexOfFirstMaterial = indexOfLastMaterial - materialsPerPage;
-    const currentmaterials = materials.slice(indexOfFirstMaterial, indexOfLastMaterial);
-
-    // Calculate total pages
-    const totalPages = Math.ceil(materials.length / materialsPerPage);
 
     // Pagination controls
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
     return (
-        <div className="p-2 max-w-7xl mx-auto bg-white rounded-lg">
-            <h4 className="text-center text-5xl font-bold text-gray-800">Danh sách chất liệu</h4>
-            <div>
-                <div className="flex justify-end mb-4">
-                    <button
-                        onClick={handleAddModal}
-                        className="border border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white font-medium py-2 px-4 rounded"
-                    >
-                        <AddIcon />
-                    </button>
+        <div className="min-h-screen bg-gray-50">
+            {/* Header */}
+            <div className="bg-white shadow-sm border-b border-gray-200 mb-6">
+                <div className="px-6 py-4">
+                    <h1 className="text-2xl font-bold text-gray-900">Quản lý chất liệu</h1>
+                    <p className="text-gray-600 mt-1">Danh sách và quản lý các chất liệu trong hệ thống</p>
                 </div>
-                <table className="w-full table-auto bg-white rounded-lg shadow-md">
-                    <thead>
-                        <tr className="bg-gray-200 text-gray-700">
-                            <th className="py-4 px-6 text-left">STT</th>
-                            <th className="py-4 px-6 text-left">ID</th>
-                            <th className="py-4 px-6 text-left">Tên</th>
-                            <th className="py-4 px-6 text-left">Trạng thái</th>
-                            <th className="py-4 px-6 text-left">Hành động</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {currentmaterials.map((material, index) => (
-                            <tr key={material.id} className="border-t border-gray-200 hover:bg-gray-100">
-                                <td className="py-4 px-6">{indexOfFirstMaterial + index + 1}</td>
-                                <td className="py-4 px-6">{material.id}</td>
-                                <td className="py-4 px-6">{material.ten}</td>
-                                <td className="py-4 px-6">
-                                    <span
-                                        className={`px-2 py-1 rounded-full text-xs font-semibold
-                        ${
-                            material.trangThai
-                                ? 'text-green-600 bg-green-100 border border-green-600'
-                                : 'text-red-600 bg-red-100 border border-red-600'
-                        }`}
-                                    >
-                                        {material.trangThai ? 'Active' : 'Inactive'}
-                                    </span>
-                                </td>
-                                <td className="py-4 px-6">
-                                    <div className="flex">
-                                        <button
-                                            onClick={() => handleUpdateModal(material)}
-                                            className=" hover:bg-gray-400 font-medium py-2 px-4 rounded"
-                                        >
-                                            <PencilIcon className="h-5 w-5" />
-                                        </button>
-                                        <button
-                                            onClick={() => confirmDelete(material.id)}
-                                            className="hover:bg-gray-400 font-medium py-2 px-4 rounded"
-                                        >
-                                            <TrashIcon className="w-5" />
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+            </div>
 
-                {/* Modal for delete confirmation */}
-                {showModal && (
-                    <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 z-50">
-                        <div className="bg-white rounded-lg shadow-lg p-6">
-                            <h3 className="text-lg font-bold mb-4">Xác nhận xóa</h3>
-                            <p>Bạn có chắc chắn muốn xóa chất liệu này không?</p>
-                            <div className="mt-4 flex justify-end space-x-2">
+            <div className="px-6">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    {/* Search and Action Bar */}
+                    <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                        <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+                            {/* Search Bar */}
+                            <div className="relative flex-1 max-w-md">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <SearchIcon className="h-5 w-5 text-gray-400" />
+                                </div>
+                                <input
+                                    type="text"
+                                    placeholder="Nhập tên chất liệu để tìm..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-gray-700 placeholder-gray-500"
+                                />
+                            </div>
+                            
+                            {/* Action Buttons */}
+                            <div className="flex flex-col sm:flex-row gap-3">
                                 <button
-                                    onClick={() => setShowModal(false)}
-                                    className="bg-gray-300 hover:bg-gray-400 text-black py-2 px-4 rounded-lg"
+                                    onClick={handleAddModal}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg flex items-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5"
                                 >
-                                    Hủy
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(materialToDelete)}
-                                    className="bg-red-400 hover:bg-red-600 text-white py-2 px-4 rounded-lg"
-                                >
-                                    Xóa
+                                    <AddIcon className="h-5 w-5" />
+                                    Thêm chất liệu
                                 </button>
                             </div>
                         </div>
                     </div>
-                )}
 
-                {/* Modal for adding a material */}
-                {showAddModal && (
-                    <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 z-50">
-                        <div className="bg-white rounded-lg shadow-lg p-6">
-                            <h3 className="text-lg font-bold mb-4">Thêm chất liệu</h3>
-                            <form onSubmit={handleSubmit(handleAddmaterial)}>
-                                <div className="mb-4">
-                                    <label className="block text-gray-700">Tên chất liệu</label>
+                    {/* Filter Section */}
+                    <div className="p-6 bg-gray-50 border-b border-gray-200">
+                        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                            <div className="flex items-center gap-2">
+                                <FilterListIcon className="h-5 w-5 text-gray-600" />
+                                <span className="font-semibold text-gray-700">Lọc theo trạng thái:</span>
+                            </div>
+                            <div className="flex flex-wrap gap-4">
+                                <label className="flex items-center cursor-pointer group">
                                     <input
-                                        type="text"
-                                        className={`border border-gray-300 p-2 w-full rounded-lg ${
-                                            errors.materialName ? 'border-red-500' : ''
-                                        }`}
-                                        {...register('materialName', { required: true })}
+                                        type="radio"
+                                        name="status"
+                                        value=""
+                                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 focus:ring-blue-500 focus:ring-2"
+                                        checked={filterStatus === ''}
+                                        onChange={() => setFilterStatus('')}
                                     />
-                                    {errors.materialName && (
-                                        <span className="text-red-500">Tên chất liệu là bắt buộc.</span>
-                                    )}
-                                </div>
-                                <div className="mb-4">
-                                    <label className="block text-gray-700">Trạng thái</label>
-                                    <div className="flex space-x-4">
-                                        <label className="flex items-center">
-                                            <input
-                                                type="radio"
-                                                value="1"
-                                                className="form-radio"
-                                                {...register('status', { required: true })}
-                                            />
-                                            <span className="ml-2">Active</span>
-                                        </label>
-                                        <label className="flex items-center">
-                                            <input
-                                                type="radio"
-                                                value="0"
-                                                className="form-radio"
-                                                {...register('status', { required: true })}
-                                            />
-                                            <span className="ml-2">Inactive</span>
-                                        </label>
-                                    </div>
-                                    {errors.status && <span className="text-red-500">Trạng thái là bắt buộc.</span>}
-                                </div>
-                                <div className="mt-4 flex justify-end space-x-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowAddModal(false)}
-                                        className="bg-gray-300 hover:bg-gray-400 text-black py-2 px-4 rounded-lg"
-                                    >
-                                        Hủy
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="bg-green-500 hover:bg-green-700 text-white py-2 px-4 rounded-lg"
-                                    >
-                                        Thêm
-                                    </button>
-                                </div>
-                            </form>
+                                    <span className="ml-2 text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">
+                                        Tất cả
+                                    </span>
+                                </label>
+                                <label className="flex items-center cursor-pointer group">
+                                    <input
+                                        type="radio"
+                                        name="status"
+                                        value="1"
+                                        className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 focus:ring-green-500 focus:ring-2"
+                                        checked={filterStatus === '1'}
+                                        onChange={() => setFilterStatus('1')}
+                                    />
+                                    <span className="ml-2 text-sm font-medium text-gray-700 group-hover:text-green-600 transition-colors">
+                                        Đang hoạt động
+                                    </span>
+                                </label>
+                                <label className="flex items-center cursor-pointer group">
+                                    <input
+                                        type="radio"
+                                        name="status"
+                                        value="0"
+                                        className="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 focus:ring-red-500 focus:ring-2"
+                                        checked={filterStatus === '0'}
+                                        onChange={() => setFilterStatus('0')}
+                                    />
+                                    <span className="ml-2 text-sm font-medium text-gray-700 group-hover:text-red-600 transition-colors">
+                                        Ngừng hoạt động
+                                    </span>
+                                </label>
+                            </div>
                         </div>
                     </div>
-                )}
 
-                {/* Modal for updating a material */}
-                {showUpdateModal && (
-                    <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 z-50">
-                        <div className="bg-white rounded-lg shadow-lg p-6">
-                            <h3 className="text-lg font-bold mb-4">Cập nhật chất liệu</h3>
-                            <form onSubmit={handleSubmit(handleUpdatematerial)}>
-                                <div className="mb-4">
-                                    <label className="block text-gray-700">Tên chất liệu</label>
-                                    <input
-                                        type="text"
-                                        className={`border border-gray-300 p-2 w-full rounded-lg ${
-                                            errors.materialName ? 'border-red-500' : ''
-                                        }`}
-                                        {...register('materialName', { required: true })}
-                                    />
-                                    {errors.materialName && (
-                                        <span className="text-red-500">Tên chất liệu là bắt buộc.</span>
-                                    )}
+                    {/* Table */}
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                                <tr>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                        STT
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                        ID
+                                    </th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                        Tên chất liệu
+                                    </th>
+                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                        Trạng thái
+                                    </th>
+                                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                                        Hành động
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {currentMaterials && currentMaterials.length > 0 ? (
+                                    currentMaterials.map((material, index) => (
+                                        <tr key={material.id} className="hover:bg-blue-50 transition-colors duration-200">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                {startIndex + index + 1}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {material.id}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="text-sm font-medium text-gray-900">{material.ten}</div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                <span
+                                                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
+                                                        material.trangThai === 1
+                                                            ? 'bg-green-100 text-green-800'
+                                                            : 'bg-red-100 text-red-800'
+                                                    }`}
+                                                >
+                                                    <span
+                                                        className={`w-2 h-2 rounded-full mr-2 ${
+                                                            material.trangThai === 1 ? 'bg-green-400' : 'bg-red-400'
+                                                        }`}
+                                                    ></span>
+                                                    {material.trangThai === 1 ? 'Đang hoạt động' : 'Ngừng hoạt động'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <button
+                                                        onClick={() => handleUpdateModal(material)}
+                                                        className="inline-flex items-center justify-center w-10 h-10 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all duration-200 transform hover:scale-110"
+                                                        title="Chỉnh sửa chất liệu"
+                                                    >
+                                                        <PencilIcon className="h-5 w-5" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => confirmDelete(material.id)}
+                                                        className="inline-flex items-center justify-center w-10 h-10 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all duration-200 transform hover:scale-110"
+                                                        title="Xóa chất liệu"
+                                                    >
+                                                        <TrashIcon className="h-5 w-5" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="5" className="px-6 py-12 text-center">
+                                            <div className="flex flex-col items-center">
+                                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                                                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                                                    </svg>
+                                                </div>
+                                                <h3 className="text-lg font-medium text-gray-900 mb-1">Không có chất liệu nào</h3>
+                                                <p className="text-gray-500">Hãy thêm chất liệu đầu tiên để bắt đầu quản lý.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Pagination */}
+                    <div className="bg-white px-6 py-4 border-t border-gray-200">
+                        <div className="flex items-center justify-between">
+                            <div className="text-sm text-gray-700">
+                                Hiển thị <span className="font-medium">{startIndex + 1}</span> đến{' '}
+                                <span className="font-medium">
+                                    {Math.min(startIndex + materialsPerPage, filteredMaterials.length)}
+                                </span>{' '}
+                                trong tổng số <span className="font-medium">{filteredMaterials.length}</span> chất liệu
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <button
+                                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 0))}
+                                    disabled={currentPage === 0}
+                                    className="relative inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                    Trước
+                                </button>
+                                
+                                <div className="flex space-x-1">
+                                    {Array.from({ length: totalPages }, (_, index) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => setCurrentPage(index)}
+                                            className={`relative inline-flex items-center px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                                                index === currentPage
+                                                    ? 'z-10 bg-blue-600 text-white border-blue-600 shadow-md'
+                                                    : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
+                                            } rounded-md`}
+                                        >
+                                            {index + 1}
+                                        </button>
+                                    ))}
                                 </div>
-                                <div className="mb-4">
-                                    <label className="block text-gray-700">Trạng thái</label>
-                                    <div className="flex space-x-4">
-                                        <label className="flex items-center">
-                                            <input
-                                                type="radio"
-                                                value="1"
-                                                className="form-radio"
-                                                {...register('status', { required: true })}
-                                            />
-                                            <span className="ml-2">Active</span>
-                                        </label>
-                                        <label className="flex items-center">
-                                            <input
-                                                type="radio"
-                                                value="0"
-                                                className="form-radio"
-                                                {...register('status', { required: true })}
-                                            />
-                                            <span className="ml-2">Inactive</span>
-                                        </label>
-                                    </div>
-                                    {errors.status && <span className="text-red-500">Trạng thái là bắt buộc.</span>}
-                                </div>
-                                <div className="mt-4 flex justify-end space-x-2">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowUpdateModal(false)}
-                                        className="bg-gray-300 hover:bg-gray-400 text-black py-2 px-4 rounded-lg"
-                                    >
-                                        Hủy
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        className="bg-blue-500 hover:bg-blue-700 text-white py-2 px-4 rounded-lg"
-                                    >
-                                        Cập nhật
-                                    </button>
-                                </div>
-                            </form>
+                                
+                                <button
+                                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages - 1))}
+                                    disabled={currentPage === totalPages - 1}
+                                    className="relative inline-flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                                >
+                                    Sau
+                                    <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
-                )}
+                </div>
             </div>
 
-            {/* Pagination controls */}
-            <div className="flex justify-center mt-4">
-                <button
-                    onClick={() => paginate(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="border border-gray-400 rounded-l-lg p-2 hover:bg-gray-200"
-                >
-                    <SkipPreviousIcon />
-                </button>
-                {Array.from({ length: totalPages }).map((_, index) => (
-                    <button
-                        key={index}
-                        onClick={() => paginate(index + 1)}
-                        className={`border-t border-b border-gray-400 px-4 py-2 ${
-                            index + 1 === currentPage ? 'bg-gray-200' : ''
-                        }`}
-                    >
-                        {index + 1}
-                    </button>
-                ))}
-                <button
-                    onClick={() => paginate(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="border border-gray-400 rounded-r-lg p-2 hover:bg-gray-200"
-                >
-                    <SkipNextIcon />
-                </button>
-            </div>
+            {/* Modal for delete confirmation */}
+            {showModal && (
+                <div className="fixed inset-0 bg-black/10 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4">
+                        <div className="flex items-center mb-6">
+                            <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                </svg>
+                            </div>
+                            <div className="ml-4">
+                                <h3 className="text-xl font-bold text-gray-900">Xác nhận xóa</h3>
+                                <p className="text-gray-600">Hành động này không thể hoàn tác</p>
+                            </div>
+                        </div>
+                        <p className="text-gray-700 mb-8">Bạn có chắc chắn muốn xóa chất liệu này không?</p>
+                        <div className="flex justify-end space-x-3">
+                            <button
+                                onClick={() => setShowModal(false)}
+                                className="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={() => handleDelete(materialToDelete)}
+                                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors duration-200"
+                            >
+                                Xóa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal for adding a material */}
+            {showAddModal && (
+                <div className="fixed inset-0 bg-black/10 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4">
+                        <div className="flex items-center mb-6">
+                            <div className="flex-shrink-0 w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                <AddIcon className="w-6 h-6 text-blue-600" />
+                            </div>
+                            <div className="ml-4">
+                                <h3 className="text-xl font-bold text-gray-900">Thêm chất liệu mới</h3>
+                                <p className="text-gray-600">Điền thông tin chất liệu</p>
+                            </div>
+                        </div>
+                        <form onSubmit={handleSubmit(handleAddmaterial)} className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Tên chất liệu <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                                        errors.materialName ? 'border-red-500' : 'border-gray-300'
+                                    }`}
+                                    placeholder="Nhập tên chất liệu..."
+                                    {...register('materialName', { required: true })}
+                                />
+                                {errors.materialName && (
+                                    <p className="mt-1 text-sm text-red-500">Tên chất liệu là bắt buộc</p>
+                                )}
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-3">
+                                    Trạng thái <span className="text-red-500">*</span>
+                                </label>
+                                <div className="space-y-3">
+                                    <label className="flex items-center cursor-pointer group">
+                                        <input
+                                            type="radio"
+                                            value="1"
+                                            className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 focus:ring-green-500 focus:ring-2"
+                                            {...register('status', { required: true })}
+                                        />
+                                        <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-green-600 transition-colors">
+                                            Đang hoạt động
+                                        </span>
+                                    </label>
+                                    <label className="flex items-center cursor-pointer group">
+                                        <input
+                                            type="radio"
+                                            value="0"
+                                            className="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 focus:ring-red-500 focus:ring-2"
+                                            {...register('status', { required: true })}
+                                        />
+                                        <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-red-600 transition-colors">
+                                            Ngừng hoạt động
+                                        </span>
+                                    </label>
+                                </div>
+                                {errors.status && (
+                                    <p className="mt-1 text-sm text-red-500">Trạng thái là bắt buộc</p>
+                                )}
+                            </div>
+                            <div className="flex justify-end space-x-3 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAddModal(false)}
+                                    className="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200"
+                                >
+                                    Hủy
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200"
+                                >
+                                    Thêm chất liệu
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal for updating a material */}
+            {showUpdateModal && (
+                <div className="fixed inset-0 bg-black/10 backdrop-blur-sm flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4">
+                        <div className="flex items-center mb-6">
+                            <div className="flex-shrink-0 w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
+                                <PencilIcon className="w-6 h-6 text-amber-600" />
+                            </div>
+                            <div className="ml-4">
+                                <h3 className="text-xl font-bold text-gray-900">Cập nhật chất liệu</h3>
+                                <p className="text-gray-600">Chỉnh sửa thông tin chất liệu</p>
+                            </div>
+                        </div>
+                        <form onSubmit={handleSubmit(handleUpdatematerial)} className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Tên chất liệu <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                                        errors.materialName ? 'border-red-500' : 'border-gray-300'
+                                    }`}
+                                    placeholder="Nhập tên chất liệu..."
+                                    {...register('materialName', { required: true })}
+                                />
+                                {errors.materialName && (
+                                    <p className="mt-1 text-sm text-red-500">Tên chất liệu là bắt buộc</p>
+                                )}
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-3">
+                                    Trạng thái <span className="text-red-500">*</span>
+                                </label>
+                                <div className="space-y-3">
+                                    <label className="flex items-center cursor-pointer group">
+                                        <input
+                                            type="radio"
+                                            value="1"
+                                            className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 focus:ring-green-500 focus:ring-2"
+                                            {...register('status', { required: true })}
+                                        />
+                                        <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-green-600 transition-colors">
+                                            Đang hoạt động
+                                        </span>
+                                    </label>
+                                    <label className="flex items-center cursor-pointer group">
+                                        <input
+                                            type="radio"
+                                            value="0"
+                                            className="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 focus:ring-red-500 focus:ring-2"
+                                            {...register('status', { required: true })}
+                                        />
+                                        <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-red-600 transition-colors">
+                                            Ngừng hoạt động
+                                        </span>
+                                    </label>
+                                </div>
+                                {errors.status && (
+                                    <p className="mt-1 text-sm text-red-500">Trạng thái là bắt buộc</p>
+                                )}
+                            </div>
+                            <div className="flex justify-end space-x-3 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowUpdateModal(false)}
+                                    className="px-6 py-3 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors duration-200"
+                                >
+                                    Hủy
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-6 py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors duration-200"
+                                >
+                                    Cập nhật
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

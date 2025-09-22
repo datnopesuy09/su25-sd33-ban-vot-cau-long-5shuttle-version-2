@@ -26,4 +26,5 @@ public class UserResponse {
     Integer gioiTinh;
     String cccd;
     Integer trangThai;
+    String avatar;
 }
