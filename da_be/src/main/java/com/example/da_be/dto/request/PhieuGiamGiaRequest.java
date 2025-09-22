@@ -34,10 +34,18 @@ public class PhieuGiamGiaRequest {
 
     public Integer setDataStatus(LocalDateTime startDate, LocalDateTime endDate, Integer status) {
         LocalDateTime currentDateTime = LocalDateTime.now();
-        if (!currentDateTime.isBefore(startDate) && currentDateTime.isBefore(endDate.plusMinutes(1))) {
+        
+        // Chưa bắt đầu: ngayBatDau > now
+        if (startDate.isAfter(currentDateTime)) {
+            return 0;
+        }
+        // Đã kết thúc: ngayKetThuc < now
+        else if (endDate.isBefore(currentDateTime)) {
+            return 2;
+        }
+        // Đang hoạt động: ngayBatDau <= now < ngayKetThuc
+        else {
             return 1;
-        } else {
-            return status;
         }
     }
 
