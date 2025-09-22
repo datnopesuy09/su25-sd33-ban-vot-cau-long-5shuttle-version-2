@@ -2,6 +2,12 @@ DROP DATABASE IF EXISTS `5SHUTTLE`;
 CREATE DATABASE 5SHUTTLE CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE 5SHUTTLE;
 
+-- Set time 
+SELECT @@global.time_zone, @@session.time_zone;
+-- Nếu đang là SYSTEM hoặc UTC → đổi sang +07:00
+SET GLOBAL time_zone = '+07:00';
+SET time_zone = '+07:00';
+
 CREATE TABLE ThuongHieu (
     Id INT AUTO_INCREMENT PRIMARY KEY,
     Ten NVARCHAR(255),

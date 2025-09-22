@@ -2,6 +2,7 @@ package com.example.da_be.repository;
 
 
 import com.example.da_be.dto.SanPhamCTListDTOo;
+import com.example.da_be.entity.MauSac;
 import com.example.da_be.entity.SanPhamCT;
 import com.example.da_be.entity.SanPham;
 
@@ -38,4 +39,6 @@ public interface SanPhamCTRepository extends JpaRepository<SanPhamCT, Integer> {
 
     @Query("SELECT spct FROM SanPhamCT spct WHERE spct.sanPham.id = :idSanPham")
     List<SanPhamCT> findBySanPhamId(@Param("idSanPham") Long idSanPham);
+
+    List<SanPhamCT> findBySanPhamAndMauSac(SanPham sanPham, MauSac mauSac);
 }

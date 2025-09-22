@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Minus, Star, Heart, RotateCcw, Trash2 } from 'lucide-react';
 import axios from 'axios';
 import swal from 'sweetalert';
+import StockAllocationIndicator from '../../../components/StockAllocationIndicator';
 
 const ProductList = ({
     orderDetailDatas,
@@ -99,27 +100,32 @@ const ProductList = ({
 
     // Resolve possible price fields and return original and discounted prices
     const resolvePrices = (item) => {
-        // Prefer unit prices from sanPhamCT (variant) — these should be immutable unit prices.
-        const variantOriginal = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia;
-        const variantDiscounted = item.sanPhamCT?.giaKhuyenMai ?? item.sanPhamCT?.sanPham?.giaKhuyenMai;
-
-        if (variantOriginal !== undefined && variantOriginal !== null) {
-            const originalPrice = Number(variantOriginal);
-            const discountedPrice = variantDiscounted !== undefined && variantDiscounted !== null ? Number(variantDiscounted) : originalPrice;
-            return { originalPrice, discountedPrice };
-        }
-
-        // If variant-level price not available, try order-level fields. Sometimes backend stores line total in giaBan/giaKhuyenMai
-        // after quantity updates; to get unit price, divide by soLuong when appropriate.
+        // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
         const qty = Number(item.soLuong) || 1;
 
-        const orderGiaBan = item.giaBan;
-        const orderGiaKhuyenMai = item.giaKhuyenMai;
+        // Giá đã lưu trong hóa đơn (giá tại thời điểm mua hàng)
+        if (item.giaBan !== undefined && item.giaBan !== null) {
+            const savedTotalPrice = Number(item.giaBan);
+            const unitPrice = savedTotalPrice / qty;
 
-        const originalFromOrder = orderGiaBan !== undefined && orderGiaBan !== null ? Number(orderGiaBan) / qty : 0;
-        const discountedFromOrder = orderGiaKhuyenMai !== undefined && orderGiaKhuyenMai !== null ? Number(orderGiaKhuyenMai) / qty : originalFromOrder;
+            // Lấy giá gốc từ sản phẩm để tính phần trăm giảm giá
+            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? unitPrice;
 
-        return { originalPrice: originalFromOrder, discountedPrice: discountedFromOrder };
+            return {
+                originalPrice: Number(originalPrice),
+                discountedPrice: unitPrice,
+                unitPrice: unitPrice,
+            };
+        }
+
+        // Fallback: nếu không có giá lưu, sử dụng giá gốc từ sản phẩm
+        const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? 0;
+
+        return {
+            originalPrice: Number(originalPrice),
+            discountedPrice: Number(originalPrice),
+            unitPrice: Number(originalPrice),
+        };
     };
 
     const canReturn = [4, 5].includes(currentOrderStatus);
@@ -210,26 +216,31 @@ const ProductList = ({
                                         <div className="flex items-center gap-2 mb-2">
                                             {(() => {
                                                 const { originalPrice, discountedPrice } = resolvePrices(orderDetail);
-                                                const discountPercent = originalPrice > 0 && originalPrice > discountedPrice
-                                                    ? Math.round(((originalPrice - discountedPrice) / originalPrice) * 100)
-                                                    : 0;
+                                                const discountPercent =
+                                                    originalPrice > 0 && originalPrice > discountedPrice
+                                                        ? Math.round(
+                                                              ((originalPrice - discountedPrice) / originalPrice) * 100,
+                                                          )
+                                                        : 0;
 
                                                 return (
-                                                    <>
-                                                        <span className="text-sm text-red-500 font-medium">
-                                                            {formatCurrency(discountedPrice)}
-                                                        </span>
-                                                        {discountPercent > 0 && (
-                                                            <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded">
-                                                                -{discountPercent}%
+                                                    <div className="flex flex-col gap-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-sm text-red-500 font-medium">
+                                                                Đơn giá: {formatCurrency(discountedPrice)}
                                                             </span>
-                                                        )}
+                                                            {discountPercent > 0 && (
+                                                                <span className="text-xs font-semibold text-white bg-red-500 px-2 py-0.5 rounded">
+                                                                    -{discountPercent}%
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         {discountPercent > 0 && (
-                                                            <span className="text-xs text-gray-500 line-through ml-2">
-                                                                {formatCurrency(originalPrice)}
-                                                            </span>
+                                                            <div className="text-xs text-gray-500 line-through">
+                                                                Giá gốc: {formatCurrency(originalPrice)}
+                                                            </div>
                                                         )}
-                                                    </>
+                                                    </div>
                                                 );
                                             })()}
                                         </div>
@@ -263,13 +274,48 @@ const ProductList = ({
                                                 Tồn kho: {orderDetail.sanPhamCT.soLuong}
                                             </span>
                                         </div>
+
+                                        {/* THÊM: Stock Allocation Indicator */}
+                                        {/* <div className="mt-3">
+                                            <StockAllocationIndicator
+                                                sanPhamCTId={orderDetail.sanPhamCT.id}
+                                                hoaDonCTId={orderDetail.id}
+                                                currentQuantity={orderDetail.soLuong}
+                                                isOrderConfirmed={currentOrderStatus >= 3}
+                                                showDetails={true}
+                                                className="w-full"
+                                            />
+                                        </div> */}
                                     </div>
 
                                     <div className="text-right">
-                                        <div className="text-2xl font-bold text-red-600 mb-4">
+                                        <div className="mb-4">
                                             {(() => {
-                                                const { discountedPrice } = resolvePrices(orderDetail);
-                                                return formatCurrency(discountedPrice);
+                                                const { originalPrice, discountedPrice } = resolvePrices(orderDetail);
+                                                const discountPercent =
+                                                    originalPrice > 0 && originalPrice > discountedPrice
+                                                        ? Math.round(
+                                                              ((originalPrice - discountedPrice) / originalPrice) * 100,
+                                                          )
+                                                        : 0;
+                                                const totalPrice = discountedPrice * orderDetail.soLuong;
+                                                const originalTotal = originalPrice * orderDetail.soLuong;
+
+                                                return (
+                                                    <div>
+                                                        <div className="text-2xl font-bold text-red-600 mb-1">
+                                                            {formatCurrency(totalPrice)}
+                                                        </div>
+                                                        {discountPercent > 0 && (
+                                                            <div className="text-sm text-gray-500 line-through">
+                                                                {formatCurrency(originalTotal)}
+                                                            </div>
+                                                        )}
+                                                        <div className="text-xs text-gray-600 mt-1">
+                                                            ({orderDetail.soLuong} x {formatCurrency(discountedPrice)})
+                                                        </div>
+                                                    </div>
+                                                );
                                             })()}
                                         </div>
                                         <div className="flex items-center gap-3 mb-4">
@@ -305,7 +351,15 @@ const ProductList = ({
                                         >
                                             <Trash2 size={16} className="text-red-600" />
                                         </button>
-                                        <div className="mt-2 text-sm text-gray-600">Tổng: <span className="font-semibold text-gray-800">{formatCurrency(resolvePrices(orderDetail).discountedPrice * (orderDetail.soLuong || 0))}</span></div>
+                                        <div className="mt-2 text-sm text-gray-600">
+                                            Tổng:{' '}
+                                            <span className="font-semibold text-gray-800">
+                                                {formatCurrency(
+                                                    resolvePrices(orderDetail).discountedPrice *
+                                                        (orderDetail.soLuong || 0),
+                                                )}
+                                            </span>
+                                        </div>
                                         {/* <button
                                             onClick={() => handleOpenReturnModal(orderDetail)}
                                             disabled={!canReturn || isOrderOnHold}

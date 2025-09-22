@@ -13,16 +13,13 @@ const CartItem = ({
     const maxQuantity = cart?.sanPhamCT?.soLuong || 0;
     const [isEditing, setIsEditing] = useState(false);
     const [isFavorite, setIsFavorite] = useState(false);
+    console.log('cạt: ', cart);
+    const totalPrice = (cart.sanPhamCT.giaKhuyenMai || cart.sanPhamCT.donGia) * quantity;
 
-    const totalPrice =
-        (cart.sanPhamCT.giaKhuyenMai || cart.sanPhamCT.donGia) * quantity;
-
-            // Tính phần trăm giảm giá nếu có giá khuyến mãi
-            const discountPercent = cart.sanPhamCT.giaKhuyenMai
-                    ? Math.round(
-                            ((cart.sanPhamCT.donGia - cart.sanPhamCT.giaKhuyenMai) / cart.sanPhamCT.donGia) * 100
-                        )
-                    : 0;
+    // Tính phần trăm giảm giá nếu có giá khuyến mãi
+    const discountPercent = cart.sanPhamCT.giaKhuyenMai
+        ? Math.round(((cart.sanPhamCT.donGia - cart.sanPhamCT.giaKhuyenMai) / cart.sanPhamCT.donGia) * 100)
+        : 0;
 
     const handleQuantityChange = (e) => {
         const newValue = e.target.value;
@@ -82,8 +79,7 @@ const CartItem = ({
     };
 
     const getStockStatus = () => {
-        if (maxQuantity <= 5)
-            return { color: 'text-orange-600', icon: '⚠️' };
+        if (maxQuantity <= 5) return { color: 'text-orange-600', icon: '⚠️' };
         return { color: 'text-green-600', icon: '✅' };
     };
 
@@ -92,12 +88,7 @@ const CartItem = ({
     return (
         <div className="flex gap-4">
             <div className="flex items-center">
-                <input
-                    type="checkbox"
-                    checked={selected}
-                    onChange={onSelect}
-                    className="w-5 h-5 accent-indigo-600"
-                />
+                <input type="checkbox" checked={selected} onChange={onSelect} className="w-5 h-5 accent-indigo-600" />
             </div>
 
             <div className="relative flex-shrink-0">
@@ -128,11 +119,7 @@ const CartItem = ({
                                     : 'text-gray-400 hover:text-red-500 hover:bg-red-50'
                             }`}
                         >
-                            <Heart
-                                className={`w-4 h-4 ${
-                                    isFavorite ? 'fill-current' : ''
-                                }`}
-                            />
+                            <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
                         </button>
                         <button
                             onClick={() => onDeleteCart(cart.id)}
@@ -146,15 +133,11 @@ const CartItem = ({
                 <div className="mb-1 text-xs space-y-1">
                     <div className="flex items-center space-x-1">
                         <span className="text-gray-500">Thương hiệu:</span>
-                        <span className="font-medium text-blue-600">
-                            {cart.sanPhamCT.thuongHieu.ten}
-                        </span>
+                        <span className="font-medium text-blue-600">{cart.sanPhamCT.thuongHieu.ten}</span>
                     </div>
                     <div className="flex items-center space-x-1">
                         <span className="text-gray-500">Trọng lượng:</span>
-                        <span className="font-medium">
-                            {cart.sanPhamCT.trongLuong.ten}
-                        </span>
+                        <span className="font-medium">{cart.sanPhamCT.trongLuong.ten}</span>
                     </div>
                 </div>
 
@@ -183,9 +166,7 @@ const CartItem = ({
                     </div>
                     <div className="flex flex-col text-right">
                         <span className="text-xs text-gray-500">Tổng tiền</span>
-                        <span className="text-md font-bold text-green-600">
-                            {totalPrice.toLocaleString()}₫
-                        </span>
+                        <span className="text-md font-bold text-green-600">{totalPrice.toLocaleString()}₫</span>
                     </div>
                 </div>
 
@@ -233,9 +214,7 @@ const CartItem = ({
                     </div>
 
                     <div className="flex items-center space-x-3 text-xs">
-                        <div
-                            className={`flex items-center space-x-1 ${stockStatus.color}`}
-                        >
+                        <div className={`flex items-center space-x-1 ${stockStatus.color}`}>
                             <Package className="w-3 h-3" />
                             <span className="font-medium">{maxQuantity}</span>
                         </div>

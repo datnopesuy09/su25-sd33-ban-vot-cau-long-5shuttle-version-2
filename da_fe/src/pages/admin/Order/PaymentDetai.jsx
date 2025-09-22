@@ -1,5 +1,5 @@
 // PaymentDetails.js
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Percent, Calculator, Receipt } from 'lucide-react';
 
 const PaymentDetails = ({
@@ -10,8 +10,72 @@ const PaymentDetails = ({
     total,
     discountAmount,
     subtotal,
+    // Optional: subtotal after product-level promotions (preferred if caller supplies)
+    subtotalAfterProductDiscount,
+    // Optional: HoaDon.tongTien from server — prefer this for the displayed overall total
+    hoaDonTotal,
     shippingFee = 0,
+    // Optional: items array for calculating subtotal using promotion logic
+    items = null,
 }) => {
+    // Local state for inputs so we don't overwrite parent values
+    const [localDiscountCode, setLocalDiscountCode] = useState(discountCode || '');
+    const [localDiscountPercent, setLocalDiscountPercent] = useState(discountPercent || 0);
+
+    // Hàm resolvePrices tương tự như trong orderDetail.jsx
+    const resolvePrices = (item) => {
+        // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
+        const qty = Number(item.soLuong) || 1;
+
+        // Giá đã lưu trong hóa đơn (giá tại thời điểm mua hàng)
+        if (item.giaBan !== undefined && item.giaBan !== null) {
+            const savedTotalPrice = Number(item.giaBan);
+            const unitPrice = savedTotalPrice / qty;
+
+            // Lấy giá gốc từ sản phẩm để tính phần trăm giảm giá
+            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? unitPrice;
+
+            return {
+                originalPrice: Number(originalPrice),
+                discountedPrice: unitPrice,
+                unitPrice: unitPrice,
+            };
+        }
+
+        // Fallback: nếu không có giá lưu, sử dụng giá gốc từ sản phẩm
+        const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? 0;
+
+        return {
+            originalPrice: Number(originalPrice),
+            discountedPrice: Number(originalPrice),
+            unitPrice: Number(originalPrice),
+        };
+    };
+
+    // Tính toán subtotal sử dụng logic promotion giống orderDetail.jsx
+    const calculateSubtotalFromItems = () => {
+        if (!items || !Array.isArray(items)) return null;
+
+        return items.reduce((total, item) => {
+            const { unitPrice } = resolvePrices(item);
+            return total + unitPrice * (item.soLuong || 0);
+        }, 0);
+    };
+
+    const calculatedSubtotal = calculateSubtotalFromItems();
+
+    // Sync local inputs when discount becomes active or inactive
+    useEffect(() => {
+        if (Number(discountAmount) > 0) {
+            // restore from props when discount applies
+            setLocalDiscountCode(discountCode || '');
+            setLocalDiscountPercent(discountPercent || 0);
+        } else {
+            // clear inputs when discount not applied
+            setLocalDiscountCode('');
+            setLocalDiscountPercent(0);
+        }
+    }, [discountAmount, discountCode, discountPercent]);
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
             <div className="max-w-7xl mx-auto">
@@ -43,9 +107,12 @@ const PaymentDetails = ({
                                             </label>
                                             <input
                                                 type="text"
-                                                value={discountCode}
-                                                disabled
-                                                onChange={(e) => setDiscountCode(e.target.value)}
+                                                value={localDiscountCode}
+                                                onChange={(e) => {
+                                                    setLocalDiscountCode(e.target.value);
+                                                    if (typeof setDiscountCode === 'function')
+                                                        setDiscountCode(e.target.value);
+                                                }}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm"
                                                 placeholder="Nhập mã"
                                             />
@@ -58,11 +125,13 @@ const PaymentDetails = ({
                                             <div className="relative">
                                                 <input
                                                     type="number"
-                                                    value={discountPercent}
-                                                    onChange={(e) =>
-                                                        setDiscountPercent(Math.max(0, Math.min(100, e.target.value)))
-                                                    }
-                                                    disabled
+                                                    value={localDiscountPercent}
+                                                    onChange={(e) => {
+                                                        const val = Math.max(0, Math.min(100, Number(e.target.value)));
+                                                        setLocalDiscountPercent(val);
+                                                        if (typeof setDiscountPercent === 'function')
+                                                            setDiscountPercent(val);
+                                                    }}
                                                     className="w-full px-3 py-2 pr-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm"
                                                     placeholder="0"
                                                     min="0"
@@ -86,30 +155,80 @@ const PaymentDetails = ({
                                     </div>
 
                                     <div className="space-y-3">
-                                        <div className="flex justify-between items-center text-sm">
-                                            <span className="text-gray-700">Tổng tiền hàng:</span>
-                                            <span className="font-semibold text-gray-900">
-                                                {subtotal.toLocaleString()} VNĐ
-                                            </span>
-                                        </div>
+                                        {/**
+                                         * Display subtotal. Priority order:
+                                         * 1. calculatedSubtotal (from items using resolvePrices logic)
+                                         * 2. subtotalAfterProductDiscount (caller-provided promoted subtotal)
+                                         * 3. subtotal (fallback)
+                                         */}
+                                        {(() => {
+                                            let displaySubtotal;
+                                            let productPromoSavings = 0;
 
-                                        <div className="flex justify-between items-center text-sm">
-                                            <span className="text-gray-700">Giảm giá:</span>
-                                            <span className="font-semibold text-red-600">
-                                                -{discountAmount.toLocaleString()} VNĐ
-                                            </span>
-                                        </div>
+                                            if (calculatedSubtotal !== null) {
+                                                // Use calculated subtotal from items with promotion logic
+                                                displaySubtotal = calculatedSubtotal;
+                                                // Calculate savings if we have original subtotal to compare
+                                                if (subtotal) {
+                                                    productPromoSavings = Number(subtotal) - calculatedSubtotal;
+                                                }
+                                            } else if (
+                                                subtotalAfterProductDiscount !== undefined &&
+                                                subtotalAfterProductDiscount !== null
+                                            ) {
+                                                // Use provided promoted subtotal
+                                                displaySubtotal = Number(subtotalAfterProductDiscount);
+                                                productPromoSavings = Number(subtotal || 0) - displaySubtotal;
+                                            } else {
+                                                // Fallback to original subtotal
+                                                displaySubtotal = Number(subtotal || 0);
+                                            }
 
-                                        <div className="flex justify-between items-center text-sm border-b border-orange-200 pb-2">
-                                            <span className="text-gray-700">Phí vận chuyển:</span>
-                                            <span className="font-semibold text-gray-900">{`+${Number(shippingFee).toLocaleString('vi-VN')} VNĐ`}</span>
-                                        </div>
+                                            return (
+                                                <>
+                                                    <div className="flex justify-between items-center text-sm">
+                                                        <span className="text-gray-700">Tổng tiền hàng:</span>
+                                                        <span className="font-semibold text-gray-900">
+                                                            {displaySubtotal.toLocaleString()} VNĐ
+                                                        </span>
+                                                    </div>
+
+                                                    {/* If caller provided a product-level discounted subtotal, show savings */}
+                                                    {/* {productPromoSavings > 0 && (
+                                                        <div className="flex justify-between items-center text-sm">
+                                                            <span className="text-gray-700">
+                                                                Tiết kiệm (khuyến mãi sản phẩm):
+                                                            </span>
+                                                            <span className="font-semibold text-green-700">
+                                                                -{productPromoSavings.toLocaleString()} VNĐ
+                                                            </span>
+                                                        </div>
+                                                    )} */}
+
+                                                    <div className="flex justify-between items-center text-sm">
+                                                        <span className="text-gray-700">Giảm giá:</span>
+                                                        <span className="font-semibold text-red-600">
+                                                            -{discountAmount.toLocaleString()} VNĐ
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="flex justify-between items-center text-sm border-b border-orange-200 pb-2">
+                                                        <span className="text-gray-700">Phí vận chuyển:</span>
+                                                        <span className="font-semibold text-gray-900">{`+${Number(shippingFee).toLocaleString('vi-VN')} VNĐ`}</span>
+                                                    </div>
+                                                </>
+                                            );
+                                        })()}
 
                                         <div className="bg-gradient-to-r from-red-500 to-pink-500 rounded-lg p-3 mt-4">
                                             <div className="flex justify-between items-center">
                                                 <span className="text-white font-bold">Tổng tiền:</span>
                                                 <span className="text-white font-bold text-lg">
-                                                    {total.toLocaleString()} VNĐ
+                                                    {(hoaDonTotal !== undefined && hoaDonTotal !== null
+                                                        ? Number(hoaDonTotal)
+                                                        : Number(total || 0)
+                                                    ).toLocaleString()}{' '}
+                                                    VNĐ
                                                 </span>
                                             </div>
                                         </div>

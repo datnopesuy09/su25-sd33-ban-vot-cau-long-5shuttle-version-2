@@ -3,7 +3,7 @@ import com.example.da_be.dto.DatHangRequestDTO;
 import com.example.da_be.entity.*;
 import com.example.da_be.exception.ResourceNotFoundException;
 import com.example.da_be.repository.*;
-import com.example.da_be.service.KhoHangService;
+import com.example.da_be.service.EnhancedKhoHangService;
 import com.example.da_be.service.GHNShippingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +47,7 @@ public class DatHangController {
     @Autowired
     private PhieuGiamGiaRepository phieuGiamGiaRepository;
     @Autowired
-    private KhoHangService khoHangService;
+    private EnhancedKhoHangService enhancedKhoHangService;
     @Autowired
     private GHNShippingService ghnShippingService;
 
@@ -192,15 +192,23 @@ public class DatHangController {
                 hoaDonCT.setHoaDon(hoaDon);
                 hoaDonCT.setSanPhamCT(spct);
                 hoaDonCT.setSoLuong(item.getSoLuong());
-                hoaDonCT.setGiaBan(BigDecimal.valueOf(spct.getDonGia()));
+                
+                // Lưu giá thực tế tại thời điểm mua hàng (bao gồm khuyến mãi nếu có)
+                BigDecimal giaTaiThoidiem;
+                if (spct.getGiaKhuyenMai() != null) {
+                    giaTaiThoidiem = BigDecimal.valueOf(spct.getGiaKhuyenMai());
+                } else {
+                    giaTaiThoidiem = BigDecimal.valueOf(spct.getDonGia());
+                }
+                hoaDonCT.setGiaBan(giaTaiThoidiem.multiply(BigDecimal.valueOf(item.getSoLuong())));
                 hoaDonCT.setTrangThai(1);
                 hoaDonCTRepository.save(hoaDonCT);
                 hoaDonCTList.add(hoaDonCT);
             }
 
-            // 5. Chỉ kiểm tra tồn kho và tạo reservation (KHÔNG trừ số lượng thực)
+            // 5. Tạo reservation cho đơn hàng online (không trừ stock thực tế)
             try {
-                khoHangService.checkAndCreateReservation(hoaDon, hoaDonCTList);
+                enhancedKhoHangService.createOnlineOrderReservation(hoaDon, hoaDonCTList);
             } catch (RuntimeException e) {
                 // Nếu không đủ hàng, xóa hóa đơn đã tạo
                 hoaDonCTRepository.deleteAll(hoaDonCTList);

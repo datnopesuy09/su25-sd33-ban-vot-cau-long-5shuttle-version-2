@@ -112,6 +112,40 @@ const formatCurrency = (value) => {
     return n.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 };
 
+// Resolve possible price fields for a product item and return unit original/discounted prices
+const resolveItemPrices = (sp, isReturn = false) => {
+    // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
+    const qty = Number(isReturn ? sp?.soLuongTra || 0 : sp?.soLuong || 0) || 1;
+
+    // Giá đã lưu trong hóa đơn (giá tại thời điểm mua hàng)
+    const orderGiaBan = isReturn ? (sp?.thongTinSanPhamTra?.giaBan ?? sp?.giaBan) : sp?.giaBan;
+
+    if (orderGiaBan !== undefined && orderGiaBan !== null) {
+        const savedTotalPrice = Number(orderGiaBan);
+        const unitPrice = savedTotalPrice / qty;
+
+        // Lấy giá gốc từ sản phẩm để tính phần trăm giảm giá
+        const sanPhamCT = isReturn ? sp?.thongTinSanPhamTra?.sanPhamCT : sp?.sanPhamCT;
+        const originalPrice = sanPhamCT?.donGia ?? sanPhamCT?.sanPham?.donGia ?? unitPrice;
+
+        return {
+            originalPrice: Number(originalPrice),
+            discountedPrice: unitPrice,
+            unitPrice: unitPrice,
+        };
+    }
+
+    // Fallback: nếu không có giá lưu, sử dụng giá gốc từ sản phẩm
+    const sanPhamCT = isReturn ? sp?.thongTinSanPhamTra?.sanPhamCT : sp?.sanPhamCT;
+    const originalPrice = sanPhamCT?.donGia ?? sanPhamCT?.sanPham?.donGia ?? 0;
+
+    return {
+        originalPrice: Number(originalPrice),
+        discountedPrice: Number(originalPrice),
+        unitPrice: Number(originalPrice),
+    };
+};
+
 function UserOrder() {
     const [selectedTab, setSelectedTab] = useState('Tất cả');
     const [listHoaDon, setListHoaDon] = useState([]);
@@ -169,17 +203,19 @@ function UserOrder() {
         };
     }, []);
 
-    const filteredBills = selectedTab === 'Trả hàng' 
-        ? listPhieuTraHang.filter((phieu) => 
-            phieu.maPhieuTraHang.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            phieu.hoaDonMa.toLowerCase().includes(searchTerm.toLowerCase())
-          )
-        : listHoaDon.filter((bill) => {
-            const validStatuses = tabStatusMap[selectedTab];
-            const matchTab = !validStatuses ? bill.trangThai !== 5 : validStatuses.includes(bill.trangThai);
-            const matchSearch = bill.ma.toLowerCase().includes(searchTerm.toLowerCase());
-            return matchTab && matchSearch;
-          });
+    const filteredBills =
+        selectedTab === 'Trả hàng'
+            ? listPhieuTraHang.filter(
+                  (phieu) =>
+                      phieu.maPhieuTraHang.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      phieu.hoaDonMa.toLowerCase().includes(searchTerm.toLowerCase()),
+              )
+            : listHoaDon.filter((bill) => {
+                  const validStatuses = tabStatusMap[selectedTab];
+                  const matchTab = !validStatuses ? bill.trangThai !== 5 : validStatuses.includes(bill.trangThai);
+                  const matchSearch = bill.ma.toLowerCase().includes(searchTerm.toLowerCase());
+                  return matchTab && matchSearch;
+              });
 
     // Pagination calculations
     const totalPages = Math.ceil(filteredBills.length / itemsPerPage);
@@ -259,7 +295,7 @@ function UserOrder() {
                 const headers = { Authorization: `Bearer ${token}` };
                 const res = await axios.get('http://localhost:8080/phieu-tra-hang', { headers });
                 const phieuTraHang = res.data.result;
-                
+
                 setListPhieuTraHang(phieuTraHang);
                 console.log('Phiếu trả hàng: ', phieuTraHang);
             } catch (error) {
@@ -444,7 +480,11 @@ function UserOrder() {
                     </div>
                     <input
                         type="text"
-                        placeholder={selectedTab === 'Trả hàng' ? "Tìm theo mã phiếu trả hàng hoặc mã đơn hàng..." : "Tìm theo mã đơn hàng..."}
+                        placeholder={
+                            selectedTab === 'Trả hàng'
+                                ? 'Tìm theo mã phiếu trả hàng hoặc mã đơn hàng...'
+                                : 'Tìm theo mã đơn hàng...'
+                        }
                         className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                         onChange={(e) => {
                             const value = e.target.value;
@@ -512,7 +552,9 @@ function UserOrder() {
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-3 h-3 rounded-full bg-orange-400"></div>
                                                     <div>
-                                                        <h3 className="font-semibold text-gray-800 text-lg">{item.maPhieuTraHang}</h3>
+                                                        <h3 className="font-semibold text-gray-800 text-lg">
+                                                            {item.maPhieuTraHang}
+                                                        </h3>
                                                         <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
                                                             <Calendar className="w-3 h-3" />
                                                             Tạo lúc: {dayjs(item.ngayTao).format('DD/MM/YYYY HH:mm')}
@@ -530,6 +572,16 @@ function UserOrder() {
                                                 </div>
                                             </div>
                                         </div>
+
+                                        {/* const originalPrice =
+                                    sanPhamCT?.donGia ??
+                                    sp?.giaGoc ??
+                                    (isReturn ? sp?.thongTinSanPhamTra?.giaBan : sp?.giaBan) ??
+                                    0;
+                                const discountedPrice =
+                                    sanPhamCT?.giaKhuyenMai ??
+                                    (isReturn ? sp?.thongTinSanPhamTra?.giaBan : sp?.giaBan) ??
+                                    originalPrice; */}
 
                                         {/* Chi tiết sản phẩm trả */}
                                         <div className="p-6">
@@ -563,7 +615,9 @@ function UserOrder() {
                                                                     <div className="flex items-center gap-1">
                                                                         <Tag className="w-3 h-3" />
                                                                         <span>
-                                                                            {sanPham?.tenMauSac || ''}, {sanPham?.tenTrongLuong || ''}, {sanPham?.tenDoCung || ''}
+                                                                            {sanPham?.tenMauSac || ''},{' '}
+                                                                            {sanPham?.tenTrongLuong || ''},{' '}
+                                                                            {sanPham?.tenDoCung || ''}
                                                                         </span>
                                                                     </div>
                                                                     <div className="flex items-center gap-1">
@@ -572,36 +626,48 @@ function UserOrder() {
                                                                     </div>
                                                                     <div className="flex items-center gap-1">
                                                                         <CheckCircle className="w-3 h-3" />
-                                                                        <span>Duyệt: {soLuongPheDuyet > 0 ? `x${soLuongPheDuyet}` : 'Chờ duyệt'}</span>
+                                                                        <span>
+                                                                            Duyệt:{' '}
+                                                                            {soLuongPheDuyet > 0
+                                                                                ? `x${soLuongPheDuyet}`
+                                                                                : 'Chờ duyệt'}
+                                                                        </span>
                                                                     </div>
                                                                 </div>
 
                                                                 {chiTiet.lyDoTraHang && (
                                                                     <div className="mt-2 text-sm text-gray-600">
-                                                                        <span className="font-medium">Lý do:</span> {chiTiet.lyDoTraHang}
+                                                                        <span className="font-medium">Lý do:</span>{' '}
+                                                                        {chiTiet.lyDoTraHang}
                                                                     </div>
                                                                 )}
 
                                                                 {chiTiet.ghiChuNhanVien ? (
                                                                     <div className="mt-1 text-sm text-gray-600">
-                                                                        <span className="font-medium">Ghi chú NV:</span> {chiTiet.ghiChuNhanVien}
+                                                                        <span className="font-medium">Ghi chú NV:</span>{' '}
+                                                                        {chiTiet.ghiChuNhanVien}
                                                                     </div>
                                                                 ) : (
                                                                     <div className="mt-1 text-sm text-gray-500 italic">
-                                                                        <span className="font-medium">Ghi chú NV:</span> Chưa có ghi chú
+                                                                        <span className="font-medium">Ghi chú NV:</span>{' '}
+                                                                        Chưa có ghi chú
                                                                     </div>
                                                                 )}
                                                             </div>
 
                                                             {/* Price */}
                                                             <div className="text-right min-w-[140px]">
-                                                                <div className="text-sm text-gray-500 mb-1">Đơn giá:</div>
+                                                                <div className="text-sm text-gray-500 mb-1">
+                                                                    Đơn giá:
+                                                                </div>
                                                                 <div className="text-md font-semibold text-red-600 mb-2">
                                                                     {formatCurrency(giaBan)}
                                                                 </div>
                                                                 <div className="text-sm text-gray-600">Tổng:</div>
                                                                 <div className="text-lg font-bold text-gray-800">
-                                                                    {soLuongPheDuyet > 0 ? formatCurrency(tongTienTra) : 'Chờ duyệt'}
+                                                                    {soLuongPheDuyet > 0
+                                                                        ? formatCurrency(tongTienTra)
+                                                                        : 'Chờ duyệt'}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -622,20 +688,29 @@ function UserOrder() {
                                                     <div className="text-right">
                                                         <div className="text-xl font-bold text-red-600">
                                                             {(() => {
-                                                                const totalAmount = item.chiTietTraHang?.reduce((sum, chiTiet) => {
-                                                                    const sanPham = chiTiet.thongTinSanPhamTra;
-                                                                    const giaBan = sanPham?.giaBan || 0;
-                                                                    const soLuongPheDuyet = chiTiet.soLuongPheDuyet || 0;
-                                                                    return sum + (giaBan * soLuongPheDuyet);
-                                                                }, 0) || 0;
-                                                                return totalAmount > 0 ? formatCurrency(totalAmount) : 'Chờ duyệt';
+                                                                const totalAmount =
+                                                                    item.chiTietTraHang?.reduce((sum, chiTiet) => {
+                                                                        const sanPham = chiTiet.thongTinSanPhamTra;
+                                                                        const giaBan = sanPham?.giaBan || 0;
+                                                                        const soLuongPheDuyet =
+                                                                            chiTiet.soLuongPheDuyet || 0;
+                                                                        return sum + giaBan * soLuongPheDuyet;
+                                                                    }, 0) || 0;
+                                                                return totalAmount > 0
+                                                                    ? formatCurrency(totalAmount)
+                                                                    : 'Chờ duyệt';
                                                             })()}
                                                         </div>
                                                     </div>
 
                                                     <div className="text-sm text-gray-600">
                                                         <div>Hình thức: {item.hinhThucTra}</div>
-                                                        <div>Xử lý: {item.ngayXuLy ? dayjs(item.ngayXuLy).format('DD/MM/YYYY HH:mm') : 'Chưa xử lý'}</div>
+                                                        <div>
+                                                            Xử lý:{' '}
+                                                            {item.ngayXuLy
+                                                                ? dayjs(item.ngayXuLy).format('DD/MM/YYYY HH:mm')
+                                                                : 'Chưa xử lý'}
+                                                        </div>
                                                     </div>
 
                                                     <Link
@@ -695,22 +770,27 @@ function UserOrder() {
                                                     const isReturn = item.trangThai === 8;
                                                     const quantity = isReturn ? sp?.soLuongTra || 0 : sp?.soLuong || 0;
 
-                                                    // Try to extract variant/product pricing
-                                                    const sanPhamCT = isReturn
-                                                        ? sp?.thongTinSanPhamTra?.sanPhamCT
-                                                        : sp?.sanPhamCT;
+                                                    // // Try to extract variant/product pricing
+                                                    // const sanPhamCT = isReturn
+                                                    //     ? sp?.thongTinSanPhamTra?.sanPhamCT
+                                                    //     : sp?.sanPhamCT;
 
-                                                    const originalPrice =
-                                                        sanPhamCT?.donGia ??
-                                                        sp?.giaGoc ??
-                                                        (isReturn ? sp?.thongTinSanPhamTra?.giaBan : sp?.giaBan) ??
-                                                        0;
-                                                    const discountedPrice =
-                                                        sanPhamCT?.giaKhuyenMai ??
-                                                        (isReturn ? sp?.thongTinSanPhamTra?.giaBan : sp?.giaBan) ??
-                                                        originalPrice;
+                                                    // const originalPrice =
+                                                    //     sanPhamCT?.donGia ??
+                                                    //     sp?.giaGoc ??
+                                                    //     (isReturn ? sp?.thongTinSanPhamTra?.giaBan : sp?.giaBan) ??
+                                                    //     0;
+                                                    // const discountedPrice =
+                                                    //     sanPhamCT?.giaKhuyenMai ??
+                                                    //     (isReturn ? sp?.thongTinSanPhamTra?.giaBan : sp?.giaBan) ??
+                                                    //     originalPrice;
 
-                                                    const unitPrice = discountedPrice;
+                                                    // const unitPrice = discountedPrice;
+
+                                                    // Resolve prices using helper (handles variant or order-level totals)
+                                                    const { originalPrice, discountedPrice, unitPrice } =
+                                                        resolveItemPrices(sp, isReturn);
+                                                    const lineTotal = unitPrice * quantity;
 
                                                     const discountPercent =
                                                         originalPrice > 0 && originalPrice > discountedPrice
@@ -760,6 +840,12 @@ function UserOrder() {
                                                                     )}
                                                                 </div>
 
+                                                                {/* <h4 className="font-medium text-gray-800 text-base line-clamp-2 mb-2">
+                                                                    {isReturn
+                                                                        ? sp?.thongTinSanPhamTra?.tenSanPham
+                                                                        : sp?.sanPhamCT?.sanPham?.ten || 'Sản phẩm'}
+                                                                </h4> */}
+
                                                                 <div className="flex items-center gap-4 text-sm text-gray-600">
                                                                     <div className="flex items-center gap-1">
                                                                         <Tag className="w-3 h-3" />
@@ -786,15 +872,35 @@ function UserOrder() {
                                                                         {formatCurrency(unitPrice)}
                                                                     </div>
                                                                     {discountPercent > 0 && (
-                                                                        <div className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded">
+                                                                        //<div className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded">
+
+                                                                        <div className="text-xs font-semibold text-white bg-red-500 px-2 py-0.5 rounded">
                                                                             -{discountPercent}%
                                                                         </div>
                                                                     )}
                                                                 </div>
 
                                                                 {discountPercent > 0 && (
-                                                                    <div className="text-xs text-gray-500 line-through mt-1">
-                                                                        {formatCurrency(originalPrice)}
+                                                                    // <div className="text-xs text-gray-500 line-through mt-1">
+                                                                    //     {formatCurrency(originalPrice)}
+
+                                                                    <div className="text-xs text-gray-500 line-through mt-1 text-right">
+                                                                        Giá gốc: {formatCurrency(originalPrice)}
+                                                                    </div>
+                                                                )}
+
+                                                                <div className="text-sm text-gray-600 mt-2 text-right">
+                                                                    Thành tiền:
+                                                                </div>
+                                                                <div className="text-lg font-bold text-gray-800 text-right">
+                                                                    {formatCurrency(lineTotal)}
+                                                                </div>
+                                                                {discountPercent > 0 && (
+                                                                    <div className="text-xs text-gray-500 mt-1 text-right">
+                                                                        Tiết kiệm:{' '}
+                                                                        {formatCurrency(
+                                                                            (originalPrice - unitPrice) * quantity,
+                                                                        )}
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -816,7 +922,9 @@ function UserOrder() {
                                             <div className="flex items-center gap-4">
                                                 <div className="text-right">
                                                     <div className="text-xl font-bold text-red-600">
-                                                        {formatCurrency(totalAmount)}
+                                                        {/* {formatCurrency(totalAmount)} */}
+
+                                                        {formatCurrency(item.tongTien ?? subtotalFromProducts)}
                                                     </div>
                                                 </div>
 
@@ -846,10 +954,9 @@ function UserOrder() {
                             {selectedTab === 'Trả hàng' ? 'Chưa có phiếu trả hàng nào' : 'Chưa có đơn hàng nào'}
                         </h3>
                         <p className="text-gray-600 mb-6">
-                            {selectedTab === 'Trả hàng' 
-                                ? 'Bạn chưa có phiếu trả hàng nào' 
-                                : 'Bạn chưa có đơn hàng nào trong danh mục này'
-                            }
+                            {selectedTab === 'Trả hàng'
+                                ? 'Bạn chưa có phiếu trả hàng nào'
+                                : 'Bạn chưa có đơn hàng nào trong danh mục này'}
                         </p>
                         <Link
                             to="/san-pham"

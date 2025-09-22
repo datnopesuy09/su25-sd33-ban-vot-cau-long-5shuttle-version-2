@@ -4,6 +4,7 @@ import java.util.List;
 
 public class VariantDTO {
     private Integer id;
+    private String maSanPham;
     private String mauSacTen;
     private String trongLuongTen;
     private Double donGia;
@@ -11,6 +12,7 @@ public class VariantDTO {
     private List<String> hinhAnhUrls;
     private Double giaKhuyenMai;
     private Integer giaTriKhuyenMai;
+    private Integer trangThai;
 
     // Getters and Setters
 
@@ -20,6 +22,14 @@ public class VariantDTO {
 
     public void setId(Integer id) {
         this.id = id;
+    }
+
+    public String getMaSanPham() {
+        return maSanPham;
+    }
+
+    public void setMaSanPham(String maSanPham) {
+        this.maSanPham = maSanPham;
     }
 
     public String getMauSacTen() {
@@ -76,5 +86,13 @@ public class VariantDTO {
 
     public void setGiaTriKhuyenMai(Integer giaTriKhuyenMai) {
         this.giaTriKhuyenMai = giaTriKhuyenMai;
+    }
+
+    public Integer getTrangThai() {
+        return trangThai;
+    }
+
+    public void setTrangThai(Integer trangThai) {
+        this.trangThai = trangThai;
     }
 }
