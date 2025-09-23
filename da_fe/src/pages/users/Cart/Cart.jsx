@@ -122,7 +122,8 @@ const Cart = () => {
     };
 
     // shippingFee is numeric: 0 when free, otherwise the fee (example 30000)
-    const shippingFee = totalPrice > 1000000 ? 0 : 30000;
+    // Only apply shipping when there are selected items and totalPrice > 0.
+    const shippingFee = selectedItems.length > 0 && totalPrice > 0 ? (totalPrice > 1000000 ? 0 : 30000) : 0;
     const finalTotal = totalPrice + shippingFee;
 
     const handleSelectItem = (cartId) => {
