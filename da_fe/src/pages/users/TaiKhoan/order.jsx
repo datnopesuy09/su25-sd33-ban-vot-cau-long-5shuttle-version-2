@@ -676,14 +676,45 @@ function UserOrder() {
                                                     const productsToShow = isExpanded ? allReturnProducts : allReturnProducts?.slice(0, 1);
                                                     const hasMoreProducts = allReturnProducts?.length > 1;
 
+                                                    // Fallback ratio at slip level (when BE doesn't provide per-line soTienHoanTra/tyLeGiamGia)
+                                                    let slipRatio = null;
+                                                    if (Array.isArray(allReturnProducts) && allReturnProducts.length > 0) {
+                                                        const base = allReturnProducts.reduce((sum, ct) => {
+                                                            const sp = ct?.thongTinSanPhamTra || {};
+                                                            const unitOriginal = Number(sp?.giaBan ?? ct?.donGiaGoc ?? 0);
+                                                            const qtyApproved = Number(ct?.soLuongPheDuyet || 0);
+                                                            return sum + unitOriginal * qtyApproved;
+                                                        }, 0);
+                                                        const totalRefund = Number(item?.soTienHoanLai ?? NaN);
+                                                        if (base > 0 && Number.isFinite(totalRefund) && totalRefund >= 0) {
+                                                            slipRatio = Math.min(Math.max(totalRefund / base, 0), 1);
+                                                        }
+                                                    }
+
                                                     return (
                                                         <>
                                                             {productsToShow?.map((chiTiet, idx) => {
-                                                                const sanPham = chiTiet.thongTinSanPhamTra;
-                                                                const soLuongTra = chiTiet.soLuongTra;
-                                                                const soLuongPheDuyet = chiTiet.soLuongPheDuyet;
-                                                                const giaBan = sanPham?.giaBan || 0;
-                                                                const tongTienTra = giaBan * soLuongPheDuyet;
+                                                                const sanPham = chiTiet?.thongTinSanPhamTra || {};
+                                                                const soLuongTra = Number(chiTiet?.soLuongTra || 0);
+                                                                const soLuongPheDuyet = Number(chiTiet?.soLuongPheDuyet || 0);
+                                                                const isApproved = item?.trangThai === 'APPROVED';
+
+                                                                // Unit price calculation
+                                                                const unitOriginal = Number(sanPham?.giaBan ?? chiTiet?.donGiaGoc ?? 0);
+                                                                let unitAdjusted = unitOriginal;
+                                                                if (typeof chiTiet?.soTienHoanTra === 'number' && soLuongPheDuyet > 0) {
+                                                                    unitAdjusted = Number(chiTiet.soTienHoanTra) / soLuongPheDuyet;
+                                                                } else if (typeof chiTiet?.tyLeGiamGia === 'number') {
+                                                                    unitAdjusted = unitOriginal * (1 - Number(chiTiet.tyLeGiamGia));
+                                                                } else if (typeof slipRatio === 'number') {
+                                                                    unitAdjusted = unitOriginal * slipRatio;
+                                                                }
+
+                                                                const qtyForTotal = isApproved ? soLuongPheDuyet : soLuongTra;
+                                                                const lineAdjusted =
+                                                                    typeof chiTiet?.soTienHoanTra === 'number'
+                                                                        ? Number(chiTiet.soTienHoanTra)
+                                                                        : unitAdjusted * qtyForTotal;
 
                                                                 return (
                                                                     <div
@@ -692,9 +723,22 @@ function UserOrder() {
                                                                     >
                                                                         {/* Product Image */}
                                                                         <div className="flex-shrink-0">
-                                                                            <div className="w-20 h-20 bg-gray-200 rounded-xl border border-gray-200 flex items-center justify-center">
-                                                                                <Package className="w-8 h-8 text-gray-400" />
-                                                                            </div>
+                                                                            <img
+                                                                                src={
+                                                                                    chiTiet?.hinhAnhUrl ||
+                                                                                    sanPham?.hinhAnhUrl ||
+                                                                                    sanPham?.hinhAnh ||
+                                                                                    sanPham?.sanPhamCT?.hinhAnhUrl ||
+                                                                                    sanPham?.sanPhamCT?.hinhAnh ||
+                                                                                    sanPham?.sanPhamCT?.sanPham?.hinhAnhUrl ||
+                                                                                    sanPham?.sanPhamCT?.sanPham?.hinhAnh ||
+                                                                                    (sanPham?.sanPhamCT?.sanPham?.hinhAnhs && sanPham.sanPhamCT.sanPham.hinhAnhs.length > 0
+                                                                                        ? `http://localhost:8080/uploads/${sanPham.sanPhamCT.sanPham.hinhAnhs[0]}`
+                                                                                        : 'https://via.placeholder.com/80')
+                                                                                }
+                                                                                alt={sanPham?.tenSanPham || 'Sản phẩm'}
+                                                                                className="w-20 h-20 object-cover rounded-xl border border-gray-200"
+                                                                            />
                                                                         </div>
 
                                                                         {/* Product Info */}
@@ -753,13 +797,11 @@ function UserOrder() {
                                                                                 Đơn giá:
                                                                             </div>
                                                                             <div className="text-md font-semibold text-red-600 mb-2">
-                                                                                {formatCurrency(giaBan)}
+                                                                                {formatCurrency(unitAdjusted)}
                                                                             </div>
                                                                             <div className="text-sm text-gray-600">Tổng:</div>
                                                                             <div className="text-lg font-bold text-gray-800">
-                                                                                {soLuongPheDuyet > 0
-                                                                                    ? formatCurrency(tongTienTra)
-                                                                                    : 'Chờ duyệt'}
+                                                                                {qtyForTotal > 0 ? formatCurrency(lineAdjusted) : 'Chờ duyệt'}
                                                                             </div>
                                                                         </div>
                                                                     </div>
@@ -805,24 +847,18 @@ function UserOrder() {
                                                     <div className="text-right">
                                                         <div className="text-xl font-bold text-red-600">
                                                             {(() => {
-                                                                // TODO: Cập nhật để sử dụng soTienHoanTra từ backend thay vì tính từ giaBan * soLuongPheDuyet
-                                                                // để đảm bảo số tiền hiển thị đã xét đến voucher
-                                                                const totalAmount =
-                                                                    item.chiTietTraHang?.reduce((sum, chiTiet) => {
-                                                                        // Ưu tiên sử dụng soTienHoanTra nếu có (đã xét voucher)
-                                                                        if (chiTiet.soTienHoanTra != null) {
-                                                                            return sum + chiTiet.soTienHoanTra;
-                                                                        }
-                                                                        // Fallback về cách tính cũ
-                                                                        const sanPham = chiTiet.thongTinSanPhamTra;
-                                                                        const giaBan = sanPham?.giaBan || 0;
-                                                                        const soLuongPheDuyet =
-                                                                            chiTiet.soLuongPheDuyet || 0;
-                                                                        return sum + giaBan * soLuongPheDuyet;
-                                                                    }, 0) || 0;
-                                                                return totalAmount > 0
-                                                                    ? formatCurrency(totalAmount)
-                                                                    : 'Chờ duyệt';
+                                                                const isApproved = item?.trangThai === 'APPROVED';
+                                                                const total = (item?.chiTietTraHang || []).reduce((sum, ct) => {
+                                                                    const sp = ct?.thongTinSanPhamTra || {};
+                                                                    const unitOriginal = Number(sp?.giaBan ?? ct?.donGiaGoc ?? 0);
+                                                                    const qty = isApproved ? Number(ct?.soLuongPheDuyet || 0) : Number(ct?.soLuongTra || 0);
+                                                                    if (typeof ct?.soTienHoanTra === 'number') return sum + Number(ct.soTienHoanTra);
+                                                                    let unitAdj = unitOriginal;
+                                                                    if (typeof ct?.tyLeGiamGia === 'number') unitAdj = unitOriginal * (1 - Number(ct.tyLeGiamGia));
+                                                                    else if (typeof slipRatio === 'number') unitAdj = unitOriginal * slipRatio;
+                                                                    return sum + unitAdj * qty;
+                                                                }, 0);
+                                                                return total > 0 ? formatCurrency(total) : 'Chờ duyệt';
                                                             })()}
                                                         </div>
                                                     </div>
@@ -890,7 +926,24 @@ function UserOrder() {
                                     <div className="p-6">
                                         <div className="space-y-4">
                                             {(() => {
-                                                const allProducts = item.trangThai === 8 ? item.returnDetails : item.chiTiet;
+                                                const isReturnBill = selectedTab === 'Trả hàng' || item.trangThai === 8 || !!item.maPhieuTraHang;
+                                                const allProducts = isReturnBill
+                                                    ? (item?.chiTietTraHang || item?.returnDetails)
+                                                    : item?.chiTiet;
+                                                // If this is a return slip, compute a global ratio as fallback (soTienHoanLai / sum(original*approvedQty))
+                                                let returnSlipRatio = null;
+                                                if (isReturnBill && Array.isArray(allProducts) && allProducts.length > 0) {
+                                                    const sumOriginalApproved = allProducts.reduce((sum, p) => {
+                                                        const spInfo = p?.thongTinSanPhamTra || {};
+                                                        const unitOriginal = Number(spInfo?.giaBan ?? p?.donGiaGoc ?? 0);
+                                                        const qtyApproved = Number(p?.soLuongPheDuyet || 0);
+                                                        return sum + unitOriginal * qtyApproved;
+                                                    }, 0);
+                                                    const totalRefundSlip = Number(item?.soTienHoanLai ?? NaN);
+                                                    if (sumOriginalApproved > 0 && Number.isFinite(totalRefundSlip) && totalRefundSlip >= 0) {
+                                                        returnSlipRatio = Math.min(Math.max(totalRefundSlip / sumOriginalApproved, 0), 1);
+                                                    }
+                                                }
                                                 const isExpanded = expandedOrders.has(item.id);
                                                 const productsToShow = isExpanded ? allProducts : allProducts?.slice(0, 1);
                                                 const hasMoreProducts = allProducts?.length > 1;
@@ -898,21 +951,49 @@ function UserOrder() {
                                                 return (
                                                     <>
                                                         {productsToShow?.map((sp, idx) => {
-                                                            const isReturn = item.trangThai === 8;
-                                                            const quantity = isReturn ? sp?.soLuongTra || 0 : sp?.soLuong || 0;
+                                                            const isReturn = isReturnBill || !!sp?.thongTinSanPhamTra;
+                                                            const approvedQty = Number(sp?.soLuongPheDuyet || 0);
+                                                            const requestedQty = Number(sp?.soLuongTra || 0);
+                                                            const quantity = isReturn ? (approvedQty || requestedQty || 0) : Number(sp?.soLuong || 0);
 
-                                                            // Resolve prices using helper (handles variant or order-level totals)
-                                                            const { originalPrice, discountedPrice, unitPrice } =
-                                                                resolveItemPrices(sp, isReturn);
-                                                            const lineTotal = unitPrice * quantity;
+                                                            // Pricing
+                                                            let originalPrice, unitPrice, discountedPrice, lineTotal, discountPercent;
+                                                            if (isReturn) {
+                                                                const sanPham = sp?.thongTinSanPhamTra || {};
+                                                                const unitOriginal = Number(sanPham?.giaBan ?? sp?.donGiaGoc ?? 0);
+                                                                let unitAdjusted = unitOriginal;
+                                                                if (typeof sp?.soTienHoanTra === 'number' && approvedQty > 0) {
+                                                                    unitAdjusted = Number(sp.soTienHoanTra) / approvedQty;
+                                                                } else if (typeof sp?.tyLeGiamGia === 'number') {
+                                                                    unitAdjusted = unitOriginal * (1 - Number(sp.tyLeGiamGia));
+                                                                } else if (typeof returnSlipRatio === 'number') {
+                                                                    unitAdjusted = unitOriginal * returnSlipRatio;
+                                                                }
+                                                                const lineAdjusted =
+                                                                    typeof sp?.soTienHoanTra === 'number'
+                                                                        ? Number(sp.soTienHoanTra)
+                                                                        : unitAdjusted * quantity;
 
-                                                            const discountPercent =
-                                                                originalPrice > 0 && originalPrice > discountedPrice
-                                                                    ? Math.round(
-                                                                          ((originalPrice - discountedPrice) / originalPrice) *
-                                                                              100,
-                                                                      )
-                                                                    : 0;
+                                                                originalPrice = unitOriginal;
+                                                                unitPrice = unitAdjusted;
+                                                                discountedPrice = unitAdjusted;
+                                                                lineTotal = lineAdjusted;
+                                                                discountPercent =
+                                                                    unitOriginal > 0 && unitAdjusted < unitOriginal
+                                                                        ? Math.round(((unitOriginal - unitAdjusted) / unitOriginal) * 100)
+                                                                        : 0;
+                                                            } else {
+                                                                // Resolve prices using helper (handles variant or order-level totals)
+                                                                const resolved = resolveItemPrices(sp, false);
+                                                                originalPrice = resolved.originalPrice;
+                                                                discountedPrice = resolved.discountedPrice;
+                                                                unitPrice = resolved.unitPrice;
+                                                                lineTotal = unitPrice * quantity;
+                                                                discountPercent =
+                                                                    originalPrice > 0 && originalPrice > discountedPrice
+                                                                        ? Math.round(((originalPrice - discountedPrice) / originalPrice) * 100)
+                                                                        : 0;
+                                                            }
 
                                                             return (
                                                                 <div
