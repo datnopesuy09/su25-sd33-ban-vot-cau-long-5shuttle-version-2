@@ -154,21 +154,44 @@ function ProductCard({ product }) {
             );
             const productData = response.data;
 
-            // Lọc các màu sắc khác nhau
-            const uniqueColors = [...new Set(productData.variants.map((v) => v.mauSacTen))];
-            const colorVariants = uniqueColors.map((color) => {
-                const variant = activeVariants.find((v) => v.mauSacTen === color);
-                return {
-                    color: color,
-                    image: variant?.hinhAnhUrls?.[0] || product.hinhAnhDaiDien,
-                    price: variant?.giaKhuyenMai || variant?.donGia || product.donGia,
-                    originalPrice: variant?.donGia || product.donGia,
-                    id: variant?.id || product.id,
-                };
-            });
+            // Lọc các màu sắc khác nhau từ dữ liệu API
+            const variantsFromApi = Array.isArray(productData?.variants) ? productData.variants : [];
+            const uniqueColors = [...new Set(variantsFromApi.map((v) => v.mauSacTen))];
+
+            let colorVariants = [];
+            if (uniqueColors.length > 0) {
+                colorVariants = uniqueColors.map((color) => {
+                    const variant = variantsFromApi.find((v) => v.mauSacTen === color);
+                    return {
+                        color: color,
+                        image: variant?.hinhAnhUrls?.[0] || product.hinhAnhDaiDien,
+                        price:
+                            (typeof variant?.giaKhuyenMai === 'number' ? variant.giaKhuyenMai : null) ??
+                            (typeof variant?.donGia === 'number' ? variant.donGia : null) ??
+                            (typeof product?.giaKhuyenMai === 'number' ? product.giaKhuyenMai : null) ??
+                            product.donGia,
+                        originalPrice:
+                            (typeof variant?.donGia === 'number' ? variant.donGia : null) ?? product.donGia,
+                        id: variant?.id ?? product.id,
+                    };
+                });
+            } else {
+                // Fallback khi không có biến thể: dùng dữ liệu sản phẩm gốc
+                colorVariants = [
+                    {
+                        color: null,
+                        image: product.hinhAnhDaiDien,
+                        price:
+                            (typeof product?.giaKhuyenMai === 'number' ? product.giaKhuyenMai : null) ??
+                            product.donGia,
+                        originalPrice: product.donGia,
+                        id: product.id,
+                    },
+                ];
+            }
 
             setProductVariants(colorVariants);
-            setDisplayedVariant(colorVariants[0]);
+            setDisplayedVariant(colorVariants[0] || null);
             setVariantsCached(true);
         } catch (error) {
             console.error('Error fetching product variants:', error);
