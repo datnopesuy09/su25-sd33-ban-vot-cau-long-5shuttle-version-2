@@ -145,10 +145,14 @@ public class EnhancedKhoHangService {
                 throw new RuntimeException("Không thể chỉnh sửa sản phẩm khi đơn hàng đã chuyển trạng thái");
             }
 
-            // Tính lại giá bán nếu cần (giữ nguyên quy tắc hiện tại)
-            if (hoaDonCT.getGiaBan() != null && oldQuantity > 0) {
-                BigDecimal unitPrice = hoaDonCT.getGiaBan().divide(BigDecimal.valueOf(oldQuantity), 2, BigDecimal.ROUND_HALF_UP);
-                hoaDonCT.setGiaBan(unitPrice.multiply(BigDecimal.valueOf(newQuantity)));
+            // Giữ nguyên đơn giá đã lưu (giaBan là đơn giá), không nhân số lượng
+            // Nếu chưa có, có thể set theo đơn giá hiện tại của sản phẩm
+            if (hoaDonCT.getGiaBan() == null) {
+                BigDecimal unitPrice = BigDecimal.valueOf(hoaDonCT.getSanPhamCT().getGiaKhuyenMai() != null
+                        && hoaDonCT.getSanPhamCT().getGiaKhuyenMai() < hoaDonCT.getSanPhamCT().getDonGia()
+                        ? hoaDonCT.getSanPhamCT().getGiaKhuyenMai()
+                        : hoaDonCT.getSanPhamCT().getDonGia());
+                hoaDonCT.setGiaBan(unitPrice);
             }
 
             hoaDonCTRepository.save(hoaDonCT);
@@ -190,8 +194,12 @@ public class EnhancedKhoHangService {
             HoaDonCT hoaDonCT = new HoaDonCT();
             hoaDonCT.setHoaDon(hoaDon);
             hoaDonCT.setSanPhamCT(sanPhamCT);
-            hoaDonCT.setSoLuong(quantity);
-            hoaDonCT.setGiaBan(BigDecimal.valueOf(sanPhamCT.getDonGia()));
+        hoaDonCT.setSoLuong(quantity);
+        // Lưu đơn giá (ưu tiên giá khuyến mãi nếu có và nhỏ hơn giá gốc)
+        BigDecimal unitPrice = BigDecimal.valueOf(sanPhamCT.getGiaKhuyenMai() != null && sanPhamCT.getGiaKhuyenMai() < sanPhamCT.getDonGia()
+            ? sanPhamCT.getGiaKhuyenMai()
+            : sanPhamCT.getDonGia());
+        hoaDonCT.setGiaBan(unitPrice);
             hoaDonCT = hoaDonCTRepository.save(hoaDonCT);
 
             if (hoaDon.getTrangThai() == 1) {

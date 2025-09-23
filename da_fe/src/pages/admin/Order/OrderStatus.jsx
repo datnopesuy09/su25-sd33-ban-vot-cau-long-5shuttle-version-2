@@ -443,151 +443,86 @@ function OrderStatus() {
 
     // Resolve possible price fields for an order detail item and return unit original/discounted prices
     const resolvePrices = (item) => {
-        // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
-        const currentQty = Number(item.soLuong) || 1;
-        const returnedQty = Number(returnedQtyMap[item.id] || 0);
+        // Quantity: prefer item.soLuong; fallback to 1
+        const qty = Number(item?.soLuong ?? item?.quantity ?? 1);
 
-        // FIX: Ưu tiên dùng đơn giá từ returnPriceMap (đã xác định chính xác từ lịch sử hoàn hàng)
-        if (returnPriceMap[item.id]) {
-            const transactionUnitPrice = returnPriceMap[item.id];
-            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? transactionUnitPrice;
-            
-            console.log(`Using returnPriceMap for item ${item.id}:`, {
-                transactionUnitPrice,
-                originalPrice,
-                currentQty
-            });
-            
-            return {
-                originalPrice: Number(originalPrice),
-                discountedPrice: transactionUnitPrice,
-                unitPrice: transactionUnitPrice,
-            };
+        // Unit price actually paid at purchase time (backend now stores unit price in hoaDonCT.giaBan)
+        let unitDiscountedPrice = 0;
+        if (item?.giaBan != null) {
+            unitDiscountedPrice = Number(item.giaBan);
+        } else if (item?.donGia != null) {
+            unitDiscountedPrice = Number(item.donGia);
+        } else if (item?.sanPhamCT?.donGia != null) {
+            unitDiscountedPrice = Number(item.sanPhamCT.donGia);
         }
 
-        // Logic hybrid: Kiểm tra xem có đơn giá unit được lưu sẵn không
-        if (item.unitPriceOriginal && item.originalPriceCache) {
-            console.log(`Using cached price for item ${item.id}:`, {
-                unitPriceOriginal: item.unitPriceOriginal,
-                originalPriceCache: item.originalPriceCache
-            });
-            
-            return {
-                originalPrice: Number(item.originalPriceCache),
-                discountedPrice: Number(item.unitPriceOriginal),
-                unitPrice: Number(item.unitPriceOriginal),
-            };
+        // Try to infer original (pre-promo) unit price for display/strike-through
+        let unitOriginalPrice = unitDiscountedPrice;
+        if (item?.giaGoc != null) {
+            unitOriginalPrice = Number(item.giaGoc);
+        } else if (item?.sanPhamCT?.donGia != null) {
+            unitOriginalPrice = Number(item.sanPhamCT.donGia);
         }
 
-        // Giá đã lưu trong hóa đơn (giá tại thời điểm mua hàng)
-        if (item.giaBan !== undefined && item.giaBan !== null) {
-            const savedTotalPrice = Number(item.giaBan);
-            
-            // Lấy giá gốc từ sản phẩm (chưa discount)
-            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? 0;
-            
-            console.log(`Processing giaBan for item ${item.id}:`, {
-                savedTotalPrice,
-                currentQty,
-                originalPrice,
-                sanPhamTen: item.sanPhamCT?.sanPham?.ten
-            });
-            
-            // FIX: Ưu tiên dùng số lượng gốc từ database nếu có
-            // Nếu không có thì ước tính bằng cách so sánh với giá gốc
-            // Nếu có dữ liệu số lượng đã hoàn, tính số lượng gốc = hiện tại + đã hoàn
-            let originalQtyAtPurchase = currentQty + returnedQty;
-            
-            // Tính đơn giá tạm thời để so sánh
-            const tempUnitPrice = savedTotalPrice / currentQty;
-            
-            // Nếu đơn giá tính ra > giá gốc sản phẩm thì có thể đã có hoàn hàng
-            // Trong trường hợp này, tìm số lượng gốc để có đơn giá đúng
-            if (returnedQty === 0) {
-                // Chỉ dùng heuristic khi không có dữ liệu returnedQty từ lịch sử
-                if (tempUnitPrice > originalPrice * 1.05) { // 5% tolerance
-                    // Ước tính số lượng gốc = tổng tiền / giá gốc, làm tròn lên
-                    const estimatedOriginalQty = Math.ceil(savedTotalPrice / originalPrice);
-                    if (estimatedOriginalQty > currentQty) {
-                        originalQtyAtPurchase = estimatedOriginalQty;
-                        console.log(`Estimated original qty for item ${item.id}: ${estimatedOriginalQty} (was ${currentQty})`);
-                    }
-                }
-            } else {
-                console.log(`Using returnedQty for item ${item.id}:`, { currentQty, returnedQty, originalQtyAtPurchase });
-            }
-            
-            // Tính đơn giá thực tế (đã discount) từ số lượng gốc
-            const actualUnitPrice = savedTotalPrice / originalQtyAtPurchase;
-            
-            console.log(`Final calculation for item ${item.id}:`, {
-                originalQtyAtPurchase,
-                actualUnitPrice,
-                tempUnitPrice
-            });
-            
-            // Lưu để cache cho lần sau
-            item.unitPriceOriginal = actualUnitPrice;
-            item.originalPriceCache = originalPrice;
+        // Clamp to 2 decimals
+        const toMoney = (n) => Math.round((Number(n) || 0) * 100) / 100;
+        unitDiscountedPrice = toMoney(unitDiscountedPrice);
+        unitOriginalPrice = toMoney(unitOriginalPrice);
 
-            return {
-                originalPrice: Number(originalPrice),
-                discountedPrice: actualUnitPrice,
-                unitPrice: actualUnitPrice,
-            };
-        }
+        // Compute line totals using unit price × quantity
+        const lineDiscountedTotal = toMoney(unitDiscountedPrice * qty);
+        const lineOriginalTotal = toMoney(unitOriginalPrice * qty);
 
-        // Fallback: nếu không có giá lưu, sử dụng giá gốc từ sản phẩm
-        const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? 0;
-
-        console.log(`Using fallback price for item ${item.id}:`, { originalPrice });
-
+        // Return new names and legacy aliases used elsewhere
         return {
-            originalPrice: Number(originalPrice),
-            discountedPrice: Number(originalPrice),
-            unitPrice: Number(originalPrice),
+            unitOriginalPrice,
+            unitDiscountedPrice,
+            lineOriginalTotal,
+            lineDiscountedTotal,
+            quantity: qty,
+            // Aliases
+            originalPrice: unitOriginalPrice,
+            discountedPrice: unitDiscountedPrice,
+            unitPrice: unitDiscountedPrice,
         };
     };
 
     useEffect(() => {
-        const newSubtotal = orderDetailDatas.reduce((sum, item) => {
-            const { unitPrice } = resolvePrices(item);
-            const qty = Number(item.soLuong) || 0;
-            const lineTotal = unitPrice * qty;
-            
-            console.log(`Item ${item.id}:`, {
-                sanPham: item.sanPhamCT?.sanPham?.ten,
-                soLuong: qty,
-                giaBan: item.giaBan,
-                unitPrice,
-                lineTotal,
-                hasReturnPrice: !!returnPriceMap[item.id],
-                returnPrice: returnPriceMap[item.id],
-                returnedQty: returnedQtyMap[item.id] || 0
-            });
-            
-            return sum + lineTotal;
-        }, 0);
+        try {
+            const items = Array.isArray(orderDetailDatas) ? orderDetailDatas : [];
 
-        let voucher = orderData.voucher || null;
-        const newDiscountAmount = validateDiscount(newSubtotal, voucher);
-        const newTotal = newSubtotal - newDiscountAmount + shippingFee;
+            // Subtotal from discounted unit prices (what customer actually pays before voucher + shipping)
+            const subtotalCalc = items.reduce((sum, it) => {
+                const { unitDiscountedPrice, quantity } = resolvePrices(it);
+                return sum + unitDiscountedPrice * quantity;
+            }, 0);
 
-        setSubtotal(newSubtotal);
-        setDiscountAmount(newDiscountAmount);
-        setTotal(newTotal);
-        
-        console.log('=== SUBTOTAL CALCULATION ===', {
-            orderDetailDatas: orderDetailDatas.length,
-            returnPriceMapKeys: Object.keys(returnPriceMap),
-            returnPriceMap,
-            returnedQtyMap,
-            newSubtotal,
-            newDiscountAmount,
-            newTotal,
-            voucher: voucher?.ma
-        });
-    }, [orderDetailDatas, orderData.voucher, returnPriceMap, returnedQtyMap]);
+            // Voucher discount (if any)
+            let voucherDiscount = 0;
+            if (orderData?.voucher) {
+                const result = validateDiscount(subtotalCalc, orderData?.voucher);
+                voucherDiscount = Number(result) || 0;
+            }
+
+            // Returns: subtract totalReturnAmount if provided; state already maintained elsewhere
+            const returnsAmount = Number(totalReturnAmount || 0);
+
+            // Shipping fee from order or default 0
+            const shipFee = Number(orderData?.phiShip || shippingFee || 0);
+
+            const newSubtotal = Math.max(0, Math.round((Number(subtotalCalc) || 0) * 100) / 100);
+            const newDiscountAmount = Math.min(newSubtotal, Math.round((Number(voucherDiscount) || 0) * 100) / 100);
+            const newTotal = Math.max(0, Math.round((newSubtotal + shipFee - newDiscountAmount - returnsAmount) * 100) / 100);
+
+            setSubtotal(newSubtotal);
+            setDiscountAmount(newDiscountAmount);
+            setTotal(newTotal);
+            setCurrentTongTien(newTotal);
+        } catch (e) {
+            // Fallback: keep previous totals
+            console.error('Total recompute failed', e);
+        }
+    }, [orderDetailDatas, orderData?.voucher, totalReturnAmount, orderData?.phiShip]);
 
     useEffect(() => {
         if (orderData.voucher) {
@@ -700,7 +635,8 @@ function OrderStatus() {
                     return {
                         ...item,
                         soLuong: newQuantity,
-                        giaBan: unitPrice * newQuantity,
+                        // Keep giaBan as UNIT PRICE in client state as well
+                        giaBan: unitPrice,
                     };
                 }
                 return item;

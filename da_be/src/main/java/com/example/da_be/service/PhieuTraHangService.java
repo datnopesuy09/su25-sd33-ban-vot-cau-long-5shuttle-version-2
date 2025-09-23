@@ -214,14 +214,8 @@ public class PhieuTraHangService {
             phieuTraHangChiTiet.setPhieuTraHang(phieuTraHang);
             phieuTraHangChiTiet.setHoaDonChiTiet(hoaDonCT);
             
-            // Lưu đơn giá gốc theo đơn vị (hoaDonCT.getGiaBan() là tổng dòng = đơn giá * số lượng)
-            BigDecimal unitOriginalPrice = BigDecimal.ZERO;
-            if (hoaDonCT.getGiaBan() != null && hoaDonCT.getSoLuong() != null && hoaDonCT.getSoLuong() > 0) {
-                unitOriginalPrice = hoaDonCT.getGiaBan()
-                        .divide(BigDecimal.valueOf(hoaDonCT.getSoLuong()), 2, RoundingMode.HALF_UP);
-            } else if (hoaDonCT.getGiaBan() != null) {
-                unitOriginalPrice = hoaDonCT.getGiaBan();
-            }
+            // Lưu đơn giá gốc theo đơn vị (GiaBan đang được lưu là ĐƠN GIÁ)
+            BigDecimal unitOriginalPrice = hoaDonCT.getGiaBan() != null ? hoaDonCT.getGiaBan() : BigDecimal.ZERO;
             phieuTraHangChiTiet.setDonGiaGoc(unitOriginalPrice);
 
             if (chiTietRequest.getSoLuongDuocPheDuyet() == null || chiTietRequest.getSoLuongDuocPheDuyet() <= 0) {
@@ -370,15 +364,8 @@ public class PhieuTraHangService {
         
         for (PhieuTraHangChiTiet item : returnItems) {
             if (item.getSoLuongPheDuyet() != null && item.getSoLuongPheDuyet() > 0) {
-                // Tính đơn giá từ tổng dòng trong hóa đơn (giaBan = đơn giá * số lượng)
-                BigDecimal itemPriceTotal = item.getHoaDonChiTiet() != null ? item.getHoaDonChiTiet().getGiaBan() : null;
-                Integer soLuongMua = item.getHoaDonChiTiet() != null ? item.getHoaDonChiTiet().getSoLuong() : null;
-                BigDecimal unitPrice = BigDecimal.ZERO;
-                if (itemPriceTotal != null && soLuongMua != null && soLuongMua > 0) {
-                    unitPrice = itemPriceTotal.divide(BigDecimal.valueOf(soLuongMua), 2, RoundingMode.HALF_UP);
-                } else if (item.getDonGiaGoc() != null) {
-                    unitPrice = item.getDonGiaGoc();
-                }
+                // Sử dụng đơn giá gốc đã lưu
+                BigDecimal unitPrice = item.getDonGiaGoc() != null ? item.getDonGiaGoc() : BigDecimal.ZERO;
                 BigDecimal returnAmount = unitPrice.multiply(BigDecimal.valueOf(item.getSoLuongPheDuyet()));
                 totalOriginalAmount = totalOriginalAmount.add(returnAmount);
             }
@@ -387,8 +374,8 @@ public class PhieuTraHangService {
         // 2. Tính tổng tiền gốc của toàn bộ đơn hàng (không bao gồm phí ship)
         for (HoaDonCT chiTiet : hoaDon.getChiTietHoaDon()) {
             if (chiTiet.getGiaBan() == null) continue;
-            // giaBan đã là tổng tiền dòng
-            totalOrderAmount = totalOrderAmount.add(chiTiet.getGiaBan());
+            // giaBan là ĐƠN GIÁ; tổng dòng = đơn giá * số lượng
+            totalOrderAmount = totalOrderAmount.add(chiTiet.getGiaBan().multiply(BigDecimal.valueOf(chiTiet.getSoLuong())));
         }
         
         // 3. Tính tỷ lệ hoàn trả
@@ -449,8 +436,8 @@ public class PhieuTraHangService {
         BigDecimal totalOrderAmount = BigDecimal.ZERO;
         for (HoaDonCT chiTiet : hoaDon.getChiTietHoaDon()) {
             if (chiTiet.getGiaBan() == null) continue;
-            // giaBan đã là tổng tiền dòng tại thời điểm mua
-            totalOrderAmount = totalOrderAmount.add(chiTiet.getGiaBan());
+            // giaBan là ĐƠN GIÁ tại thời điểm mua -> tổng dòng = đơn giá * số lượng
+            totalOrderAmount = totalOrderAmount.add(chiTiet.getGiaBan().multiply(BigDecimal.valueOf(chiTiet.getSoLuong())));
         }
         
         // 2. Tính tổng số tiền giảm giá từ voucher
@@ -508,12 +495,8 @@ public class PhieuTraHangService {
             
             int remainingQuantity = chiTiet.getSoLuong() - returnedQuantity;
             if (remainingQuantity > 0) {
-                // Tính đơn giá từ tổng dòng
-                BigDecimal lineTotal = chiTiet.getGiaBan();
-                BigDecimal unit = BigDecimal.ZERO;
-                if (lineTotal != null && chiTiet.getSoLuong() != null && chiTiet.getSoLuong() > 0) {
-                    unit = lineTotal.divide(BigDecimal.valueOf(chiTiet.getSoLuong()), 2, RoundingMode.HALF_UP);
-                }
+                // GiaBan là ĐƠN GIÁ
+                BigDecimal unit = chiTiet.getGiaBan() != null ? chiTiet.getGiaBan() : BigDecimal.ZERO;
                 BigDecimal itemTotalRemaining = unit.multiply(BigDecimal.valueOf(remainingQuantity));
                 remainingAmount = remainingAmount.add(itemTotalRemaining);
             }

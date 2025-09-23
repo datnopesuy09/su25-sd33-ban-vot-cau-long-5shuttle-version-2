@@ -924,9 +924,20 @@ function UserOrder() {
                                                                         <img
                                                                             src={
                                                                                 sp?.hinhAnhUrl ||
+                                                                                // For return items, try nested fields in thongTinSanPhamTra
+                                                                                sp?.thongTinSanPhamTra?.hinhAnhUrl ||
+                                                                                sp?.thongTinSanPhamTra?.hinhAnh ||
+                                                                                sp?.thongTinSanPhamTra?.sanPhamCT?.hinhAnhUrl ||
+                                                                                sp?.thongTinSanPhamTra?.sanPhamCT?.hinhAnh ||
+                                                                                sp?.thongTinSanPhamTra?.sanPhamCT?.sanPham?.hinhAnhUrl ||
+                                                                                sp?.thongTinSanPhamTra?.sanPhamCT?.sanPham?.hinhAnh ||
+                                                                                // Non-return fallback
                                                                                 sp?.sanPhamCT?.hinhAnhUrl ||
                                                                                 sp?.sanPhamCT?.hinhAnh ||
-                                                                                sp?.thongTinSanPhamTra?.hinhAnhUrl ||
+                                                                                // Uploaded filenames array
+                                                                                (sp?.thongTinSanPhamTra?.sanPhamCT?.sanPham?.hinhAnhs && sp.thongTinSanPhamTra.sanPhamCT.sanPham.hinhAnhs.length > 0
+                                                                                    ? `http://localhost:8080/uploads/${sp.thongTinSanPhamTra.sanPhamCT.sanPham.hinhAnhs[0]}`
+                                                                                    : null) ||
                                                                                 'https://via.placeholder.com/80'
                                                                             }
                                                                             alt={

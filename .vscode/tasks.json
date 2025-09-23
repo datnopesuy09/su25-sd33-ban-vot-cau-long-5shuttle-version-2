@@ -26,6 +26,22 @@
 				"$gcc"
 			],
 			"group": "build"
+		},
+		{
+			"label": "build-backend",
+			"type": "shell",
+			"command": "./da_be/mvnw.cmd",
+			"args": [
+				"-f",
+				"./da_be/pom.xml",
+				"-q",
+				"-DskipTests",
+				"package"
+			],
+			"problemMatcher": [
+				"$maven"
+			],
+			"group": "build"
 		}
 	]
 }

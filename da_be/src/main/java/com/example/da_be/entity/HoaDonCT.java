@@ -26,6 +26,10 @@ public class HoaDonCT {
     @Column(name = "SoLuong")
     private Integer soLuong;
 
+    /**
+     * GiaBan: ĐƠN GIÁ tại thời điểm mua (đã áp dụng KM nếu có), không phải tổng tiền dòng.
+     * Tổng tiền dòng = GiaBan (unit) * SoLuong
+     */
     @Column(name = "GiaBan", precision = 10, scale = 2)
     private BigDecimal giaBan;
 

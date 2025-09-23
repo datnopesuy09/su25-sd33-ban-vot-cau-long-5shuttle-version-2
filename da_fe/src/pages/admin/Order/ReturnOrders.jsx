@@ -816,8 +816,12 @@ function ReturnOrders() {
             </div>
 
             {showDetailModal && selectedOrder && (
-                <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 z-50">
-                    <div className="bg-white rounded-lg shadow-lg p-6 w-[1200px] max-h-[90vh] overflow-y-auto">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300"
+                        onClick={() => (!isProcessing ? setShowDetailModal(false) : null)}
+                    />
+                    <div className="relative bg-white rounded-2xl shadow-2xl p-6 w-[1400px] max-h-[92vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-bold text-gray-900">
                                 Chi tiết phiếu trả hàng: {selectedOrder.maPhieuTraHang}
@@ -953,6 +957,7 @@ function ReturnOrders() {
                                                 SL trả
                                             </th>
                                             <th className="py-2 px-3 text-left text-xs font-medium w-20">Đơn giá</th>
+                                            <th className="py-2 px-3 text-left text-xs font-medium w-24">Tổng tiền</th>
                                             <th className="py-2 px-3 text-left text-xs font-medium w-100">
                                                 Lý do trả hàng
                                             </th>
@@ -968,10 +973,13 @@ function ReturnOrders() {
                                         {selectedOrder.chiTietTraHang.map((detail) => {
                                             const key = detail.thongTinSanPhamTra?.hoaDonChiTietId ?? detail.id;
                                             const isApproved = selectedOrder.trangThai === 'APPROVED';
-                                            const soLuongDuocPheDuyet =
-                                                typeof detail.soLuongDuocPheDuyet === 'number'
+                                            const soLuongDuocPheDuyet = isApproved
+                                                ? (typeof detail.soLuongDuocPheDuyet === 'number'
                                                     ? detail.soLuongDuocPheDuyet
-                                                    : (productQuantities[key] ?? 0);
+                                                    : 0)
+                                                : (productSelections[key]
+                                                    ? (productQuantities[key] ?? 0)
+                                                    : 0);
                                             const soLuongKhongDuocDuyet =
                                                 (detail.soLuongTra || 0) - (soLuongDuocPheDuyet || 0);
 
@@ -992,6 +1000,8 @@ function ReturnOrders() {
                                                 }
                                                 return unitOriginal;
                                             })();
+                                            const lineOriginalTotal = unitOriginal * qtyApproved;
+                                            const lineAdjustedTotal = unitAdjusted * qtyApproved;
                                             return (
                                                 <tr key={key} className="border-b border-gray-200">
                                                     <td className="py-2 px-3">
@@ -1099,6 +1109,16 @@ function ReturnOrders() {
                                                             </span>
                                                             <span className="text-red-600 font-semibold">
                                                                 {formatCurrency(unitAdjusted)}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-2 px-3 text-sm text-gray-900 font-semibold">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-gray-400 line-through">
+                                                                {formatCurrency(lineOriginalTotal)}
+                                                            </span>
+                                                            <span className="text-red-600 font-semibold">
+                                                                {formatCurrency(lineAdjustedTotal)}
                                                             </span>
                                                         </div>
                                                     </td>
@@ -1411,8 +1431,12 @@ function ReturnOrders() {
             )}
 
             {showConfirmModal && (
-                <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 z-50">
-                    <div className="bg-white rounded-lg shadow-lg p-6 w-96">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300"
+                        onClick={() => (!isProcessing ? setShowConfirmModal(false) : null)}
+                    />
+                    <div className="relative bg-white rounded-2xl shadow-2xl p-6 w-96">
                         <h3 className="text-lg font-bold text-gray-900 mb-4">Xác nhận hành động</h3>
                         <p className="text-sm text-gray-600 mb-6">
                             {hasSelectedProducts()

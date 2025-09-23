@@ -25,6 +25,34 @@ const formatCurrency = (value) => {
     return n.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 };
 
+// Resolve image URL for a return item with robust fallbacks
+const resolveReturnImage = (chiTiet) => {
+    const PH = 'https://via.placeholder.com/80?text=No+Image';
+    if (!chiTiet) return PH;
+    const sp = chiTiet.thongTinSanPhamTra || {};
+
+    // Direct fields on detail or nested return info
+    const direct =
+        chiTiet.hinhAnhUrl ||
+        chiTiet.hinhAnh ||
+        sp.hinhAnhUrl ||
+        sp.hinhAnh;
+    if (direct) return direct;
+
+    // Variant (sanPhamCT) or product (sanPham) images
+    const spct = sp.sanPhamCT || {};
+    const product = spct.sanPham || {};
+    const nested = spct.hinhAnhUrl || spct.hinhAnh || product.hinhAnhUrl || product.hinhAnh;
+    if (nested) return nested;
+
+    // Uploaded filename array from product
+    if (product.hinhAnhs && Array.isArray(product.hinhAnhs) && product.hinhAnhs.length > 0) {
+        return `http://localhost:8080/uploads/${product.hinhAnhs[0]}`;
+    }
+
+    return PH;
+};
+
 // Helper: ưu tiên số tiền hoàn (đã trừ voucher); cho phép truyền vào fallbackRatio khi backend chưa có tyLeGiamGia
 const getItemRefundInfo = (chiTiet, fallbackRatio = null) => {
     const sanPham = chiTiet?.thongTinSanPhamTra || {};
@@ -226,16 +254,39 @@ function ReturnOrderDetail() {
         );
     }
 
-    // Tổng tiền hoàn ưu tiên lấy từ soTienHoanTra của từng dòng
-    const totalAmount =
-        phieuTraHang.chiTietTraHang?.reduce((sum, chiTiet) => {
-            const { totalRefund } = getItemRefundInfo(chiTiet, predictedRatio);
-            return sum + (Number.isFinite(totalRefund) ? totalRefund : 0);
-        }, 0) || 0;
+    // Tổng tiền hoàn: đã duyệt thì lấy theo soTienHoanTra/SL duyệt; chờ duyệt thì ước tính theo SL yêu cầu và predictedRatio
+    const isApproved = phieuTraHang.trangThai === 'APPROVED';
+    const totalAmount = (() => {
+        if (isApproved) {
+            return (
+                phieuTraHang.chiTietTraHang?.reduce((sum, chiTiet) => {
+                    const { totalRefund } = getItemRefundInfo(chiTiet, predictedRatio);
+                    return sum + (Number.isFinite(totalRefund) ? totalRefund : 0);
+                }, 0) || 0
+            );
+        }
+        // PENDING: ước tính
+        return (
+            phieuTraHang.chiTietTraHang?.reduce((sum, chiTiet) => {
+                const sanPham = chiTiet?.thongTinSanPhamTra || {};
+                const unitOriginal = Number(sanPham.giaBan || chiTiet?.donGiaGoc || 0);
+                const ratio =
+                    typeof chiTiet?.tyLeGiamGia === 'number'
+                        ? chiTiet.tyLeGiamGia
+                        : typeof predictedRatio === 'number'
+                          ? predictedRatio
+                          : null;
+                const unitAdjusted = ratio != null ? unitOriginal * (1 - ratio) : unitOriginal;
+                const qty = Number(chiTiet?.soLuongTra || 0);
+                const est = unitAdjusted * qty;
+                return sum + (Number.isFinite(est) ? est : 0);
+            }, 0) || 0
+        );
+    })();
 
     return (
         <div className="min-h-screen bg-gray-50 py-8">
-            <div className="max-w-4xl mx-auto px-4">
+            <div className="max-w-6xl mx-auto px-6">
                 {/* Header */}
                 <div className="mb-6">
                     <Link
@@ -335,7 +386,15 @@ function ReturnOrderDetail() {
                                     const soLuongTra = chiTiet.soLuongTra;
                                     const soLuongPheDuyet = chiTiet.soLuongPheDuyet || 0;
 
-                                    const { unitOriginal, unitAdjusted, totalRefund } = getItemRefundInfo(chiTiet, predictedRatio);
+                                    const { unitOriginal, unitAdjusted, totalRefund } = getItemRefundInfo(
+                                        chiTiet,
+                                        predictedRatio,
+                                    );
+                                    const qtyForTotal = isApproved ? soLuongPheDuyet : soLuongTra;
+                                    const lineOriginalTotal = unitOriginal * qtyForTotal;
+                                    const lineAdjustedTotal = isApproved
+                                        ? totalRefund
+                                        : (typeof unitAdjusted === 'number' ? unitAdjusted : unitOriginal) * qtyForTotal;
 
                                     return (
                                         <div
@@ -345,9 +404,14 @@ function ReturnOrderDetail() {
                                             <div className="flex items-start gap-4">
                                                 {/* Product Image */}
                                                 <div className="flex-shrink-0">
-                                                    <div className="w-16 h-16 bg-gray-200 rounded-lg border border-gray-200 flex items-center justify-center">
-                                                        <Package className="w-8 h-8 text-gray-400" />
-                                                    </div>
+                                                    <img
+                                                        src={resolveReturnImage(chiTiet)}
+                                                        alt={sanPham?.tenSanPham || 'Sản phẩm'}
+                                                        className="w-16 h-16 object-cover rounded-lg border border-gray-200 bg-gray-100"
+                                                        onError={(e) => {
+                                                            e.currentTarget.src = 'https://via.placeholder.com/80?text=No+Image';
+                                                        }}
+                                                    />
                                                 </div>
 
                                                 {/* Product Info */}
@@ -445,18 +509,31 @@ function ReturnOrderDetail() {
                                                 </div>
 
                                                 {/* Price */}
-                                                <div className="text-right min-w-[160px]">
+                                                <div className="text-right min-w-[220px]">
                                                     <div className="text-sm text-gray-500 mb-1">Đơn giá</div>
-                                                    <div className="text-lg font-semibold text-gray-700 mb-1 line-through opacity-70">
+                                                    <div className="text-base font-semibold text-gray-700 mb-1 line-through opacity-70">
                                                         {formatCurrency(unitOriginal)}
                                                     </div>
                                                     <div className="text-sm text-gray-500 mb-1">Giá hoàn (đã trừ voucher)</div>
                                                     <div className="text-lg font-semibold text-red-600 mb-3">
                                                         {formatCurrency(unitAdjusted)}
                                                     </div>
-                                                    <div className="text-sm text-gray-500 mb-1">Tổng tiền hoàn</div>
+                                                    <div className="text-sm text-gray-500 mb-1">
+                                                        Tổng tiền hoàn{!isApproved ? ' (ước tính)' : ''}
+                                                    </div>
                                                     <div className="text-xl font-bold text-gray-800">
-                                                        {soLuongPheDuyet > 0 ? formatCurrency(totalRefund) : 'Chờ duyệt'}
+                                                        {qtyForTotal > 0
+                                                            ? (
+                                                                  <>
+                                                                      <span className="line-through text-gray-400 mr-2 text-base font-medium">
+                                                                          {formatCurrency(lineOriginalTotal)}
+                                                                      </span>
+                                                                      <span className="text-red-600">
+                                                                          {formatCurrency(lineAdjustedTotal)}
+                                                                      </span>
+                                                                  </>
+                                                              )
+                                                            : 'Chờ duyệt'}
                                                     </div>
                                                 </div>
                                             </div>
@@ -509,19 +586,24 @@ function ReturnOrderDetail() {
                                     </span>
                                 </div>
                                 <div className="flex justify-between items-center">
-                                    <span className="text-gray-600">Tổng số lượng:</span>
+                                    <span className="text-gray-600">Tổng số lượng{!isApproved ? ' (yêu cầu)' : ''}:</span>
                                     <span className="font-semibold text-gray-800">
-                                        {phieuTraHang.chiTietTraHang?.reduce(
-                                            (sum, chiTiet) => sum + (chiTiet.soLuongPheDuyet || 0),
-                                            0,
-                                        ) || 0}
+                                        {(
+                                            phieuTraHang.chiTietTraHang?.reduce((sum, chiTiet) =>
+                                                isApproved
+                                                    ? sum + (chiTiet.soLuongPheDuyet || 0)
+                                                    : sum + (chiTiet.soLuongTra || 0),
+                                            0) || 0
+                                        )}
                                     </span>
                                 </div>
                                 <div className="border-t border-gray-200 pt-3">
                                     <div className="flex justify-between items-center">
                                         <span className="text-lg font-semibold text-gray-800">Tổng tiền hoàn:</span>
                                         <span className="text-xl font-bold text-red-600">
-                                            {totalAmount > 0 ? formatCurrency(totalAmount) : 'Chờ duyệt'}
+                                            {isApproved
+                                                ? (totalAmount > 0 ? formatCurrency(totalAmount) : '0 ₫')
+                                                : (totalAmount > 0 ? formatCurrency(totalAmount) : 'Chờ duyệt')}
                                         </span>
                                     </div>
                                 </div>
