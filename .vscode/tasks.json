@@ -1,0 +1,31 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "build-backend",
+			"type": "shell",
+			"command": "./da_be/mvnw.cmd -f ./da_be/pom.xml -q -DskipTests package",
+			"args": [],
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-backend",
+			"type": "shell",
+			"command": "./da_be/mvnw.cmd",
+			"args": [
+				"-f",
+				"./da_be/pom.xml",
+				"-q",
+				"-DskipTests",
+				"package"
+			],
+			"problemMatcher": [
+				"$gcc"
+			],
+			"group": "build"
+		}
+	]
+}

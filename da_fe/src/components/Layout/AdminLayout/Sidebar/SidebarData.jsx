@@ -14,12 +14,7 @@ export const SidebarData = [
         link: '/admin/thong-ke',
         vaiTro: 'Admin',
     },
-    {
-        title: 'Thống kê new',
-        icon: <AssessmentIcon />,
-        link: '/admin/thong-ke-new',
-        vaiTro: 'Admin',
-    },
+    
     {
         title: 'Bán hàng tại quầy',
         icon: <ReceiptIcon />,

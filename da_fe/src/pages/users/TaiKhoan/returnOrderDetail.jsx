@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import dayjs from 'dayjs';
@@ -23,6 +23,30 @@ import { toast } from 'react-toastify';
 const formatCurrency = (value) => {
     const n = Number(value ?? 0);
     return n.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+};
+
+// Helper: ưu tiên số tiền hoàn (đã trừ voucher); cho phép truyền vào fallbackRatio khi backend chưa có tyLeGiamGia
+const getItemRefundInfo = (chiTiet, fallbackRatio = null) => {
+    const sanPham = chiTiet?.thongTinSanPhamTra || {};
+    const unitOriginal = Number(sanPham.giaBan || chiTiet?.donGiaGoc || 0);
+    const qtyApproved = Number(chiTiet?.soLuongPheDuyet || 0);
+
+    // tyLeGiamGia: tỉ lệ áp dụng cho item (0..1)
+    const ratio = typeof chiTiet?.tyLeGiamGia === 'number' ? chiTiet.tyLeGiamGia : (typeof fallbackRatio === 'number' ? fallbackRatio : null);
+    const unitAdjusted = ratio != null ? unitOriginal * (1 - ratio) : unitOriginal;
+
+    // soTienHoanTra: tổng tiền đã tính từ backend (ưu tiên)
+    const totalRefund =
+        typeof chiTiet?.soTienHoanTra === 'number'
+            ? Number(chiTiet.soTienHoanTra)
+            : unitAdjusted * qtyApproved;
+
+    return {
+        unitOriginal,
+        unitAdjusted,
+        qtyApproved,
+        totalRefund,
+    };
 };
 
 const getStatusStyle = (status) => {
@@ -55,6 +79,37 @@ function ReturnOrderDetail() {
     const { id } = useParams();
     const [phieuTraHang, setPhieuTraHang] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [orderSubtotal, setOrderSubtotal] = useState(null);
+    const [orderVoucher, setOrderVoucher] = useState(null);
+
+    // Tính tỷ lệ giảm giá dựa trên voucher và tổng tiền hàng của đơn gốc (reuse logic từ trang tạo trả hàng)
+    const getDiscountRatio = (voucher, subtotal) => {
+        if (!voucher || !subtotal || subtotal <= 0) return 0;
+
+        let discountAmount = 0;
+        const type = voucher.kieuGiaTri;
+
+        // Percent
+        if (type === 0 || (type === 1 && voucher?.schema === 'percent')) {
+            discountAmount = subtotal * (Number(voucher.giaTri || 0) / 100);
+            if (voucher.giaTriMax) {
+                discountAmount = Math.min(discountAmount, Number(voucher.giaTriMax));
+            }
+        } else {
+            // Fixed amount
+            discountAmount = Number(voucher.giaTri || 0);
+        }
+
+        // Không vượt quá subtotal
+        discountAmount = Math.min(discountAmount, subtotal);
+        return Math.min(discountAmount / subtotal, 1);
+    };
+
+    // Tỷ lệ dự đoán khi backend chưa cung cấp tyLeGiamGia/soTienHoanTra (trước khi duyệt)
+    const predictedRatio = useMemo(() => {
+        if (!orderVoucher || !orderSubtotal) return null;
+        return getDiscountRatio(orderVoucher, Number(orderSubtotal));
+    }, [orderVoucher, orderSubtotal]);
 
     useEffect(() => {
         const fetchPhieuTraHangDetail = async () => {
@@ -94,6 +149,51 @@ function ReturnOrderDetail() {
         }
     }, [id]);
 
+    // Sau khi có phiếu trả hàng, nếu thiếu thông tin giảm giá từ backend, thử lấy thông tin đơn gốc để ước tính tỷ lệ
+    useEffect(() => {
+        const fetchOrderInfo = async () => {
+            try {
+                if (!phieuTraHang?.hoaDonId) return;
+                const token = localStorage.getItem('userToken');
+                const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+                // Lấy danh sách chi tiết hóa đơn để tính subtotal
+                const ctRes = await axios.get(
+                    `http://localhost:8080/api/hoa-don-ct/hoa-don/${phieuTraHang.hoaDonId}`,
+                    { headers },
+                );
+                const orderItems = Array.isArray(ctRes.data) ? ctRes.data : [];
+                const subtotal = orderItems.reduce(
+                    (sum, it) => sum + Number(it.giaBan || 0) * Number(it.soLuong || 0),
+                    0,
+                );
+
+                // Lấy hóa đơn để lấy thông tin voucher
+                const hdRes = await axios.get(
+                    `http://localhost:8080/api/hoa-don/${phieuTraHang.hoaDonId}`,
+                    { headers },
+                );
+                const voucher = hdRes?.data?.voucher || null;
+
+                setOrderSubtotal(subtotal);
+                setOrderVoucher(voucher);
+            } catch (e) {
+                // Không chặn UI nếu không lấy được dữ liệu đơn gốc
+                console.warn('Không thể lấy thông tin đơn gốc để ước tính voucher ratio:', e);
+            }
+        };
+
+        // Chỉ cần khi còn thiếu tyLeGiamGia/soTienHoanTra trong các dòng
+        if (phieuTraHang?.chiTietTraHang?.length) {
+            const missingAdjusted = phieuTraHang.chiTietTraHang.some(
+                (ct) => ct?.tyLeGiamGia == null && ct?.soTienHoanTra == null,
+            );
+            if (missingAdjusted) {
+                fetchOrderInfo();
+            }
+        }
+    }, [phieuTraHang]);
+
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -126,12 +226,11 @@ function ReturnOrderDetail() {
         );
     }
 
+    // Tổng tiền hoàn ưu tiên lấy từ soTienHoanTra của từng dòng
     const totalAmount =
         phieuTraHang.chiTietTraHang?.reduce((sum, chiTiet) => {
-            const sanPham = chiTiet.thongTinSanPhamTra;
-            const giaBan = sanPham?.giaBan || 0;
-            const soLuongPheDuyet = chiTiet.soLuongPheDuyet || 0;
-            return sum + giaBan * soLuongPheDuyet;
+            const { totalRefund } = getItemRefundInfo(chiTiet, predictedRatio);
+            return sum + (Number.isFinite(totalRefund) ? totalRefund : 0);
         }, 0) || 0;
 
     return (
@@ -235,8 +334,8 @@ function ReturnOrderDetail() {
                                     const sanPham = chiTiet.thongTinSanPhamTra;
                                     const soLuongTra = chiTiet.soLuongTra;
                                     const soLuongPheDuyet = chiTiet.soLuongPheDuyet || 0;
-                                    const giaBan = sanPham?.giaBan || 0;
-                                    const tongTienTra = giaBan * soLuongPheDuyet;
+
+                                    const { unitOriginal, unitAdjusted, totalRefund } = getItemRefundInfo(chiTiet, predictedRatio);
 
                                     return (
                                         <div
@@ -301,33 +400,18 @@ function ReturnOrderDetail() {
 
                                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                                         <div className="bg-blue-50 p-3 rounded-lg">
-                                                            <div className="font-medium text-blue-800">
-                                                                Số lượng yêu cầu
-                                                            </div>
-                                                            <div className="text-blue-600 font-semibold text-lg">
-                                                                {soLuongTra}
-                                                            </div>
+                                                            <div className="font-medium text-blue-800">Số lượng yêu cầu</div>
+                                                            <div className="text-blue-600 font-semibold text-lg">{soLuongTra}</div>
                                                         </div>
-                                                        <div
-                                                            className={`p-3 rounded-lg ${soLuongPheDuyet > 0 ? 'bg-green-50' : 'bg-yellow-50'}`}
-                                                        >
-                                                            <div
-                                                                className={`font-medium ${soLuongPheDuyet > 0 ? 'text-green-800' : 'text-yellow-800'}`}
-                                                            >
-                                                                Số lượng duyệt
-                                                            </div>
-                                                            <div
-                                                                className={`font-semibold text-lg ${soLuongPheDuyet > 0 ? 'text-green-600' : 'text-yellow-600'}`}
-                                                            >
+                                                        <div className={`p-3 rounded-lg ${soLuongPheDuyet > 0 ? 'bg-green-50' : 'bg-yellow-50'}`}>
+                                                            <div className={`font-medium ${soLuongPheDuyet > 0 ? 'text-green-800' : 'text-yellow-800'}`}>Số lượng duyệt</div>
+                                                            <div className={`font-semibold text-lg ${soLuongPheDuyet > 0 ? 'text-green-600' : 'text-yellow-600'}`}>
                                                                 {soLuongPheDuyet > 0 ? soLuongPheDuyet : 'Chờ duyệt'}
                                                             </div>
                                                         </div>
                                                         <div className="bg-gray-50 p-3 rounded-lg">
                                                             <div className="font-medium text-gray-800">Tồn kho</div>
-
-                                                            <div className="text-gray-600 font-semibold text-lg">
-                                                                {sanPham?.soLuongTrongKho || 0}
-                                                            </div>
+                                                            <div className="text-gray-600 font-semibold text-lg">{sanPham?.soLuongTrongKho || 0}</div>
                                                         </div>
                                                     </div>
 
@@ -361,16 +445,18 @@ function ReturnOrderDetail() {
                                                 </div>
 
                                                 {/* Price */}
-                                                <div className="text-right min-w-[120px]">
+                                                <div className="text-right min-w-[160px]">
                                                     <div className="text-sm text-gray-500 mb-1">Đơn giá</div>
-                                                    <div className="text-lg font-semibold text-red-600 mb-3">
-                                                        {formatCurrency(giaBan)}
+                                                    <div className="text-lg font-semibold text-gray-700 mb-1 line-through opacity-70">
+                                                        {formatCurrency(unitOriginal)}
                                                     </div>
-                                                    <div className="text-sm text-gray-500 mb-1">Tổng tiền</div>
+                                                    <div className="text-sm text-gray-500 mb-1">Giá hoàn (đã trừ voucher)</div>
+                                                    <div className="text-lg font-semibold text-red-600 mb-3">
+                                                        {formatCurrency(unitAdjusted)}
+                                                    </div>
+                                                    <div className="text-sm text-gray-500 mb-1">Tổng tiền hoàn</div>
                                                     <div className="text-xl font-bold text-gray-800">
-                                                        {soLuongPheDuyet > 0
-                                                            ? formatCurrency(tongTienTra)
-                                                            : 'Chờ duyệt'}
+                                                        {soLuongPheDuyet > 0 ? formatCurrency(totalRefund) : 'Chờ duyệt'}
                                                     </div>
                                                 </div>
                                             </div>

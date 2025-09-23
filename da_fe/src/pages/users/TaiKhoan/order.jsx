@@ -374,8 +374,17 @@ function UserOrder() {
                 setListPhieuTraHang(phieuTraHang);
                 console.log('Phiếu trả hàng: ', phieuTraHang);
             } catch (error) {
-                console.error('Lỗi khi lấy phiếu trả hàng:', error);
-                toast.error('Không thể lấy phiếu trả hàng');
+                const status = error?.response?.status;
+                const payload = error?.response?.data;
+                console.error('Lỗi khi lấy phiếu trả hàng:', payload || error);
+                // 401/403: token hết hạn/không hợp lệ -> im lặng
+                if (status === 401 || status === 403) return;
+                // 400 với mã 9999 (UNCATEGORIZED_EXCEPTION) từ BE -> tránh toast gây nhiễu, chỉ log
+                if (status === 400 && payload?.code === 9999) return;
+                // Chỉ thông báo khi là lỗi phía server
+                if (status && status >= 500) {
+                    toast.error('Không thể lấy phiếu trả hàng');
+                }
             }
         };
 
@@ -796,8 +805,15 @@ function UserOrder() {
                                                     <div className="text-right">
                                                         <div className="text-xl font-bold text-red-600">
                                                             {(() => {
+                                                                // TODO: Cập nhật để sử dụng soTienHoanTra từ backend thay vì tính từ giaBan * soLuongPheDuyet
+                                                                // để đảm bảo số tiền hiển thị đã xét đến voucher
                                                                 const totalAmount =
                                                                     item.chiTietTraHang?.reduce((sum, chiTiet) => {
+                                                                        // Ưu tiên sử dụng soTienHoanTra nếu có (đã xét voucher)
+                                                                        if (chiTiet.soTienHoanTra != null) {
+                                                                            return sum + chiTiet.soTienHoanTra;
+                                                                        }
+                                                                        // Fallback về cách tính cũ
                                                                         const sanPham = chiTiet.thongTinSanPhamTra;
                                                                         const giaBan = sanPham?.giaBan || 0;
                                                                         const soLuongPheDuyet =
