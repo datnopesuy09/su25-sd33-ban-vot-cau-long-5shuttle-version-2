@@ -109,10 +109,15 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
             } else if (ngayKetThuc.isBefore(now) && voucher.getTrangThai() != 2) {
                 voucher.setTrangThai(2);
                 flag = true;
-            } else if (ngayBatDau.isBefore(now) && ngayKetThuc.isAfter(now) && voucher.getTrangThai() != 1) {
+            } else if ((ngayBatDau.isBefore(now) || ngayBatDau.isEqual(now)) && ngayKetThuc.isAfter(now) && voucher.getTrangThai() != 1) {
                 voucher.setTrangThai(1);
                 flag = true;
             }
+        }
+        
+        // Lưu tất cả các thay đổi nếu có
+        if (flag) {
+            phieuGiamGiaRepository.saveAll(voucherList);
         }
     }
 }

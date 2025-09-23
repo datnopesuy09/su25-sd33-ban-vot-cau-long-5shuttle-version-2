@@ -54,11 +54,14 @@ function Profile() {
                         {/* User Info Header */}
                         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 border-b border-gray-100">
                             <div className="flex items-center gap-4">
-                                <div className="relative">
+                            <div className="relative">
                                     <img
-                                        src={user?.avatar || '/default-avatar.png'}
-                                        alt={user?.hoTen}
+                                        src={user?.avatar || '/src/components/Assets/user_icon.png'}
+                                        alt={user?.hoTen || 'User'}
                                         className="w-16 h-16 rounded-full object-cover border-3 border-white shadow-md user-avatar"
+                                        onError={(e) => {
+                                            e.target.src = '/src/components/Assets/user_icon.png';
+                                        }}
                                     />
                                     <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full border-2 border-white online-status"></div>
                                 </div>
