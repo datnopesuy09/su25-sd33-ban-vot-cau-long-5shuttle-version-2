@@ -46,6 +46,8 @@ public class HoaDonService {
     private SuCoVanChuyenRepository suCoVanChuyenRepository;
     @Autowired
     private HoaDonCTRepository hoaDonCTRepository;
+    @Autowired
+    private com.example.da_be.service.HoaDonCTService hoaDonCTService;
 
     public List<HoaDon> getAllHoaDon() {
         return hoaDonRepository.findAll();
@@ -111,6 +113,16 @@ public class HoaDonService {
         if (hoaDon != null) {
             int oldStatus = hoaDon.getTrangThai();
             hoaDon.setTrangThai(newStatus);
+            // Nếu chuyển sang trạng thái 6 (Đã thanh toán), cập nhật HoaDonCT tương ứng
+            if (newStatus == 6) {
+                try {
+                    log.info("About to update HoaDonCT rows to 6 for hoaDonId={}", id);
+                    hoaDonCTService.updateAllHoaDonCTStatusByHoaDonId(id, 6);
+                    log.info("Completed updating HoaDonCT rows to 6 for hoaDonId={}", id);
+                } catch (Exception e) {
+                    log.error("Lỗi khi cập nhật HoaDonCT cho hoaDonId={}: {}", id, e.getMessage());
+                }
+            }
             
             // Xử lý hoàn kho khi hủy đơn hàng
             if (newStatus == 7 && oldStatus != 7) { // Trạng thái 7 = Đã hủy
@@ -184,7 +196,16 @@ public class HoaDonService {
         hoaDon.setTrangThai(6); // 6 = Đã thanh toán
         hoaDon.setNgaySua(new Date());
 
-        // 5. Lưu hóa đơn
+        // 5. Cập nhật trạng thái chi tiết hóa đơn thành 6
+        try {
+            log.info("About to update HoaDonCT rows to 6 for hoaDonId={} (xacNhanThanhToan)", idHoaDon);
+            hoaDonCTService.updateAllHoaDonCTStatusByHoaDonId(idHoaDon, 6);
+            log.info("Completed update HoaDonCT rows to 6 for hoaDonId={} (xacNhanThanhToan)", idHoaDon);
+        } catch (Exception e) {
+            log.error("Lỗi khi cập nhật trạng thái HoaDonCT khi thanh toán cho hoaDonId={}: {}", idHoaDon, e.getMessage());
+        }
+
+        // 6. Lưu hóa đơn
         HoaDon updatedHoaDon = hoaDonRepository.save(hoaDon);
 
         // 6. Tạo thông báo cho khách hàng

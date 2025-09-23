@@ -33,6 +33,8 @@ public class PhieuTraHangResponse {
 
     String hoaDonMa;
 
+    Integer hoaDonId;
+
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     LocalDateTime ngayTao; // Thời gian tạo phiếu
 

@@ -222,7 +222,7 @@ public class HoaDonCTController {
                 hoaDonCT.setSanPhamCT(sanPhamCT);
                 hoaDonCT.setSoLuong(request.getSoLuong());
                 
-                // Set giá bán tổng: unitPrice * soLuong (ưu tiên giá khuyến mãi nếu có và nhỏ hơn giá gốc)
+                // Set đơn giá (unit price): ưu tiên giá khuyến mãi nếu có và nhỏ hơn giá gốc
                 BigDecimal unitPrice;
                 if (sanPhamCT.getGiaKhuyenMai() != null &&
                     sanPhamCT.getGiaKhuyenMai() < sanPhamCT.getDonGia()) {
@@ -230,8 +230,8 @@ public class HoaDonCTController {
                 } else {
                     unitPrice = BigDecimal.valueOf(sanPhamCT.getDonGia());
                 }
-                BigDecimal totalPrice = unitPrice.multiply(BigDecimal.valueOf(request.getSoLuong()));
-                hoaDonCT.setGiaBan(totalPrice);
+                // Lưu GiaBan LÀ ĐƠN GIÁ, không nhân số lượng
+                hoaDonCT.setGiaBan(unitPrice);
                 
                 hoaDonCT.setTrangThai(1); // Trạng thái hoạt động
                 hoaDonCTService.saveOrUpdateHoaDonCT(hoaDonCT);

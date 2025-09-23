@@ -6,6 +6,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import java.math.BigDecimal;
+
 @Entity
 @Getter
 @Setter
@@ -37,7 +39,7 @@ public class PhieuTraHangChiTiet {
     @Column(name = "SoLuongTra", nullable = false)
     Integer soLuongTra;
 
-    @Column(name = "SoLuongPheDuyet", nullable = false)
+    @Column(name = "SoLuongPheDuyet", nullable = true)
     Integer soLuongPheDuyet;
 
     @Column(name = "SoLuongNhapKho")
@@ -51,6 +53,15 @@ public class PhieuTraHangChiTiet {
 
     @Column(name = "GhiChuNhanVien", length = 255) // Ánh xạ đến cột GhiChu NVARCHAR(500)
     String ghiChuNhanVien;
+
+    @Column(name = "DonGiaGoc", precision = 10, scale = 2)
+    BigDecimal donGiaGoc; // Giá gốc của sản phẩm (trước khi giảm giá)
+
+    @Column(name = "SoTienHoanTra", precision = 10, scale = 2)
+    BigDecimal soTienHoanTra; // Số tiền thực tế hoàn trả (đã trừ voucher)
+
+    @Column(name = "TyLeGiamGia", precision = 5, scale = 4)
+    BigDecimal tyLeGiamGia; // Tỷ lệ giảm giá từ voucher áp dụng cho item này
 
     // Ánh xạ đến cột TrangThai ENUM
     @Enumerated(EnumType.STRING) // Lưu giá trị enum dưới dạng chuỗi trong cơ sở dữ liệu

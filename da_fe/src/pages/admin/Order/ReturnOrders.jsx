@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { CircularProgress } from '@mui/material';
 import {
     Visibility as VisibilityIcon,
@@ -36,6 +36,10 @@ function ReturnOrders() {
     const [successMessage, setSuccessMessage] = useState('');
     const [reasonErrors, setReasonErrors] = useState({});
     const [isProcessing, setIsProcessing] = useState(false);
+    const [refundAmount, setRefundAmount] = useState(0);
+    const [isCalculatingRefund, setIsCalculatingRefund] = useState(false);
+    const [orderSubtotal, setOrderSubtotal] = useState(null);
+    const [orderVoucher, setOrderVoucher] = useState(null);
 
     const { admin, role } = useAdminAuth();
 
@@ -98,11 +102,84 @@ function ReturnOrders() {
         }
     };
 
+    const calculateRefundAmount = async (phieuTraHangId) => {
+        try {
+            setIsCalculatingRefund(true);
+            const token = getAuthToken();
+            
+            const response = await axios.get(
+                `http://localhost:8080/phieu-tra-hang/${phieuTraHangId}/calculate-refund`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+            
+            if (response.data.code === 1000) {
+                setRefundAmount(response.data.result);
+            }
+        } catch (error) {
+            console.error('Lỗi khi tính toán số tiền hoàn trả:', error);
+            setRefundAmount(0);
+        } finally {
+            setIsCalculatingRefund(false);
+        }
+    };
+
     useEffect(() => {
         if (hasPermission()) {
             fetchReturnOrders();
         }
     }, [admin, role]);
+
+    // Ước tính tỷ lệ voucher giống trang khách nếu thiếu dữ liệu giảm giá trước khi duyệt
+    const getDiscountRatio = (voucher, subtotal) => {
+        if (!voucher || !subtotal || subtotal <= 0) return 0;
+        let discountAmount = 0;
+        const type = voucher.kieuGiaTri;
+        if (type === 0 || (type === 1 && voucher?.schema === 'percent')) {
+            discountAmount = subtotal * (Number(voucher.giaTri || 0) / 100);
+            if (voucher.giaTriMax) discountAmount = Math.min(discountAmount, Number(voucher.giaTriMax));
+        } else {
+            discountAmount = Number(voucher.giaTri || 0);
+        }
+        discountAmount = Math.min(discountAmount, subtotal);
+        return Math.min(discountAmount / subtotal, 1);
+    };
+
+    const predictedRatio = useMemo(() => {
+        if (!orderVoucher || !orderSubtotal) return null;
+        return getDiscountRatio(orderVoucher, Number(orderSubtotal));
+    }, [orderVoucher, orderSubtotal]);
+
+    // Khi mở modal chi tiết, nếu thiếu tyLeGiamGia/soTienHoanTra thì lấy thông tin đơn gốc để ước tính
+    useEffect(() => {
+        const fetchOrderInfo = async () => {
+            try {
+                if (!selectedOrder?.hoaDonId) return;
+                const token = getAuthToken();
+                const headers = token ? { Authorization: `Bearer ${token}` } : {};
+                const ctRes = await axios.get(`http://localhost:8080/api/hoa-don-ct/hoa-don/${selectedOrder.hoaDonId}`, { headers });
+                const items = Array.isArray(ctRes.data) ? ctRes.data : [];
+                const subtotal = items.reduce((sum, it) => sum + Number(it.giaBan || 0) * Number(it.soLuong || 0), 0);
+                const hdRes = await axios.get(`http://localhost:8080/api/hoa-don/${selectedOrder.hoaDonId}`, { headers });
+                const voucher = hdRes?.data?.voucher || null;
+                setOrderSubtotal(subtotal);
+                setOrderVoucher(voucher);
+            } catch (e) {
+                console.warn('Không thể lấy thông tin đơn gốc để ước tính voucher ratio (admin):', e);
+            }
+        };
+
+        if (showDetailModal && selectedOrder?.chiTietTraHang?.length) {
+            const missingAdjusted = selectedOrder.chiTietTraHang.some(
+                (ct) => ct?.tyLeGiamGia == null && ct?.soTienHoanTra == null,
+            );
+            if (missingAdjusted) fetchOrderInfo();
+        }
+    }, [showDetailModal, selectedOrder]);
 
     useEffect(() => {
         let filtered = returnOrders;
@@ -188,6 +265,12 @@ function ReturnOrders() {
         setShowDetailModal(true);
         setApprovalNote('');
         setReasonErrors({});
+        
+        // Reset refund amount và tính toán lại
+        setRefundAmount(0);
+        if (order && order.id) {
+            calculateRefundAmount(order.id);
+        }
 
         const initialSelections = {};
         const initialReasons = {};
@@ -537,14 +620,7 @@ function ReturnOrders() {
     }
 
     return (
-        <div className="p-6">
-            {successMessage && (
-                <div className="mb-4">
-                    <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative text-center font-semibold">
-                        {successMessage}
-                    </div>
-                </div>
-            )}
+        <>
             <div className="font-bold text-sm mb-4">
                 Quản lý phiếu trả hàng
                 <span className="text-xs text-gray-500 ml-2">(Đăng nhập với quyền: {role})</span>
@@ -740,8 +816,12 @@ function ReturnOrders() {
             </div>
 
             {showDetailModal && selectedOrder && (
-                <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 z-50">
-                    <div className="bg-white rounded-lg shadow-lg p-6 w-[1200px] max-h-[90vh] overflow-y-auto">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300"
+                        onClick={() => (!isProcessing ? setShowDetailModal(false) : null)}
+                    />
+                    <div className="relative bg-white rounded-2xl shadow-2xl p-6 w-[1400px] max-h-[92vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-bold text-gray-900">
                                 Chi tiết phiếu trả hàng: {selectedOrder.maPhieuTraHang}
@@ -877,6 +957,7 @@ function ReturnOrders() {
                                             <th className="py-2 px-3 text-left text-xs font-medium w-16">Độ cứng</th>
                                             <th className="py-2 px-3 text-left text-xs font-medium w-20">SL trả</th>
                                             <th className="py-2 px-3 text-left text-xs font-medium w-20">Đơn giá</th>
+                                            <th className="py-2 px-3 text-left text-xs font-medium w-24">Tổng tiền</th>
                                             <th className="py-2 px-3 text-left text-xs font-medium w-100">
                                                 Lý do trả hàng
                                             </th>
@@ -890,12 +971,35 @@ function ReturnOrders() {
                                         {selectedOrder.chiTietTraHang.map((detail) => {
                                             const key = detail.thongTinSanPhamTra?.hoaDonChiTietId ?? detail.id;
                                             const isApproved = selectedOrder.trangThai === 'APPROVED';
-                                            const soLuongDuocPheDuyet =
-                                                typeof detail.soLuongDuocPheDuyet === 'number'
+                                            const soLuongDuocPheDuyet = isApproved
+                                                ? (typeof detail.soLuongDuocPheDuyet === 'number'
                                                     ? detail.soLuongDuocPheDuyet
-                                                    : (productQuantities[key] ?? 0);
+                                                    : 0)
+                                                : (productSelections[key]
+                                                    ? (productQuantities[key] ?? 0)
+                                                    : 0);
                                             const soLuongKhongDuocDuyet =
                                                 (detail.soLuongTra || 0) - (soLuongDuocPheDuyet || 0);
+
+                                            // Giá gốc và giá hoàn (đã trừ voucher) cho mỗi dòng
+                                            const unitOriginal = Number(
+                                                detail.thongTinSanPhamTra?.giaBan ?? detail.donGiaGoc ?? 0,
+                                            );
+                                            const qtyApproved = Number(soLuongDuocPheDuyet || 0);
+                                            const unitAdjusted = (() => {
+                                                if (typeof detail.soTienHoanTra === 'number' && qtyApproved > 0) {
+                                                    return Number(detail.soTienHoanTra) / qtyApproved;
+                                                }
+                                                if (typeof detail.tyLeGiamGia === 'number') {
+                                                    return unitOriginal * (1 - Number(detail.tyLeGiamGia));
+                                                }
+                                                if (typeof predictedRatio === 'number') {
+                                                    return unitOriginal * (1 - predictedRatio);
+                                                }
+                                                return unitOriginal;
+                                            })();
+                                            const lineOriginalTotal = unitOriginal * qtyApproved;
+                                            const lineAdjustedTotal = unitAdjusted * qtyApproved;
                                             return (
                                                 <tr key={key} className="border-b border-gray-200">
                                                     <td className="py-2 px-3">
@@ -1017,7 +1121,24 @@ function ReturnOrders() {
                                                         </div>
                                                     </td>
                                                     <td className="py-2 px-3 text-sm text-gray-900 font-medium">
-                                                        {formatCurrency(detail.thongTinSanPhamTra.giaBan)}
+                                                        <div className="flex flex-col">
+                                                            <span className="text-gray-400 line-through">
+                                                                {formatCurrency(unitOriginal)}
+                                                            </span>
+                                                            <span className="text-red-600 font-semibold">
+                                                                {formatCurrency(unitAdjusted)}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="py-2 px-3 text-sm text-gray-900 font-semibold">
+                                                        <div className="flex flex-col">
+                                                            <span className="text-gray-400 line-through">
+                                                                {formatCurrency(lineOriginalTotal)}
+                                                            </span>
+                                                            <span className="text-red-600 font-semibold">
+                                                                {formatCurrency(lineAdjustedTotal)}
+                                                            </span>
+                                                        </div>
                                                     </td>
                                                     <td className="py-2 px-3">
                                                         <div className="text-sm text-gray-900 break-words">
@@ -1198,7 +1319,7 @@ function ReturnOrders() {
                                         cái
                                     </div>
                                     <div className="text-xs text-green-600">
-                                        Tổng giá trị:{' '}
+                                        Tổng giá trị gốc:{' '}
                                         {formatCurrency(
                                             getSelectedProducts().reduce((sum, p) => {
                                                 const key = p.thongTinSanPhamTra?.hoaDonChiTietId ?? p.id;
@@ -1217,6 +1338,20 @@ function ReturnOrders() {
                                             }, 0),
                                         )}
                                     </div>
+                                    {selectedOrder.trangThai === 'APPROVED' && (
+                                        <div className="text-xs text-blue-600 font-medium">
+                                            {isCalculatingRefund ? (
+                                                <span className="flex items-center">
+                                                    <CircularProgress size={12} className="mr-1" />
+                                                    Đang tính toán...
+                                                </span>
+                                            ) : (
+                                                <>
+                                                    Số tiền hoàn trả (đã trừ voucher): {formatCurrency(refundAmount)}
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="bg-red-50 p-3 rounded-lg">
                                     <div className="text-sm font-medium text-red-800">
@@ -1361,8 +1496,12 @@ function ReturnOrders() {
             )}
 
             {showConfirmModal && (
-                <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 z-50">
-                    <div className="bg-white rounded-lg shadow-lg p-6 w-96">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300"
+                        onClick={() => (!isProcessing ? setShowConfirmModal(false) : null)}
+                    />
+                    <div className="relative bg-white rounded-2xl shadow-2xl p-6 w-96">
                         <h3 className="text-lg font-bold text-gray-900 mb-4">Xác nhận hành động</h3>
                         <p className="text-sm text-gray-600 mb-6">
                             {hasSelectedProducts()
@@ -1399,7 +1538,7 @@ function ReturnOrders() {
                     </div>
                 </div>
             )}
-        </div>
+        </>
     );
 }
 

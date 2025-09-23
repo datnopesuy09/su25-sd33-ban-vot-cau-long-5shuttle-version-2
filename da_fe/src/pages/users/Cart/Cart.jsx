@@ -53,7 +53,7 @@ const Cart = () => {
     const idTaiKhoan = user?.id || parseJwt(token)?.sub || parseJwt(token)?.id || localStorage.getItem('idKhachHang');
 
     console.log('id user: ', idTaiKhoan);
-    // Calculate shipping (free if over 1M VND)
+    // Calculate shipping (free if over 1M VND) -- use numeric fee to avoid boolean coercion
 
     const [selectedItems, setSelectedItems] = useState([]);
     const isAllSelected = carts.length > 0 && selectedItems.length === carts.length;
@@ -121,8 +121,9 @@ const Cart = () => {
         }
     };
 
-    const shipping = totalPrice > 1000000;
-    const finalTotal = totalPrice + shipping;
+    // shippingFee is numeric: 0 when free, otherwise the fee (example 30000)
+    const shippingFee = totalPrice > 1000000 ? 0 : 30000;
+    const finalTotal = totalPrice + shippingFee;
 
     const handleSelectItem = (cartId) => {
         setSelectedItems((prev) => (prev.includes(cartId) ? prev.filter((id) => id !== cartId) : [...prev, cartId]));
@@ -384,7 +385,7 @@ const Cart = () => {
                         <CartSummary
                             carts={carts.filter((item) => selectedItems.includes(item.id))}
                             totalPrice={totalPrice}
-                            shipping={shipping}
+                            shipping={shippingFee}
                             finalTotal={finalTotal}
                             handleCheckout={handleCheckout}
                             isCheckingOut={isCheckingOut}

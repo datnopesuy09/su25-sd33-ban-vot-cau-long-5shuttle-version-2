@@ -16,6 +16,7 @@ public interface PhieuTraHangMapper {
 
     @Mapping(source = "user.id", target = "userId")
     @Mapping(source = "hoaDon.ma", target = "hoaDonMa")
+    @Mapping(source = "hoaDon.id", target = "hoaDonId")
     @Mapping(source = "hoaDon.taiKhoan.hoTen", target = "hoTenKhachHang")
     @Mapping(source = "hoaDon.taiKhoan.email", target = "emailKhachHang")
     @Mapping(source = "hoaDon.sdtNguoiNhan", target = "sdtKhachHang")
@@ -33,6 +34,9 @@ public interface PhieuTraHangMapper {
     @Mapping(source = "soLuongNhapKho", target = "soLuongNhapKho")
     @Mapping(source = "soLuongHong", target = "soLuongHong")
     @Mapping(source = "lyDoTraHang", target = "lyDoTraHang") // Thêm dòng này
+    @Mapping(source = "donGiaGoc", target = "donGiaGoc")
+    @Mapping(source = "soTienHoanTra", target = "soTienHoanTra")
+    @Mapping(source = "tyLeGiamGia", target = "tyLeGiamGia")
     PhieuTraHangChiTietResponse toPhieuTraHangChiTietResponse(PhieuTraHangChiTiet phieuTraHangChiTiet);
 
     @Named("mapHoaDonCTToSanPhamTra")

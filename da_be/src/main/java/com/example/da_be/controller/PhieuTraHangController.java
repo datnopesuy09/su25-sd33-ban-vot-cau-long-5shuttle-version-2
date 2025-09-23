@@ -13,12 +13,13 @@ import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Slf4j
 @RestController
 @RequestMapping("/phieu-tra-hang")
-@CrossOrigin(origins = "http://localhost:5173")
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:5174"})
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @RequiredArgsConstructor
 public class PhieuTraHangController {
@@ -72,5 +73,13 @@ public class PhieuTraHangController {
                 .build();
     }
 
+    @GetMapping("/{phieuTraHangId}/calculate-refund")
+    public ApiResponse<BigDecimal> calculateRefundAmount(@PathVariable Integer phieuTraHangId) {
+        return ApiResponse.<BigDecimal>builder()
+                .result(phieuTraHangService.calculateRefundAmountForPhieu(phieuTraHangId))
+                .code(1000)
+                .message("Tính toán số tiền hoàn trả thành công")
+                .build();
+    }
 
 }

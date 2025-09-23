@@ -190,6 +190,7 @@ function ProductCard({ product }) {
                 ];
             }
 
+
             setProductVariants(colorVariants);
             setDisplayedVariant(colorVariants[0] || null);
             setVariantsCached(true);

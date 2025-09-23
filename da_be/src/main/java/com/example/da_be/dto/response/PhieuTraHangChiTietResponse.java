@@ -31,4 +31,13 @@ public class PhieuTraHangChiTietResponse {
 
     String lyDoTraHang;
 
+    // Giá gốc của sản phẩm (tại thời điểm mua) – lưu kèm để hiển thị gạch ngang
+    java.math.BigDecimal donGiaGoc;
+
+    // Số tiền thực tế hoàn trả cho dòng này (ưu tiên hiển thị nếu có)
+    java.math.BigDecimal soTienHoanTra;
+
+    // Tỷ lệ giảm giá (0..1) được áp cho dòng này từ voucher – hỗ trợ ước tính đơn giá hoàn
+    java.math.BigDecimal tyLeGiamGia;
+
 }

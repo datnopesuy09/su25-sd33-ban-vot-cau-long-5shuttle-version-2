@@ -89,6 +89,10 @@ function Product() {
                                         Thêm sản phẩm
                                     </button>
                                 </Link>
+                                {/* <button className="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg flex items-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                                    <FileDownloadIcon className="h-5 w-5" />
+                                    Xuất Excel
+                                </button> */}
                             </div>
                         </div>
                     </div>

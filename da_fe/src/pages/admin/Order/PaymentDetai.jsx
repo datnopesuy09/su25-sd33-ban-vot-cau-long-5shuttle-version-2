@@ -26,75 +26,47 @@ const PaymentDetails = ({
 
     // Hàm resolvePrices tương tự như trong orderDetail.jsx
     const resolvePrices = (item) => {
-        // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
-        const currentQty = Number(item.soLuong) || 1;
+        const qty = Number(item?.soLuong ?? item?.quantity ?? 1);
 
-        // Logic hybrid: Kiểm tra xem có đơn giá unit được lưu sẵn không
-        if (item.unitPriceOriginal && item.originalPriceCache) {
-            // Nếu có đơn giá gốc và giá gốc đã được cache trước đó
-            return {
-                originalPrice: Number(item.originalPriceCache),
-                discountedPrice: Number(item.unitPriceOriginal),
-                unitPrice: Number(item.unitPriceOriginal),
-            };
+        // Unit price actually charged (hoaDonCT.giaBan)
+        let unitPrice = 0;
+        if (item?.giaBan != null) {
+            unitPrice = Number(item.giaBan);
+        } else if (item?.donGia != null) {
+            unitPrice = Number(item.donGia);
+        } else if (item?.sanPhamCT?.donGia != null) {
+            unitPrice = Number(item.sanPhamCT.donGia);
         }
 
-        // Giá đã lưu trong hóa đơn (giá tại thời điểm mua hàng)
-        if (item.giaBan !== undefined && item.giaBan !== null) {
-            const savedTotalPrice = Number(item.giaBan);
-            
-            // Tính đơn giá từ tổng tiền và số lượng hiện tại
-            // Nếu chưa có hoàn hàng thì sẽ đúng, nếu có rồi thì sẽ sai
-            const calculatedUnitPrice = savedTotalPrice / currentQty;
-            
-            // Lấy giá gốc từ sản phẩm
-            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? calculatedUnitPrice;
-            
-            // LOGIC MỚI: Phân biệt discount vs hoàn hàng
-            const priceDifference = calculatedUnitPrice - originalPrice;
-            const priceThreshold = originalPrice * 0.1; // 10% threshold
-            
-            let finalUnitPrice;
-            if (Math.abs(priceDifference) <= priceThreshold) {
-                // Giá tính ra gần giá gốc → chưa hoàn hàng, không discount nhiều
-                finalUnitPrice = calculatedUnitPrice;
-            } else if (priceDifference < 0) {
-                // calculatedUnitPrice < originalPrice → CÓ DISCOUNT → GIỮ GIÁ DISCOUNT
-                finalUnitPrice = calculatedUnitPrice;
-            } else {
-                // calculatedUnitPrice > originalPrice → ĐÃ HOÀN HÀNG → DÙNG GIÁ GỐC
-                finalUnitPrice = originalPrice;
-            }
-            
-            // Lưu đơn giá này để dùng cho lần sau
-            item.unitPriceOriginal = finalUnitPrice;
-            item.originalPriceCache = originalPrice; // Lưu luôn giá gốc để hiển thị discount
-
-            return {
-                originalPrice: Number(originalPrice),
-                discountedPrice: finalUnitPrice,
-                unitPrice: finalUnitPrice,
-            };
+        let unitOriginal = unitPrice;
+        if (item?.giaGoc != null) {
+            unitOriginal = Number(item.giaGoc);
+        } else if (item?.sanPhamCT?.donGia != null) {
+            unitOriginal = Number(item.sanPhamCT.donGia);
         }
 
-        // Fallback: nếu không có giá lưu, sử dụng giá gốc từ sản phẩm
-        const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? 0;
+        const toMoney = (n) => Math.round((Number(n) || 0) * 100) / 100;
+        unitPrice = toMoney(unitPrice);
+        unitOriginal = toMoney(unitOriginal);
 
         return {
-            originalPrice: Number(originalPrice),
-            discountedPrice: Number(originalPrice),
-            unitPrice: Number(originalPrice),
+            unitOriginalPrice: unitOriginal,
+            unitDiscountedPrice: unitPrice,
+            quantity: qty,
+            lineDiscountedTotal: toMoney(unitPrice * qty),
+            lineOriginalTotal: toMoney(unitOriginal * qty),
         };
     };
 
     // Tính toán subtotal sử dụng logic promotion giống orderDetail.jsx
     const calculateSubtotalFromItems = () => {
-        if (!items || !Array.isArray(items)) return null;
-
-        return items.reduce((total, item) => {
-            const { unitPrice } = resolvePrices(item);
-            return total + unitPrice * (item.soLuong || 0);
-        }, 0);
+        if (Array.isArray(items) && items.length > 0) {
+            return items.reduce((sum, it) => {
+                const { unitDiscountedPrice, quantity } = resolvePrices(it);
+                return sum + unitDiscountedPrice * quantity;
+            }, 0);
+        }
+        return 0;
     };
 
     const calculatedSubtotal = calculateSubtotalFromItems();

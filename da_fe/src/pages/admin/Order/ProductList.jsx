@@ -211,10 +211,12 @@ const ProductList = ({
     };
 
     const formatCurrency = (amount) => {
+        const n = Number.isFinite(amount) ? amount : Number(amount);
+        const safe = Number.isFinite(n) ? n : 0;
         return new Intl.NumberFormat('vi-VN', {
             style: 'currency',
             currency: 'VND',
-        }).format(amount);
+        }).format(safe);
     };
 
     // Clear cache nếu danh sách chi tiết đơn thay đổi (tránh giữ giá cũ)
@@ -224,80 +226,45 @@ const ProductList = ({
 
     // Resolve possible price fields and return original and discounted prices
     const resolvePrices = (item) => {
-        // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
-        const currentQty = Number(item.soLuong) || 1;
+        const qty = Number(item?.soLuong ?? item?.quantity ?? 1);
 
-        // 1) Ưu tiên lấy đơn giá giao dịch từ lịch sử hoàn hàng (nếu đã có)
-        const transactionUnitFromReturn = returnPriceMap?.[item.id];
-        if (transactionUnitFromReturn) {
-            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? transactionUnitFromReturn;
-            // Cache nhanh để lần render sau không tính lại
-            priceCacheRef.current.set(item.id, { unitPrice: Number(transactionUnitFromReturn), originalPrice: Number(originalPrice) });
-            return {
-                originalPrice: Number(originalPrice),
-                discountedPrice: Number(transactionUnitFromReturn),
-                unitPrice: Number(transactionUnitFromReturn),
-            };
+        // Backend now stores hoaDonCT.giaBan as unit price at transaction time
+        let unitPrice = 0;
+        if (item?.giaBan != null) {
+            unitPrice = Number(item.giaBan);
+        } else if (item?.donGia != null) {
+            unitPrice = Number(item.donGia);
+        } else if (item?.sanPhamCT?.donGia != null) {
+            unitPrice = Number(item.sanPhamCT.donGia);
         }
 
-        // 2) Dùng cache nội bộ (không mutate props)
-        const cached = priceCacheRef.current.get(item.id);
-        if (cached) {
-            return {
-                originalPrice: Number(cached.originalPrice),
-                discountedPrice: Number(cached.unitPrice),
-                unitPrice: Number(cached.unitPrice),
-            };
+        // Original price for strike-through (if available)
+        let unitOriginal = unitPrice;
+        if (item?.giaGoc != null) {
+            unitOriginal = Number(item.giaGoc);
+        } else if (item?.sanPhamCT?.donGia != null) {
+            unitOriginal = Number(item.sanPhamCT.donGia);
         }
 
-        // Giá đã lưu trong hóa đơn (giá tại thời điểm mua hàng)
-        if (item.giaBan !== undefined && item.giaBan !== null) {
-            const savedTotalPrice = Number(item.giaBan);
-            
-            // Tính đơn giá từ tổng tiền và số lượng hiện tại
-            // Nếu chưa có hoàn hàng thì sẽ đúng, nếu có rồi thì sẽ sai
-            const calculatedUnitPrice = savedTotalPrice / currentQty;
-            
-            // Lấy giá gốc từ sản phẩm
-            const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? calculatedUnitPrice;
-            
-            // LOGIC MỚI: Phân biệt discount vs hoàn hàng
-            const priceDifference = calculatedUnitPrice - originalPrice;
-            const priceThreshold = originalPrice * 0.1; // 10% threshold
-            
-            let finalUnitPrice;
-            if (Math.abs(priceDifference) <= priceThreshold) {
-                // Giá tính ra gần giá gốc → chưa hoàn hàng, không discount nhiều
-                finalUnitPrice = calculatedUnitPrice;
-            } else if (priceDifference < 0) {
-                // calculatedUnitPrice < originalPrice → CÓ DISCOUNT → GIỮ GIÁ DISCOUNT
-                finalUnitPrice = calculatedUnitPrice;
-            } else {
-                // calculatedUnitPrice > originalPrice → KHẢ NĂNG đã có hoàn hàng
-                // Nếu chưa có returnPriceMap (chưa fetch xong) thì vẫn ưu tiên GIỮ đơn giá trước đó nếu có,
-                // còn không thì tạm thời dùng calculatedUnitPrice để không mất discount.
-                finalUnitPrice = calculatedUnitPrice;
-            }
-            
-            // Cache vào ref (không mutate item props)
-            priceCacheRef.current.set(item.id, { unitPrice: Number(finalUnitPrice), originalPrice: Number(originalPrice) });
+        const toMoney = (n) => Math.round((Number(n) || 0) * 100) / 100;
+        unitPrice = toMoney(unitPrice);
+        unitOriginal = toMoney(unitOriginal);
 
-            return {
-                originalPrice: Number(originalPrice),
-                discountedPrice: finalUnitPrice,
-                unitPrice: finalUnitPrice,
-            };
-        }
+        const lineTotal = toMoney(unitPrice * qty);
+        const lineOriginal = toMoney(unitOriginal * qty);
 
-        // Fallback: nếu không có giá lưu, sử dụng giá gốc từ sản phẩm
-        const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? 0;
-
-        // Cache fallback
-        priceCacheRef.current.set(item.id, { unitPrice: Number(originalPrice), originalPrice: Number(originalPrice) });
+        // Return both new names and legacy aliases used by JSX
         return {
-            originalPrice: Number(originalPrice),
-            discountedPrice: Number(originalPrice),
-            unitPrice: Number(originalPrice),
+            // New explicit names
+            unitOriginalPrice: unitOriginal,
+            unitDiscountedPrice: unitPrice,
+            lineOriginalTotal: lineOriginal,
+            lineDiscountedTotal: lineTotal,
+            quantity: qty,
+            // Legacy aliases used across the file/UI
+            originalPrice: unitOriginal,
+            discountedPrice: unitPrice,
+            unitPrice: unitPrice,
         };
     };
 
@@ -669,7 +636,7 @@ const ProductList = ({
                                                         (returnItem.sanPhamCT?.sanPham?.hinhAnhs && returnItem.sanPhamCT.sanPham.hinhAnhs.length > 0 ? 
                                                             `http://localhost:8080/uploads/${returnItem.sanPhamCT.sanPham.hinhAnhs[0]}` : null) ||
                                                         (returnItem.hinhAnhs && returnItem.hinhAnhs.length > 0 ? 
-                                                            `http://localhost:8080/uploads/${returnItem.hinhAnhs[0]}` : null) ||
+                                                            `http://localhost:8080/uploads/${returnItem.hinhAnHs[0]}` : null) ||
                                                         'https://via.placeholder.com/128?text=No+Image'
                                                     }
                                                     alt={returnItem.tenSanPham || 'Sản phẩm'}

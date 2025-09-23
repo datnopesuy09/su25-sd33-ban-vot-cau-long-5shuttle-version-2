@@ -27,6 +27,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import numeral from 'numeral';
+import RefundCalculationInfo from './RefundCalculationInfo';
 
 export default function OrderReturn() {
     const { id } = useParams(); // orderId
@@ -35,6 +36,9 @@ export default function OrderReturn() {
     const [products, setProducts] = useState([]);
     const [reason, setReason] = useState('');
     const [description, setDescription] = useState('');
+    const [orderInfo, setOrderInfo] = useState(null);
+    const [actualRefundAmount, setActualRefundAmount] = useState(0);
+    const [isCalculatingRefund, setIsCalculatingRefund] = useState(false);
     const hasSelected = products.some((p) => p.selected);
 
     const fetchData = async () => {
@@ -43,6 +47,14 @@ export default function OrderReturn() {
             const res = await axios.get(`http://localhost:8080/users/myOderDetail/${id}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
+            // Suy ra thông tin đơn hàng (voucher, tổng tiền, tổng tiền hàng trước voucher)
+            const result = Array.isArray(res.data.result) ? res.data.result : [];
+            const first = result[0] || null;
+            const hoaDon = first?.hoaDon || null;
+            // Tính tổng tiền hàng (subtotal) trước voucher: sum(giaBan * soLuong)
+            const orderSubtotal = result.reduce((sum, it) => sum + (Number(it.giaBan || 0) * Number(it.soLuong || 0)), 0);
+            setOrderInfo(hoaDon ? { voucher: hoaDon.voucher, tongTien: hoaDon.tongTien, orderSubtotal } : null);
+            
             const items = res.data.result.map((item) => ({
                 id: item.id,
                 name:
@@ -126,6 +138,61 @@ export default function OrderReturn() {
             }
         }
     };
+
+    // Tính số tiền hoàn trả có xét voucher
+    const calculateActualRefund = () => {
+        if (!orderInfo || !hasSelected) {
+            setActualRefundAmount(0);
+            return;
+        }
+
+        const selectedProducts = products.filter(p => p.selected);
+        let totalOriginalAmount = selectedProducts.reduce((sum, p) => sum + (p.price * p.quantityReturn), 0);
+
+        // Nếu đơn hàng có voucher, tính tỷ lệ giảm giá theo cấu hình voucher và subtotal của đơn hàng
+        if (orderInfo.voucher && Number(orderInfo.orderSubtotal) > 0) {
+            const discountRatio = getDiscountRatio(orderInfo.voucher, Number(orderInfo.orderSubtotal));
+            const actualRefund = totalOriginalAmount * (1 - discountRatio);
+            setActualRefundAmount(Math.max(0, actualRefund));
+        } else {
+            setActualRefundAmount(totalOriginalAmount);
+        }
+    };
+
+    // Helper function để tính tỷ lệ giảm giá
+    const getDiscountRatio = (voucher, orderSubtotal) => {
+        if (!voucher || !orderSubtotal || orderSubtotal <= 0) return 0;
+
+        // Chuẩn hóa: FE dùng 0 = phần trăm, 1 = số tiền; BE có thể dùng 1 = %, 2 = số tiền
+        const type = voucher.kieuGiaTri;
+        let discountAmount = 0;
+
+        // Phần trăm
+        if (type === 0 || type === 1 && voucher?.schema === 'percent') {
+            discountAmount = orderSubtotal * (Number(voucher.giaTri || 0) / 100);
+            if (voucher.giaTriMax) {
+                discountAmount = Math.min(discountAmount, Number(voucher.giaTriMax));
+            }
+        }
+
+        // Số tiền cố định (bao gồm cả trường hợp BE dùng 1/2)
+        if (type === 1 || type === 2) {
+            // Nếu thực sự là percent theo FE (type===1) thì nhánh percent ở trên đã xử lý khi schema='percent'.
+            // Ở đây xử lý số tiền cố định phổ biến: FE type 1, BE type 2
+            // Nếu có cả 2 nhánh chạy, lấy lớn hơn? Để an toàn, ưu tiên max giảm nhưng không vượt quá subtotal.
+            const fixed = Number(voucher.giaTri || 0);
+            discountAmount = Math.max(discountAmount, fixed);
+        }
+
+        // Không vượt quá tổng tiền hàng
+        discountAmount = Math.min(discountAmount, orderSubtotal);
+        return Math.min(discountAmount / orderSubtotal, 1);
+    };
+
+    // Cập nhật actual refund khi products thay đổi
+    useEffect(() => {
+        calculateActualRefund();
+    }, [products, orderInfo]);
 
     const totalRefund = products.reduce((sum, p) => {
         if (p.selected) {
@@ -321,6 +388,14 @@ export default function OrderReturn() {
                 )}
             </Paper>
 
+            {hasSelected && (
+                <RefundCalculationInfo 
+                    orderInfo={orderInfo}
+                    totalRefund={totalRefund}
+                    actualRefundAmount={actualRefundAmount}
+                />
+            )}
+
             <Box
                 position="sticky"
                 bottom={0}
@@ -331,9 +406,19 @@ export default function OrderReturn() {
                 flexWrap="wrap"
                 gap={1}
             >
-                <Typography fontWeight="bold" mb={2}>
-                    Tổng tiền hoàn trả: <span style={{ color: 'red' }}>{numeral(totalRefund).format('0,0')} ₫</span>
-                </Typography>
+                <div>
+                    <Typography variant="body2" color="text.secondary">
+                        Tổng giá trị sản phẩm trả: <span style={{ color: '#666' }}>{numeral(totalRefund).format('0,0')} ₫</span>
+                    </Typography>
+                    {orderInfo?.voucher && (
+                        <Typography variant="body2" color="warning.main" sx={{ mt: 0.5 }}>
+                            ⚠️ Đơn hàng có voucher "{orderInfo.voucher.ten}" - Số tiền hoàn trả sẽ được điều chỉnh
+                        </Typography>
+                    )}
+                    <Typography fontWeight="bold" sx={{ mt: 1 }}>
+                        Số tiền hoàn trả thực tế: <span style={{ color: 'red' }}>{numeral(actualRefundAmount).format('0,0')} ₫</span>
+                    </Typography>
+                </div>
                 <Stack direction="row" spacing={1}>
                     <Button
                         variant="contained"

@@ -126,24 +126,49 @@ export default function ProductDetail() {
             toast.warning('Bạn cần đăng nhập để thêm sản phẩm vào giỏ hàng');
             return;
         }
-        const payload = {
-            idTaiKhoan,
-            idSanPhamCT: selectedVariant.id,
-            soLuong: quantity,
-        };
+        
+        const parsedIdTaiKhoan = parseInt(idTaiKhoan);
+        if (isNaN(parsedIdTaiKhoan)) {
+            toast.error('ID tài khoản không hợp lệ');
+            return;
+        }
+        
         try {
-            const response = await axios.post('http://localhost:8080/api/gio-hang/them', payload);
-            if (response.status === 201) {
-                swal('Thành công!', 'Sản phẩm đã được thêm vào giỏ hàng!', 'success');
-                // Gọi API để lấy số lượng sản phẩm trong giỏ hàng
-                const countResponse = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}/count`);
-                setCartItemCount(countResponse.data); // Cập nhật số lượng giỏ hàng
+            // Kiểm tra giỏ hàng hiện tại để tránh vượt tồn kho nếu đã có sẵn item
+            const cartResponse = await axios.get(`http://localhost:8080/api/gio-hang/${parsedIdTaiKhoan}`);
+            const existingCartItem = cartResponse.data.find((item) => item.sanPhamCT.id === selectedVariant.id);
+
+            const stock = selectedVariant.soLuong;
+            if (existingCartItem) {
+                const currentQty = existingCartItem.soLuong;
+                if (currentQty >= stock) {
+                    swal('Thất bại!', 'Bạn đã có số lượng tối đa sản phẩm này trong giỏ hàng.', 'error');
+                    return;
+                }
+                const newQty = Math.min(stock, currentQty + quantity);
+                await axios.put(`http://localhost:8080/api/gio-hang/${existingCartItem.id}`, { soLuong: newQty });
+                swal('Thành công!', 'Đã cập nhật số lượng sản phẩm trong giỏ hàng!', 'success');
             } else {
-                swal('Thất bại!', 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng!', 'error');
+                const payload = {
+                    idTaiKhoan: parsedIdTaiKhoan,
+                    idSanPhamCT: selectedVariant.id,
+                    soLuong: quantity,
+                };
+                const response = await axios.post('http://localhost:8080/api/gio-hang/them', payload);
+                if (response.status === 201) {
+                    swal('Thành công!', 'Sản phẩm đã được thêm vào giỏ hàng!', 'success');
+                } else {
+                    swal('Thất bại!', 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng!', 'error');
+                }
             }
+
+            // Cập nhật số lượng hiển thị ở icon giỏ hàng
+            const countResponse = await axios.get(`http://localhost:8080/api/gio-hang/${parsedIdTaiKhoan}/count`);
+            setCartItemCount(countResponse.data);
         } catch (error) {
             console.error('Thêm sản phẩm vào giỏ hàng thất bại', error);
-            swal('Thất bại!', 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng!', 'error');
+            const msg = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng!';
+            swal('Thất bại!', msg, 'error');
         }
     };
 
@@ -169,38 +194,68 @@ export default function ProductDetail() {
             return;
         }
 
+        const parsedIdTaiKhoan = parseInt(idTaiKhoan);
+        if (isNaN(parsedIdTaiKhoan)) {
+            toast.error('ID tài khoản không hợp lệ');
+            return;
+        }
+
         try {
-            // Thêm sản phẩm vào giỏ hàng trước
-            const payload = {
-                idTaiKhoan,
-                idSanPhamCT: selectedVariant.id,
-                soLuong: quantity,
-            };
+            // Kiểm tra giỏ hàng hiện tại xem đã có item này chưa
+            const cartBefore = await axios.get(`http://localhost:8080/api/gio-hang/${parsedIdTaiKhoan}`);
+            const existingCartItem = cartBefore.data.find((item) => item.sanPhamCT.id === selectedVariant.id);
+            const stock = selectedVariant.soLuong;
 
-            const response = await axios.post('http://localhost:8080/api/gio-hang/them', payload);
-            if (response.status === 201) {
-                // Lấy thông tin cart item vừa thêm
-                const cartResponse = await axios.get(`http://localhost:8080/api/gio-hang/${idTaiKhoan}`);
-                const latestCartItem = cartResponse.data.find((item) => item.sanPhamCT.id === selectedVariant.id);
+            let targetCartItemId = null;
 
-                if (latestCartItem) {
-                    // Chuyển đến trang giỏ hàng với item đã được tích sẵn
-                    // Người dùng chỉ cần nhấn 'Tiến hành thanh toán' trên trang giỏ hàng
-                    navigate('/gio-hang', {
-                        state: {
-                            selectedItems: [latestCartItem.id],
-                            buyNow: true,
-                        },
-                    });
+            if (existingCartItem) {
+                const currentQty = existingCartItem.soLuong;
+                if (currentQty >= stock) {
+                    // Đã đạt tối đa tồn kho, chuyển thẳng đến giỏ hàng với item này được chọn
+                    targetCartItemId = existingCartItem.id;
                 } else {
-                    swal('Lỗi!', 'Không thể tìm thấy sản phẩm trong giỏ hàng!', 'error');
+                    const newQty = Math.min(stock, currentQty + quantity);
+                    await axios.put(`http://localhost:8080/api/gio-hang/${existingCartItem.id}`, { soLuong: newQty });
+                    targetCartItemId = existingCartItem.id;
                 }
             } else {
-                swal('Thất bại!', 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng!', 'error');
+                // Thêm sản phẩm vào giỏ hàng trước
+                const payload = {
+                    idTaiKhoan: parsedIdTaiKhoan,
+                    idSanPhamCT: selectedVariant.id,
+                    soLuong: quantity,
+                };
+                const response = await axios.post('http://localhost:8080/api/gio-hang/them', payload);
+                if (response.status !== 201) {
+                    swal('Thất bại!', 'Có lỗi xảy ra khi thêm sản phẩm vào giỏ hàng!', 'error');
+                    return;
+                }
+            }
+
+            // Lấy giỏ hàng mới nhất và điều hướng tới giỏ hàng với item đã chọn
+            const cartResponse = await axios.get(`http://localhost:8080/api/gio-hang/${parsedIdTaiKhoan}`);
+            const latestCartItem = cartResponse.data.find((item) => item.sanPhamCT.id === selectedVariant.id);
+            if (latestCartItem) {
+                navigate('/gio-hang', {
+                    state: {
+                        selectedItems: [latestCartItem.id],
+                        buyNow: true,
+                    },
+                });
+            } else if (targetCartItemId) {
+                navigate('/gio-hang', {
+                    state: {
+                        selectedItems: [targetCartItemId],
+                        buyNow: true,
+                    },
+                });
+            } else {
+                swal('Lỗi!', 'Không thể tìm thấy sản phẩm trong giỏ hàng!', 'error');
             }
         } catch (error) {
             console.error('Mua ngay thất bại', error);
-            swal('Thất bại!', 'Có lỗi xảy ra khi mua sản phẩm!', 'error');
+            const msg = error.response?.data?.message || error.message || 'Có lỗi xảy ra khi mua sản phẩm!';
+            swal('Thất bại!', msg, 'error');
         }
     };
 
