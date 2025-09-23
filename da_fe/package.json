@@ -23,6 +23,7 @@
         "@mui/x-date-pickers": "^8.11.2",
         "@mui/x-date-pickers-pro": "^8.5.2",
         "@stomp/stompjs": "^7.1.1",
+        "@tailwindcss/typography": "^0.5.18",
         "@tailwindcss/vite": "^4.1.7",
         "axios": "^1.9.0",
         "customize-cra": "^1.0.0",
@@ -44,6 +45,7 @@
         "react-router-dom": "^7.6.1",
         "react-slick": "^0.30.3",
         "react-toastify": "^11.0.5",
+        "recharts": "^3.2.1",
         "slick-carousel": "^1.8.1",
         "sockjs-client": "^1.6.1",
         "sweetalert": "^2.1.2",
@@ -61,7 +63,7 @@
         "globals": "^16.0.0",
         "postcss": "^8.5.3",
         "prettier": "3.5.3",
-        "tailwindcss": "^4.1.7",
+        "tailwindcss": "^4.1.13",
         "vite": "^6.3.5"
     }
 }
