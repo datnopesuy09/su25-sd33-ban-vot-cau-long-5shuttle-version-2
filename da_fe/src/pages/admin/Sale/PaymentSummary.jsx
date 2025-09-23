@@ -92,6 +92,11 @@ const PaymentSummary = ({ total, selectedBill, setSelectedBill, updateBills }) =
     };
 
     const handleConfirmOrder = async () => {
+        if (!selectedBill) {
+            Swal.fire({ icon: 'error', title: 'Lỗi', text: 'Không có hóa đơn được chọn' });
+            return;
+        }
+
         const finalAmount = total - promoDiscount;
 
         // Allow confirmation for "Chuyển khoản" or "Tiền mặt" with customerMoney >= finalAmount or customerMoney = 0
@@ -105,6 +110,7 @@ const PaymentSummary = ({ total, selectedBill, setSelectedBill, updateBills }) =
         }
 
         try {
+            // 1) Gọi API thanh toán chính
             const response = await axios.post('http://localhost:8080/api/hoa-don/thanh-toan', {
                 idHoaDon: selectedBill.id,
                 tongTien: finalAmount,
@@ -112,14 +118,33 @@ const PaymentSummary = ({ total, selectedBill, setSelectedBill, updateBills }) =
                 idVoucher: selectedDiscount ? selectedDiscount.id : null,
                 phuongThucThanhToan: paymentMethod,
             });
+
+            // 2) Đảm bảo cập nhật trạng thái hóa đơn về 6 (nếu backend chưa làm) - gọi endpoint cập nhật trạng thái
+            try {
+                await axios.put(`http://localhost:8080/api/hoa-don/${selectedBill.id}/status`, 6, {
+                    headers: { 'Content-Type': 'application/json' },
+                });
+            } catch (err) {
+                // Nếu lỗi ở bước update trạng thái, log nhưng không ngăn chặn thành công thanh toán
+                console.error('Lỗi khi cố gắng cập nhật trạng thái hóa đơn về 6:', err);
+            }
+
+            // 3) Thông báo thành công, refresh UI
             Swal.fire({
                 icon: 'success',
                 title: 'Thanh toán thành công',
-                text: `Hóa đơn #${response.data.ma} đã được xác nhận`,
+                text: `Hóa đơn #${response.data.ma || selectedBill.id} đã được xác nhận`,
             });
+
+            // Refresh danh sách hóa đơn và clear selection
+            try {
+                await updateBills();
+            } catch (err) {
+                console.error('Lỗi khi refresh danh sách hóa đơn:', err);
+            }
+
             setSelectedBill(null);
             setCustomerMoney(0);
-            updateBills();
         } catch (error) {
             Swal.fire({
                 icon: 'error',

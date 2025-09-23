@@ -15,6 +15,12 @@ export const SidebarData = [
         vaiTro: 'Admin',
     },
     {
+        title: 'Thống kê new',
+        icon: <AssessmentIcon />,
+        link: '/admin/thong-ke-new',
+        vaiTro: 'Admin',
+    },
+    {
         title: 'Bán hàng tại quầy',
         icon: <ReceiptIcon />,
         link: '/admin/ban-hang-tai-quay',

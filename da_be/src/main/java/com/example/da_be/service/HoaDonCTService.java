@@ -11,11 +11,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 public class HoaDonCTService {
+
+    private static final Logger log = LoggerFactory.getLogger(HoaDonCTService.class);
 
     @Autowired
     private HoaDonCTRepository hoaDonCTRepository;
@@ -264,6 +268,26 @@ public class HoaDonCTService {
 
         traHang.setTrangThai(2);
         traHangRepository.save(traHang);
+    }
+
+    /**
+     * Cập nhật trạng thái cho tất cả HoaDonCT thuộc một hóa đơn
+     */
+    @Transactional
+    public void updateAllHoaDonCTStatusByHoaDonId(int hoaDonId, int newStatus) {
+        log.info("Invoked updateAllHoaDonCTStatusByHoaDonId(hoaDonId={}, newStatus={})", hoaDonId, newStatus);
+        List<HoaDonCT> hoaDonCTList = hoaDonCTRepository.findByHoaDonId(hoaDonId);
+        if (hoaDonCTList == null || hoaDonCTList.isEmpty()) {
+            log.info("No HoaDonCT rows found for hoaDonId={}", hoaDonId);
+            return;
+        }
+        int count = 0;
+        for (HoaDonCT hoaDonCT : hoaDonCTList) {
+            hoaDonCT.setTrangThai(newStatus);
+            count++;
+        }
+        hoaDonCTRepository.saveAll(hoaDonCTList);
+        log.info("Updated {} HoaDonCT rows to status {} for hoaDonId={}", count, newStatus, hoaDonId);
     }
 
 

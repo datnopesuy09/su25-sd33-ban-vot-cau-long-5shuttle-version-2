@@ -375,7 +375,7 @@ function InStoreOrders() {
                                 className="border border-gray-300 rounded-md p-1 text-xs focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                             />
                         </div>
-                        <button className="ml-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-1">
+                        {/* <button className="ml-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-1">
                             <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path
                                     strokeLinecap="round"
@@ -385,7 +385,7 @@ function InStoreOrders() {
                                 />
                             </svg>
                             Export Excel
-                        </button>
+                        </button> */}
                     </div>
                 </div>
                 <div className="border-b border-gray-200 mb-2">
