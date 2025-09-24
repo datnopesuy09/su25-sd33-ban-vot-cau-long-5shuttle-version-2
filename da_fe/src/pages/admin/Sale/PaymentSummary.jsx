@@ -4,7 +4,7 @@ import axios from 'axios';
 import Swal from 'sweetalert2';
 import DiscountModal from '../../users/CheckOut/DiscountModal';
 
-const PaymentSummary = ({ total, selectedBill, setSelectedBill, updateBills }) => {
+const PaymentSummary = ({ total, selectedBill, setSelectedBill, updateBills, selectedCustomer }) => {
     const [remaining, setRemaining] = useState(total);
     const [voucherId, setVoucherId] = useState(null);
     const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -111,15 +111,39 @@ const PaymentSummary = ({ total, selectedBill, setSelectedBill, updateBills }) =
 
         try {
             // 1) Gọi API thanh toán chính
-            const response = await axios.post('http://localhost:8080/api/hoa-don/thanh-toan', {
+            const paymentData = {
                 idHoaDon: selectedBill.id,
                 tongTien: finalAmount,
                 khachThanhToan: customerMoney || finalAmount, // Use finalAmount if customerMoney is 0
                 idVoucher: selectedDiscount ? selectedDiscount.id : null,
                 phuongThucThanhToan: paymentMethod,
-            });
+            };
 
-            // 2) Đảm bảo cập nhật trạng thái hóa đơn về 6 (nếu backend chưa làm) - gọi endpoint cập nhật trạng thái
+            // Thêm thông tin khách hàng nếu có
+            if (selectedCustomer) {
+                paymentData.idKhachHang = selectedCustomer.id;
+                paymentData.tenNguoiNhan = selectedCustomer.hoTen;
+                paymentData.sdtNguoiNhan = selectedCustomer.sdt;
+                paymentData.emailNguoiNhan = selectedCustomer.email;
+            }
+
+            const response = await axios.post('http://localhost:8080/api/hoa-don/thanh-toan', paymentData);
+
+            // 2) Cập nhật thông tin khách hàng vào hóa đơn nếu có
+            if (selectedCustomer) {
+                try {
+                    await axios.put(`http://localhost:8080/api/hoa-don/${selectedBill.id}/customer`, {
+                        idUser: selectedCustomer.id,
+                        tenNguoiNhan: selectedCustomer.hoTen,
+                        sdtNguoiNhan: selectedCustomer.sdt,
+                        emailNguoiNhan: selectedCustomer.email,
+                    });
+                } catch (err) {
+                    console.error('Lỗi khi cập nhật thông tin khách hàng vào hóa đơn:', err);
+                }
+            }
+
+            // 3) Đảm bảo cập nhật trạng thái hóa đơn về 6 (nếu backend chưa làm) - gọi endpoint cập nhật trạng thái
             try {
                 await axios.put(`http://localhost:8080/api/hoa-don/${selectedBill.id}/status`, 6, {
                     headers: { 'Content-Type': 'application/json' },

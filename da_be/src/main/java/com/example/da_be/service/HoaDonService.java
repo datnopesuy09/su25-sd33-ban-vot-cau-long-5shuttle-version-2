@@ -450,4 +450,35 @@ public class HoaDonService {
         }
     }
 
+    /**
+     * Cập nhật thông tin khách hàng vào hóa đơn
+     */
+    public HoaDon updateCustomerInfo(Integer idHoaDon, com.example.da_be.dto.CustomerInfoRequest request) {
+        HoaDon hoaDon = hoaDonRepository.findById(idHoaDon)
+                .orElseThrow(() -> new ResourceNotFoundException("Hóa đơn không tồn tại với id: " + idHoaDon));
+
+        // Cập nhật thông tin khách hàng
+        if (request.getIdUser() != null) {
+            // Tạo một User proxy với chỉ ID để tránh lazy loading issues
+            com.example.da_be.entity.User user = new com.example.da_be.entity.User();
+            user.setId(request.getIdUser());
+            hoaDon.setTaiKhoan(user);
+        }
+        
+        if (request.getTenNguoiNhan() != null) {
+            hoaDon.setTenNguoiNhan(request.getTenNguoiNhan());
+        }
+        
+        if (request.getSdtNguoiNhan() != null) {
+            hoaDon.setSdtNguoiNhan(request.getSdtNguoiNhan());
+        }
+        
+        if (request.getEmailNguoiNhan() != null) {
+            hoaDon.setEmailNguoiNhan(request.getEmailNguoiNhan());
+        }
+
+        hoaDon.setNgaySua(new Date());
+        return hoaDonRepository.save(hoaDon);
+    }
+
 }

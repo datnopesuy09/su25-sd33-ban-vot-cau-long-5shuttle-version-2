@@ -200,4 +200,20 @@ public class HoaDonController {
         }
     }
 
+    /**
+     * Cập nhật thông tin khách hàng vào hóa đơn
+     */
+    @PutMapping("/{id}/customer")
+    public ResponseEntity<?> updateCustomerInfo(@PathVariable int id, @RequestBody CustomerInfoRequest request) {
+        try {
+            HoaDon updatedOrder = hoaDonService.updateCustomerInfo(id, request);
+            return ResponseEntity.ok(updatedOrder);
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Lỗi khi cập nhật thông tin khách hàng: " + e.getMessage());
+        }
+    }
+
 }

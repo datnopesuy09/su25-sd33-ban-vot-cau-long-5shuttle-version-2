@@ -600,6 +600,12 @@ function InStoreOrders() {
                                                 </span>
                                             </div>
                                             <div>
+                                                <span className="font-medium text-gray-600">Email:</span>
+                                                <span className="ml-2 text-gray-800">
+                                                    {orderDetails.emailNguoiNhan || 'Không có'}
+                                                </span>
+                                            </div>
+                                            <div>
                                                 <span className="font-medium text-gray-600">Loại hóa đơn:</span>
                                                 <span className="ml-2 text-gray-800">{orderDetails.loaiHoaDon}</span>
                                             </div>

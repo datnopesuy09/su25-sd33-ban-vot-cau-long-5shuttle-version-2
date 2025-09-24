@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Test Customer API</title>
+  </head>
+  <body>
+    <h1>Test Customer Management API</h1>
+    <div id="result"></div>
+
+    <script>
+      // Test API endpoints
+      async function testAPI() {
+        const resultDiv = document.getElementById("result");
+
+        try {
+          // Test get customers
+          const response = await fetch(
+            "http://localhost:8080/api/user/customers"
+          );
+
+          if (response.ok) {
+            const customers = await response.json();
+            resultDiv.innerHTML = `
+                        <h3>✅ API Connected Successfully!</h3>
+                        <p>Found ${customers.length} customers</p>
+                        <pre>${JSON.stringify(customers, null, 2)}</pre>
+                    `;
+          } else {
+            resultDiv.innerHTML = `<h3>❌ API Error: ${response.status} ${response.statusText}</h3>`;
+          }
+        } catch (error) {
+          resultDiv.innerHTML = `<h3>❌ Connection Error:</h3><p>${error.message}</p>
+                <p>Make sure backend is running on <strong>http://localhost:8080</strong></p>`;
+        }
+      }
+
+      // Test on page load
+      testAPI();
+    </script>
+  </body>
+</html>
