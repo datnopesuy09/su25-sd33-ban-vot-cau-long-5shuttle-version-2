@@ -230,13 +230,11 @@ function InStoreOrders() {
 
     // Resolve possible price fields and return original and discounted prices
     const resolvePrices = (item) => {
-        // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
-        const qty = Number(item.soLuong) || 1;
-
-        // Giá đã lưu trong hóa đơn (giá tại thời điểm mua hàng)
+        // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (đơn giá tại thời điểm mua)
+        
+        // Giá đã lưu trong hóa đơn (đơn giá tại thời điểm mua hàng)
         if (item.giaBan !== undefined && item.giaBan !== null) {
-            const savedTotalPrice = Number(item.giaBan);
-            const unitPrice = savedTotalPrice / qty;
+            const unitPrice = Number(item.giaBan); // giaBan là đơn giá, không phải total
 
             // Lấy giá gốc từ sản phẩm để tính phần trăm giảm giá
             const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? unitPrice;
