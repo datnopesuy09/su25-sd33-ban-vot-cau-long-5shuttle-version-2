@@ -21,6 +21,7 @@ import java.util.Set;
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "Id") // Ánh xạ đến cột "Id"
     Integer id;
 
     @Column(name = "Ma") // Ánh xạ đến cột "Ma"
