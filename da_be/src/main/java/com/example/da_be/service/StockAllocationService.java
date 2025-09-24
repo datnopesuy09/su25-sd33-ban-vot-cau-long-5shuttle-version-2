@@ -299,21 +299,17 @@ public class StockAllocationService {
     }
 
     /**
-     * 7. TÍNH STOCK KHẢ DỤNG (TÍNH CẢ RESERVED + ALLOCATED + CONFIRMED)
+     * 7. TÍNH STOCK KHẢ DỤNG - PHƯƠNG ÁN 1: BỎ RESERVATION HOÀN TOÀN
+     * Chỉ trả về số lượng thực tế trong kho, không tính reservation
+     * Admin sẽ validate khi xác nhận đơn hàng
      */
     public int getAvailableStock(Integer sanPhamCTId) {
         SanPhamCT sanPhamCT = sanPhamCTRepository.findById(sanPhamCTId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm ID: " + sanPhamCTId));
         
-        int totalStock = sanPhamCT.getSoLuong();
-        
-        // Tính tổng đang bị chiếm giữ (RESERVED + ALLOCATED + CONFIRMED)
-        Integer totalReserved = stockAllocationRepository.getTotalReservedBySanPhamCTId(sanPhamCTId);
-        Integer totalAllocated = stockAllocationRepository.getTotalAllocatedBySanPhamCTId(sanPhamCTId);
-        
-        int totalOccupied = (totalReserved != null ? totalReserved : 0) + (totalAllocated != null ? totalAllocated : 0);
-        
-        return Math.max(0, totalStock - totalOccupied);
+        // Trả về số lượng thực tế trong kho, bỏ qua reservation
+        // Vì admin sẽ validate khi xác nhận đơn hàng ở OrderProgress.jsx
+        return sanPhamCT.getSoLuong();
     }
 
     /**
@@ -443,6 +439,54 @@ public class StockAllocationService {
         
         log.info("Đã cập nhật allocation - Allocation mới: {}, Stock sau khi hoàn: {}", 
                 newAllocatedQuantity, sanPhamCT.getSoLuong());
+    }
+
+    /**
+     * VALIDATION CHO ADMIN KHI XÁC NHẬN ĐƠN HÀNG
+     * Kiểm tra xem có đủ hàng trong kho để xác nhận đơn hàng hay không
+     */
+    public boolean canConfirmOrder(Integer hoaDonId) {
+        log.info("Kiểm tra khả năng xác nhận đơn hàng ID: {}", hoaDonId);
+        
+        List<HoaDonCT> chiTiets = hoaDonCTRepository.findByHoaDonId(hoaDonId);
+        
+        for (HoaDonCT ct : chiTiets) {
+            int currentStock = ct.getSanPhamCT().getSoLuong();
+            int requiredQuantity = ct.getSoLuong();
+            
+            if (currentStock < requiredQuantity) {
+                log.warn("Không đủ hàng - Sản phẩm: {}, Cần: {}, Có: {}", 
+                        ct.getSanPhamCT().getSanPham().getTen(), requiredQuantity, currentStock);
+                return false;
+            }
+        }
+        
+        log.info("Đơn hàng {} có thể xác nhận", hoaDonId);
+        return true;
+    }
+    
+    /**
+     * LẤY CHI TIẾT THIẾU HÀNG CHO ĐƠN HÀNG (để hiển thị chi tiết lỗi)
+     */
+    public java.util.List<String> getStockShortageDetails(Integer hoaDonId) {
+        java.util.List<String> shortages = new java.util.ArrayList<>();
+        List<HoaDonCT> chiTiets = hoaDonCTRepository.findByHoaDonId(hoaDonId);
+        
+        for (HoaDonCT ct : chiTiets) {
+            int currentStock = ct.getSanPhamCT().getSoLuong();
+            int requiredQuantity = ct.getSoLuong();
+            
+            if (currentStock < requiredQuantity) {
+                String shortage = String.format("%s: cần %d, chỉ có %d (thiếu %d)", 
+                        ct.getSanPhamCT().getSanPham().getTen(), 
+                        requiredQuantity, 
+                        currentStock, 
+                        requiredQuantity - currentStock);
+                shortages.add(shortage);
+            }
+        }
+        
+        return shortages;
     }
 
     /**

@@ -59,6 +59,32 @@ public class StockAllocationController {
     }
     
     /**
+     * VALIDATION CHO ADMIN - Kiểm tra có thể xác nhận đơn hàng không
+     */
+    @GetMapping("/can-confirm/{hoaDonId}")
+    public ResponseEntity<?> canConfirmOrder(@PathVariable Integer hoaDonId) {
+        try {
+            boolean canConfirm = stockAllocationService.canConfirmOrder(hoaDonId);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("canConfirm", canConfirm);
+            
+            if (!canConfirm) {
+                // Lấy chi tiết thiếu hàng
+                java.util.List<String> shortages = stockAllocationService.getStockShortageDetails(hoaDonId);
+                response.put("message", "Không đủ hàng trong kho");
+                response.put("shortages", shortages);
+            } else {
+                response.put("message", "Đơn hàng có thể xác nhận");
+            }
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Lỗi: " + e.getMessage());
+        }
+    }
+    
+    /**
      * Debug endpoint để kiểm tra stock allocation
      */
     @GetMapping("/debug/{sanPhamCTId}")
