@@ -93,6 +93,26 @@ public class DotGiamGiaServiceImpl implements DotGiamGiaService {
 
     @Override
     public KhuyenMai addKhuyenMaiOnProduct(KhuyenMaiRequest khuyenMaiRequest) {
+        // Kiểm tra trùng lặp khuyến mãi trước khi tạo mới
+        List<Integer> productDetailIds = new ArrayList<>();
+        
+        if (khuyenMaiRequest.getLoai()) {
+            // Nếu loại khuyến mãi là true, lấy danh sách sản phẩm được chọn
+            productDetailIds = khuyenMaiRequest.getIdProductDetail();
+        } else {
+            // Nếu loại khuyến mãi là false, lấy tất cả sản phẩm chi tiết
+            List<SanPhamCT> allProducts = sanPhamChiTietRepository.findAll();
+            productDetailIds = allProducts.stream()
+                    .map(SanPhamCT::getId)
+                    .collect(Collectors.toList());
+        }
+        
+        // Kiểm tra trùng lặp thời gian khuyến mãi
+        if (checkPromotionOverlap(productDetailIds, khuyenMaiRequest.getTgBatDau(), khuyenMaiRequest.getTgKetThuc())) {
+            String overlapDetails = getOverlapDetails(productDetailIds, khuyenMaiRequest.getTgBatDau(), khuyenMaiRequest.getTgKetThuc());
+            throw new IllegalArgumentException("Không thể tạo khuyến mãi do trùng lặp thời gian: " + overlapDetails);
+        }
+        
         // Tạo đối tượng KhuyenMai từ request và lưu vào cơ sở dữ liệu
         KhuyenMai khuyenMai = khuyenMaiRequest.newKhuyenMaiAddSanPham(new KhuyenMai());
         dotGiamGiaRepository.save(khuyenMai);
@@ -201,6 +221,41 @@ public class DotGiamGiaServiceImpl implements DotGiamGiaService {
         // Lấy thông tin khuyến mãi hiện có từ cơ sở dữ liệu
         KhuyenMai existingKhuyenMai = dotGiamGiaRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("KhuyenMai not found for ID: " + id));
+
+        // Kiểm tra trùng lặp khuyến mãi trước khi cập nhật
+        List<Integer> productDetailIds = new ArrayList<>();
+        
+        if (khuyenMaiRequest.getLoai()) {
+            // Nếu loại khuyến mãi là true, lấy danh sách sản phẩm được chọn
+            productDetailIds = khuyenMaiRequest.getIdProductDetail();
+        } else {
+            // Nếu loại khuyến mãi là false, lấy tất cả sản phẩm chi tiết
+            List<SanPhamCT> allProducts = sanPhamChiTietRepository.findAll();
+            productDetailIds = allProducts.stream()
+                    .map(SanPhamCT::getId)
+                    .collect(Collectors.toList());
+        }
+        
+        // Kiểm tra trùng lặp thời gian khuyến mãi (loại trừ khuyến mãi hiện tại đang cập nhật)
+        List<Integer> productDetailIdsToCheck = new ArrayList<>();
+        for (Integer productDetailId : productDetailIds) {
+            List<KhuyenMai> existingPromotions = dotGiamGiaRepository.getPromotionsByProductDetailId(productDetailId);
+            // Lọc bỏ khuyến mãi hiện tại đang cập nhật
+            existingPromotions = existingPromotions.stream()
+                    .filter(promotion -> !promotion.getId().equals(id))
+                    .collect(Collectors.toList());
+            
+            // Nếu còn khuyến mãi khác, thêm vào danh sách kiểm tra
+            if (!existingPromotions.isEmpty()) {
+                productDetailIdsToCheck.add(productDetailId);
+            }
+        }
+        
+        if (!productDetailIdsToCheck.isEmpty() && 
+            checkPromotionOverlapForUpdate(productDetailIdsToCheck, khuyenMaiRequest.getTgBatDau(), khuyenMaiRequest.getTgKetThuc(), id)) {
+            String overlapDetails = getOverlapDetailsForUpdate(productDetailIdsToCheck, khuyenMaiRequest.getTgBatDau(), khuyenMaiRequest.getTgKetThuc(), id);
+            throw new IllegalArgumentException("Không thể cập nhật khuyến mãi do trùng lặp thời gian: " + overlapDetails);
+        }
 
         // Xóa tất cả các sản phẩm khuyến mãi cũ liên quan đến khuyến mãi
         List<SanPhamKhuyenMai> oldSanPhamKhuyenMai = sanPhamKhuyenMaiRepository.getListSanPhamKhuyenMaiByIdKhuyenMai(id);
@@ -364,5 +419,138 @@ public class DotGiamGiaServiceImpl implements DotGiamGiaService {
                 flag = true;
             }
         }
+    }
+
+    @Override
+    public Boolean checkPromotionOverlap(List<Integer> idSanPhamCT, LocalDateTime newTgBatDau, LocalDateTime newTgKetThuc) {
+        for (Integer id : idSanPhamCT) {
+            // Retrieve the existing promotions for the product detail ID
+            List<KhuyenMai> existingPromotions = dotGiamGiaRepository.getPromotionsByProductDetailId(id);
+
+            for (KhuyenMai existingPromotion : existingPromotions) {
+                LocalDateTime existingTgBatDau = existingPromotion.getTgBatDau();
+                LocalDateTime existingTgKetThuc = existingPromotion.getTgKetThuc();
+
+                // Check for overlap
+                if (isTimeOverlap(existingTgBatDau, existingTgKetThuc, newTgBatDau, newTgKetThuc)) {
+                    return true; // Overlap found
+                }
+            }
+        }
+        return false; // No overlap found
+    }
+
+    /**
+     * Kiểm tra trùng lặp khuyến mãi khi cập nhật (loại trừ đợt giảm giá hiện tại)
+     * @param idSanPhamCT Danh sách ID sản phẩm chi tiết cần kiểm tra
+     * @param newTgBatDau Thời gian bắt đầu mới
+     * @param newTgKetThuc Thời gian kết thúc mới
+     * @param currentPromotionId ID của đợt giảm giá hiện tại đang được cập nhật
+     * @return true nếu có trùng lặp, false nếu không
+     */
+    public Boolean checkPromotionOverlapForUpdate(List<Integer> idSanPhamCT, LocalDateTime newTgBatDau, LocalDateTime newTgKetThuc, Integer currentPromotionId) {
+        for (Integer id : idSanPhamCT) {
+            // Retrieve the existing promotions for the product detail ID
+            List<KhuyenMai> existingPromotions = dotGiamGiaRepository.getPromotionsByProductDetailId(id);
+
+            for (KhuyenMai existingPromotion : existingPromotions) {
+                // Loại trừ đợt giảm giá hiện tại đang được cập nhật
+                if (existingPromotion.getId().equals(currentPromotionId)) {
+                    continue;
+                }
+                
+                LocalDateTime existingTgBatDau = existingPromotion.getTgBatDau();
+                LocalDateTime existingTgKetThuc = existingPromotion.getTgKetThuc();
+
+                // Check for overlap
+                if (isTimeOverlap(existingTgBatDau, existingTgKetThuc, newTgBatDau, newTgKetThuc)) {
+                    return true; // Overlap found
+                }
+            }
+        }
+        return false; // No overlap found
+    }
+
+    /**
+     * Kiểm tra trùng lặp khuyến mãi và trả về thông tin chi tiết về sản phẩm bị trùng
+     * @param idSanPhamCT Danh sách ID sản phẩm chi tiết cần kiểm tra
+     * @param newTgBatDau Thời gian bắt đầu mới
+     * @param newTgKetThuc Thời gian kết thúc mới
+     * @return Thông tin chi tiết về sản phẩm bị trùng lặp
+     */
+    public String getOverlapDetails(List<Integer> idSanPhamCT, LocalDateTime newTgBatDau, LocalDateTime newTgKetThuc) {
+        StringBuilder overlapDetails = new StringBuilder();
+        
+        for (Integer id : idSanPhamCT) {
+            List<KhuyenMai> existingPromotions = dotGiamGiaRepository.getPromotionsByProductDetailId(id);
+            
+            for (KhuyenMai existingPromotion : existingPromotions) {
+                LocalDateTime existingTgBatDau = existingPromotion.getTgBatDau();
+                LocalDateTime existingTgKetThuc = existingPromotion.getTgKetThuc();
+                
+                if (isTimeOverlap(existingTgBatDau, existingTgKetThuc, newTgBatDau, newTgKetThuc)) {
+                    // Lấy thông tin sản phẩm chi tiết
+                    SanPhamCT spct = sanPhamChiTietRepository.findById(id).orElse(null);
+                    if (spct != null) {
+                        overlapDetails.append(String.format(
+                            "Sản phẩm '%s' đã có khuyến mãi '%s' từ %s đến %s. ",
+                            spct.getSanPham().getTen(),
+                            existingPromotion.getTen(),
+                            existingTgBatDau.toString(),
+                            existingTgKetThuc.toString()
+                        ));
+                    }
+                }
+            }
+        }
+        
+        return overlapDetails.toString();
+    }
+
+    /**
+     * Kiểm tra trùng lặp khuyến mãi khi cập nhật và trả về thông tin chi tiết về sản phẩm bị trùng
+     * @param idSanPhamCT Danh sách ID sản phẩm chi tiết cần kiểm tra
+     * @param newTgBatDau Thời gian bắt đầu mới
+     * @param newTgKetThuc Thời gian kết thúc mới
+     * @param currentPromotionId ID của đợt giảm giá hiện tại đang được cập nhật
+     * @return Thông tin chi tiết về sản phẩm bị trùng lặp
+     */
+    public String getOverlapDetailsForUpdate(List<Integer> idSanPhamCT, LocalDateTime newTgBatDau, LocalDateTime newTgKetThuc, Integer currentPromotionId) {
+        StringBuilder overlapDetails = new StringBuilder();
+        
+        for (Integer id : idSanPhamCT) {
+            List<KhuyenMai> existingPromotions = dotGiamGiaRepository.getPromotionsByProductDetailId(id);
+            
+            for (KhuyenMai existingPromotion : existingPromotions) {
+                // Loại trừ đợt giảm giá hiện tại đang được cập nhật
+                if (existingPromotion.getId().equals(currentPromotionId)) {
+                    continue;
+                }
+                
+                LocalDateTime existingTgBatDau = existingPromotion.getTgBatDau();
+                LocalDateTime existingTgKetThuc = existingPromotion.getTgKetThuc();
+                
+                if (isTimeOverlap(existingTgBatDau, existingTgKetThuc, newTgBatDau, newTgKetThuc)) {
+                    // Lấy thông tin sản phẩm chi tiết
+                    SanPhamCT spct = sanPhamChiTietRepository.findById(id).orElse(null);
+                    if (spct != null) {
+                        overlapDetails.append(String.format(
+                            "Sản phẩm '%s' đã có khuyến mãi '%s' từ %s đến %s. ",
+                            spct.getSanPham().getTen(),
+                            existingPromotion.getTen(),
+                            existingTgBatDau.toString(),
+                            existingTgKetThuc.toString()
+                        ));
+                    }
+                }
+            }
+        }
+        
+        return overlapDetails.toString();
+    }
+
+    // Helper method to check if two time intervals overlap
+    private boolean isTimeOverlap(LocalDateTime existingTgBatDau, LocalDateTime existingTgKetThuc, LocalDateTime newTgBatDau, LocalDateTime newTgKetThuc) {
+        return !(newTgBatDau.isAfter(existingTgKetThuc) || newTgKetThuc.isBefore(existingTgBatDau));
     }
 }

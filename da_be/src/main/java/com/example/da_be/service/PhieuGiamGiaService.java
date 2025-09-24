@@ -19,4 +19,6 @@ public interface PhieuGiamGiaService {
     PhieuGiamGia addPhieuGiamGia(PhieuGiamGiaRequest phieuGiamGiaRequest);
     PhieuGiamGia updatePhieuGiamGia(Integer id, PhieuGiamGiaRequest phieuGiamGiaRequest) throws ParseException;
     Page<PhieuGiamGiaResponse>getSearchPhieuGiamGia(PhieuGiamGiaSearch phieuGiamGiaSearch, Pageable pageable);
+    // Kiểm tra voucher có đang được sử dụng trong hóa đơn không
+    boolean isVoucherInUse(Integer voucherId);
 }

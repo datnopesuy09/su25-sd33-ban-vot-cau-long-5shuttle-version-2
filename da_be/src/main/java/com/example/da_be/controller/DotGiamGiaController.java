@@ -217,4 +217,39 @@ public class DotGiamGiaController {
     public List<String> getAllTenKhuyenMai() {
         return dotGiamGiaService.getAllTenKhuyenMai();
     }
+
+    @PostMapping("/check-overlap")
+    public Map<String, Object> checkPromotionOverlap(@RequestBody Map<String, Object> request) {
+        @SuppressWarnings("unchecked")
+        List<Integer> idSanPhamCT = (List<Integer>) request.get("idSanPhamCT");
+        String tgBatDauStr = (String) request.get("tgBatDau");
+        String tgKetThucStr = (String) request.get("tgKetThuc");
+        Integer currentPromotionId = (Integer) request.get("currentPromotionId");
+        
+        LocalDateTime tgBatDau = LocalDateTime.parse(tgBatDauStr);
+        LocalDateTime tgKetThuc = LocalDateTime.parse(tgKetThucStr);
+        
+        boolean hasOverlap;
+        String overlapDetails = "";
+        
+        // Nếu có currentPromotionId thì đây là request cập nhật, sử dụng phương thức cho cập nhật
+        if (currentPromotionId != null) {
+            hasOverlap = dotGiamGiaService.checkPromotionOverlapForUpdate(idSanPhamCT, tgBatDau, tgKetThuc, currentPromotionId);
+            if (hasOverlap) {
+                overlapDetails = dotGiamGiaService.getOverlapDetailsForUpdate(idSanPhamCT, tgBatDau, tgKetThuc, currentPromotionId);
+            }
+        } else {
+            // Nếu không có currentPromotionId thì đây là request tạo mới
+            hasOverlap = dotGiamGiaService.checkPromotionOverlap(idSanPhamCT, tgBatDau, tgKetThuc);
+            if (hasOverlap) {
+                overlapDetails = dotGiamGiaService.getOverlapDetails(idSanPhamCT, tgBatDau, tgKetThuc);
+            }
+        }
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("hasOverlap", hasOverlap);
+        response.put("overlapDetails", overlapDetails);
+        
+        return response;
+    }
 }

@@ -5,6 +5,7 @@ import com.example.da_be.dto.request.PhieuGiamGiaSearch;
 import com.example.da_be.dto.response.PhieuGiamGiaResponse;
 import com.example.da_be.entity.PhieuGiamGia;
 import com.example.da_be.repository.PhieuGiamGiaRepository;
+import com.example.da_be.repository.HoaDonRepository;
 import com.example.da_be.service.PhieuGiamGiaService;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,9 @@ import java.util.Optional;
 public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
     @Autowired
     private PhieuGiamGiaRepository phieuGiamGiaRepository;
+    
+    @Autowired
+    private HoaDonRepository hoaDonRepository;
 
     @Override
     public List<PhieuGiamGiaResponse> getAllPhieuGiamGia() {
@@ -58,7 +62,17 @@ public class PhieuGiamGiaServiceImpl implements PhieuGiamGiaService {
     }
 
     @Override
+    public boolean isVoucherInUse(Integer voucherId) {
+        return hoaDonRepository.existsByVoucherId(voucherId);
+    }
+
+    @Override
     public PhieuGiamGia updatePhieuGiamGia(Integer id, PhieuGiamGiaRequest phieuGiamGiaRequest) throws ParseException {
+        // Kiểm tra voucher có đang được sử dụng trong hóa đơn không (bất kể trạng thái)
+        if (isVoucherInUse(id)) {
+            throw new IllegalStateException("Không thể cập nhật phiếu giảm giá đã được sử dụng trong các hóa đơn!");
+        }
+        
         Optional<PhieuGiamGia> optionalPhieuGiamGia = phieuGiamGiaRepository.findById(id);
 
         if (optionalPhieuGiamGia.isPresent()) {

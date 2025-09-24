@@ -171,4 +171,13 @@ public interface DotGiamGiaRepository extends JpaRepository<KhuyenMai, Integer> 
 """
     )
     List<KhuyenMai> getAllKhuyenMaiWrong(LocalDateTime dateNow);
+
+    @Query("""
+    SELECT DISTINCT km
+    FROM KhuyenMai km
+    INNER JOIN SanPhamKhuyenMai spkm ON km.id = spkm.khuyenMai.id
+    WHERE spkm.sanPhamCT.id = :productDetailId
+    AND km.trangThai != 2
+    """)
+    List<KhuyenMai> getPromotionsByProductDetailId(@Param("productDetailId") Integer productDetailId);
 }
