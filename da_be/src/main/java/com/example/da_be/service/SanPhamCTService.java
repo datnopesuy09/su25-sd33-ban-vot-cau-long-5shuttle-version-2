@@ -172,32 +172,24 @@ public class SanPhamCTService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
         detailDTO.setTrongLuong(new ArrayList<>(allWeights));
-        // Tạo biến thể bằng tổ hợp màu và trọng lượng
+        // Tạo biến thể từ tất cả SanPhamCT (bao gồm cả trùng lặp)
         List<VariantDTO> variants = new ArrayList<>();
-        for (String color : allColors) {
-            for (String weight : allWeights) {
-                // Tìm SanPhamCT có màu và trọng lượng phù hợp
-                Optional<SanPhamCT> variantOpt = sanPhamCTList.stream()
-                        .filter(spct -> spct.getMauSac() != null && spct.getMauSac().getTen().equals(color)
-                                && spct.getTrongLuong() != null && spct.getTrongLuong().getTen().equals(weight))
-                        .findFirst();
-                if (variantOpt.isPresent()) {
-                    SanPhamCT matched = variantOpt.get();
-                    VariantDTO variantDTO = new VariantDTO();
-                    variantDTO.setId(matched.getId());
-                    variantDTO.setMaSanPham(matched.getMa());
-                    variantDTO.setMauSacTen(color);
-                    variantDTO.setTrongLuongTen(weight);
-                    variantDTO.setDonGia(matched.getDonGia());
-                    variantDTO.setSoLuong(matched.getSoLuong());
-                    variantDTO.setTrangThai(matched.getTrangThai());
-                    List<String> imageUrls = matched.getHinhAnh().stream()
-                            .map(h -> h.getLink())
-                            .collect(Collectors.toList());
-                    variantDTO.setHinhAnhUrls(imageUrls);
-                    variants.add(variantDTO);
-                }
-            }
+        for (SanPhamCT spct : sanPhamCTList) {
+            VariantDTO variantDTO = new VariantDTO();
+            variantDTO.setId(spct.getId());
+            variantDTO.setMaSanPham(spct.getMa());
+            variantDTO.setMauSacTen(spct.getMauSac() != null ? spct.getMauSac().getTen() : "");
+            variantDTO.setTrongLuongTen(spct.getTrongLuong() != null ? spct.getTrongLuong().getTen() : "");
+            variantDTO.setDonGia(spct.getDonGia());
+            variantDTO.setSoLuong(spct.getSoLuong());
+            variantDTO.setTrangThai(spct.getTrangThai());
+            variantDTO.setMauSacId(spct.getMauSac() != null ? spct.getMauSac().getId() : null);
+            variantDTO.setTrongLuongId(spct.getTrongLuong() != null ? spct.getTrongLuong().getId() : null);
+            List<String> imageUrls = spct.getHinhAnh().stream()
+                    .map(h -> h.getLink())
+                    .collect(Collectors.toList());
+            variantDTO.setHinhAnhUrls(imageUrls);
+            variants.add(variantDTO);
         }
         detailDTO.setVariants(variants);
         return detailDTO;

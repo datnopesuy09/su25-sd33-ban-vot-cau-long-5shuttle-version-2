@@ -147,8 +147,7 @@ function SpctDetail() {
         setMaterial(variant.material || '');
         setBalancePoint(variant.balancePoint || '');
         setStiff(variant.hardness || '');
-        setColor(variant.color || '');
-        setWeight(variant.weight || '');
+        // KHÔNG set color và weight vì chúng không thể chỉnh sửa
         setStatus(variant.status || '');
         setDescription(productDetail?.moTa || '');
         
@@ -171,6 +170,39 @@ function SpctDetail() {
 
     const handleUpdateProduct = async () => {
         if (!selectedVariant) return;
+        
+        // Đếm số biến thể cùng màu
+        const sameColorVariants = variants.filter(v => v.color === selectedVariant.color);
+        const variantCount = sameColorVariants.length;
+        
+        // Hiển thị modal xác nhận nếu có nhiều hơn 1 biến thể cùng màu
+        if (variantCount > 1) {
+            const confirmed = await Swal.fire({
+                title: 'Xác nhận cập nhật',
+                html: `
+                    <div class="text-left">
+                        <p class="mb-3">Bạn đang cập nhật <strong>${variantCount} biến thể</strong> cùng màu <strong>${selectedVariant.color}</strong>:</p>
+                        <ul class="list-disc list-inside text-sm text-gray-600 mb-3">
+                            ${sameColorVariants.map(v => `<li>${v.weight} - ${v.maSanPham}</li>`).join('')}
+                        </ul>
+                        <p class="text-orange-600 font-medium">⚠️ Tất cả thông tin sẽ được cập nhật giống nhau cho các biến thể này!</p>
+                    </div>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: `Cập nhật ${variantCount} biến thể`,
+                cancelButtonText: 'Hủy',
+                confirmButtonColor: '#3b82f6',
+                customClass: {
+                    container: 'swal-wide',
+                },
+            });
+            
+            if (!confirmed.isConfirmed) {
+                return;
+            }
+        }
+        
         setIsLoading(true);
     
         try {
@@ -183,39 +215,39 @@ function SpctDetail() {
                 material,
                 balancePoint,
                 hardness: stiff,
-                color,
-                weight,
+                // KHÔNG gửi color và weight vì chúng là thuộc tính phân biệt biến thể
                 hinhAnhUrls: selectedImages,
             };
     
-            // 👉 Chỉ update 1 biến thể đại diện của màu
-            await axios.put(
-                `http://localhost:8080/api/san-pham-ct/update-basic/${selectedVariant.id}`,
+            // 👉 Cập nhật TẤT CẢ biến thể cùng màu
+            const response = await axios.put(
+                `http://localhost:8080/api/san-pham-ct/update-by-color/${selectedVariant.id}`,
                 updateData
             );
     
-            toast.success(`Đã cập nhật biến thể màu ${selectedVariant.color}`);
+            const { updatedCount, color: updatedColor } = response.data;
+            toast.success(`Đã cập nhật ${updatedCount} biến thể màu ${updatedColor}`);
     
-            // Reload lại toàn bộ danh sách
-            const res = await axios.get(`http://localhost:8080/api/san-pham-ct/${id}/detaill`);
-            const data = res.data;
-    
-            setVariants(data.variants.map((v, index) => ({
-                stt: index + 1,
-                id: v.id,
-                maSanPham: v.maSanPham,
-                brand: data.thuongHieu,
-                material: data.chatLieu,
-                balancePoint: data.diemCanBang,
-                hardness: data.doCung,
-                color: v.mauSacTen,
-                weight: v.trongLuongTen,
-                quantity: v.soLuong,
-                price: v.donGia,
-                status: v.trangThai === 1 ? 'Active' : 'Inactive',
-                image: v.hinhAnhUrls?.[0] || null,
-                hinhAnhUrls: v.hinhAnhUrls || [],
-            })));
+            // Cập nhật TẤT CẢ biến thể cùng màu trong state local
+            setVariants(prevVariants => 
+                prevVariants.map(variant => 
+                    variant.color === selectedVariant.color 
+                        ? {
+                            ...variant,
+                            brand,
+                            material,
+                            balancePoint,
+                            hardness: stiff,
+                            // GIỮ NGUYÊN color và weight vì chúng là thuộc tính phân biệt biến thể
+                            quantity: selectedVariant.quantity,
+                            price: selectedVariant.price,
+                            status: status === 'Active' ? 'Active' : 'Inactive',
+                            hinhAnhUrls: selectedImages,
+                            image: selectedImages[0] || null,
+                        }
+                        : variant
+                )
+            );
     
             handleCloseModal();
         } catch (error) {
@@ -235,25 +267,24 @@ function SpctDetail() {
                 // Lưu thông tin sản phẩm cha
                 setProductDetail(data);
 
-                // Map variants như bạn đang làm
+                // Map variants từ tất cả biến thể (bao gồm trùng lặp)
                 const loadedVariants = data.variants.map((v, index) => ({
                     stt: index + 1,
                     id: v.id,
-                    // code: `${data.tenSanPham}-${v.trongLuongTen}-${v.mauSacTen}`, // mã tạm
                     maSanPham: v.maSanPham,
                     brand: data.thuongHieu,
                     material: data.chatLieu,
                     balancePoint: data.diemCanBang,
                     hardness: data.doCung,
                     color: v.mauSacTen,
-                    colorId: v.mauSacId, // Thêm ID cho màu sắc
+                    colorId: v.mauSacId,
                     weight: v.trongLuongTen,
-                    weightId: v.trongLuongId, // Thêm ID cho trọng lượng
+                    weightId: v.trongLuongId,
                     quantity: v.soLuong,
                     price: v.donGia,
                     status: v.trangThai === 1 ? 'Active' : 'Inactive',
                     image: v.hinhAnhUrls?.length > 0 ? v.hinhAnhUrls[0] : null,
-                    hinhAnhUrls: v.hinhAnhUrls || [], // Thêm dòng này để lưu tất cả ảnh
+                    hinhAnhUrls: v.hinhAnhUrls || [],
                 }));
 
                 setVariants(loadedVariants);
@@ -796,38 +827,26 @@ function SpctDetail() {
                                     </select>
                                 </div>
 
-                                {/* Màu sắc */}
+                                {/* Màu sắc - CHỈ HIỂN THỊ, KHÔNG CHỈNH SỬA */}
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700">Màu sắc</label>
-                                    <select
-                                        value={color}
-                                        onChange={(e) => setColor(e.target.value)}
-                                        className="mt-1 block w-full h-10 border rounded-md p-2 text-sm"
-                                    >
-                                        <option value="">Chọn màu</option>
-                                        {colors.map((b, index) => (
-                                            <option key={index} value={b.ten}>
-                                                {b.ten}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <div className="mt-1 block w-full h-10 border rounded-md p-2 text-sm bg-gray-100 text-gray-600 flex items-center">
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                            {selectedVariant?.color || 'Chưa chọn'}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">Màu sắc không thể thay đổi</p>
                                 </div>
 
-                                {/* Trọng lượng */}
+                                {/* Trọng lượng - CHỈ HIỂN THỊ, KHÔNG CHỈNH SỬA */}
                                 <div>
                                     <label className="block text-sm font-bold text-gray-700">Trọng lượng</label>
-                                    <select
-                                        value={weight}
-                                        onChange={(e) => setWeight(e.target.value)}
-                                        className="mt-1 block w-full h-10 border rounded-md p-2 text-sm"
-                                    >
-                                        <option value="">Chọn trọng lượng</option>
-                                        {weights.map((b, index) => (
-                                            <option key={index} value={b.ten}>
-                                                {b.ten}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <div className="mt-1 block w-full h-10 border rounded-md p-2 text-sm bg-gray-100 text-gray-600 flex items-center">
+                                        <span className="text-sm font-medium">
+                                            {selectedVariant?.weight || 'Chưa chọn'}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">Trọng lượng không thể thay đổi</p>
                                 </div>
                             </div>
 
@@ -894,6 +913,32 @@ function SpctDetail() {
                                         (Ảnh sẽ được áp dụng cho tất cả biến thể màu {selectedVariant?.color})
                                     </span>
                                 </label>
+                                
+                                {/* Thông báo cập nhật theo nhóm màu */}
+                                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                    <div className="flex items-start">
+                                        <div className="flex-shrink-0">
+                                            <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <div className="ml-3">
+                                            <h3 className="text-sm font-medium text-blue-800">
+                                                Cập nhật theo nhóm màu
+                                            </h3>
+                                            <div className="mt-1 text-sm text-blue-700">
+                                                <p>
+                                                    Thay đổi này sẽ áp dụng cho <strong>
+                                                        {variants.filter(v => v.color === selectedVariant?.color).length} biến thể
+                                                    </strong> cùng màu <strong>{selectedVariant?.color}</strong>
+                                                </p>
+                                                <p className="text-xs text-gray-600 mt-1">
+                                                    * Màu sắc và trọng lượng không thể thay đổi để tránh tạo duplicate
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 
                                 <div className="flex gap-4 items-start">
                                     {/* Upload area */}
