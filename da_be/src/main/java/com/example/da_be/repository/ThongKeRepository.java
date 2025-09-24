@@ -16,49 +16,35 @@ public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
 
     @Query(value = """
         SELECT
-                                                         -- Doanh thu thực tế
-                                                         COALESCE(SUM(
-                                                             CASE WHEN hdct.TrangThai = 6 THEN
-                                                                 (hdct.SoLuong * hdct.GiaBan)                           -- giá gốc
-                                                                 - ( (hdct.SoLuong * hdct.GiaBan) / NULLIF(sub.gross_total,0) )  \s
-                                                                   * COALESCE(sub.discount_total, 0)                   -- phân bổ giảm giá
-                                                             END
-                                                         ), 0)
-                                                         - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6\s
-                                                                             THEN ptrct.SoLuongPheDuyet * hdct.GiaBan END), 0) AS tongTien,
-                                                     
-                                                         -- Tổng sản phẩm bán (trừ trả)
-                                                         COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong END), 0)
-                                                           - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPham,
-                                                     
-                                                         -- Tổng sản phẩm trả
-                                                         COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPhamTra,
-                                                     
-                                                         -- Chỉ số đơn hàng
-                                                     	COUNT(DISTINCT CASE WHEN h.TrangThai = 6 THEN h.Id END) AS tongDonThanhCong,
-                                                     	COUNT(DISTINCT CASE WHEN h.TrangThai = 7 THEN h.Id END) AS tongDonHuy,
-                                                     	COUNT(DISTINCT CASE WHEN h.TrangThai = 8 THEN h.Id END) AS tongDonTra
-                                                     
-                                                     FROM 5SHUTTLE.HoaDon h
-                                                     JOIN 5SHUTTLE.HoaDonCT hdct
-                                                         ON h.Id = hdct.IdHoaDon
-                                                     LEFT JOIN 5SHUTTLE.PhieuTraHang ptr
-                                                         ON ptr.IdHoaDon = h.Id
-                                                        AND ptr.TrangThai = 'APPROVED'
-                                                     LEFT JOIN 5SHUTTLE.PhieuTraHangCT ptrct
-                                                         ON ptrct.IdPhieuTraHang = ptr.Id
-                                                        AND ptrct.IdHoaDonCT = hdct.Id
-                                                     
-                                                     -- Subquery tính tổng gốc và giảm giá
-                                                     JOIN (
-                                                         SELECT\s
-                                                             h2.Id AS hoaDonId,
-                                                             SUM(hdct2.SoLuong * hdct2.GiaBan) AS gross_total,
-                                                             (SUM(hdct2.SoLuong * hdct2.GiaBan) - (h2.TongTien - h2.PhiShip)) AS discount_total
-                                                         FROM 5SHUTTLE.HoaDon h2
-                                                         JOIN 5SHUTTLE.HoaDonCT hdct2 ON h2.Id = hdct2.IdHoaDon
-                                                         GROUP BY h2.Id, h2.TongTien, h2.PhiShip
-                                                     ) sub ON sub.hoaDonId = h.Id
+                    -- Doanh thu thực tế
+                    COALESCE(SUM(
+                        CASE WHEN h.TrangThai = 6 THEN h.TongTien - h.PhiShip END
+                    ), 0)
+                    - COALESCE(SUM(
+                        CASE WHEN h.TrangThai = 6 THEN ptrct.SoTienHoanTra END
+                    ), 0) AS tongTien,
+            
+                    -- Tổng sản phẩm bán (trừ trả)
+                    COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong END), 0)
+                      - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPham,
+            
+                    -- Tổng sản phẩm trả
+                    COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPhamTra,
+            
+                    -- Chỉ số đơn hàng
+                    COUNT(DISTINCT CASE WHEN h.TrangThai = 6 THEN h.Id END) AS tongDonThanhCong,
+                    COUNT(DISTINCT CASE WHEN h.TrangThai = 7 THEN h.Id END) AS tongDonHuy,
+                    COUNT(DISTINCT CASE WHEN h.TrangThai = 8 THEN h.Id END) AS tongDonTra
+            
+                FROM 5SHUTTLE.HoaDon h
+                JOIN 5SHUTTLE.HoaDonCT hdct
+                    ON h.Id = hdct.IdHoaDon
+                LEFT JOIN 5SHUTTLE.PhieuTraHang ptr
+                    ON ptr.IdHoaDon = h.Id
+                   AND ptr.TrangThai = 'APPROVED'
+                LEFT JOIN 5SHUTTLE.PhieuTraHangCT ptrct
+                    ON ptrct.IdPhieuTraHang = ptr.Id
+                   AND ptrct.IdHoaDonCT = hdct.Id
                                                      
                                                      WHERE h.NgayTao >= CURDATE()
                                                        AND h.NgayTao < CURDATE() + INTERVAL 1 DAY;
@@ -67,100 +53,72 @@ public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
 
     @Query(value = """
         SELECT
-                                                         -- Doanh thu thực tế
-                                                         COALESCE(SUM(
-                                                             CASE WHEN hdct.TrangThai = 6 THEN
-                                                                 (hdct.SoLuong * hdct.GiaBan)                           -- giá gốc
-                                                                 - ( (hdct.SoLuong * hdct.GiaBan) / NULLIF(sub.gross_total,0) )  \s
-                                                                   * COALESCE(sub.discount_total, 0)                   -- phân bổ giảm giá
-                                                             END
-                                                         ), 0)
-                                                         - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6\s
-                                                                             THEN ptrct.SoLuongPheDuyet * hdct.GiaBan END), 0) AS tongTien,
-                                                     
-                                                         -- Tổng sản phẩm bán (trừ trả)
-                                                         COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong END), 0)
-                                                           - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPham,
-                                                     
-                                                         -- Tổng sản phẩm trả
-                                                         COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPhamTra,
-                                                     
-                                                         -- Chỉ số đơn hàng
-                                                     	COUNT(DISTINCT CASE WHEN h.TrangThai = 6 THEN h.Id END) AS tongDonThanhCong,
-                                                     	COUNT(DISTINCT CASE WHEN h.TrangThai = 7 THEN h.Id END) AS tongDonHuy,
-                                                     	COUNT(DISTINCT CASE WHEN h.TrangThai = 8 THEN h.Id END) AS tongDonTra
-                                                     
-                                                     FROM 5SHUTTLE.HoaDon h
-                                                     JOIN 5SHUTTLE.HoaDonCT hdct
-                                                         ON h.Id = hdct.IdHoaDon
-                                                     LEFT JOIN 5SHUTTLE.PhieuTraHang ptr
-                                                         ON ptr.IdHoaDon = h.Id
-                                                        AND ptr.TrangThai = 'APPROVED'
-                                                     LEFT JOIN 5SHUTTLE.PhieuTraHangCT ptrct
-                                                         ON ptrct.IdPhieuTraHang = ptr.Id
-                                                        AND ptrct.IdHoaDonCT = hdct.Id
-                                                     
-                                                     -- Subquery tính tổng gốc và giảm giá
-                                                     JOIN (
-                                                         SELECT\s
-                                                             h2.Id AS hoaDonId,
-                                                             SUM(hdct2.SoLuong * hdct2.GiaBan) AS gross_total,
-                                                             (SUM(hdct2.SoLuong * hdct2.GiaBan) - (h2.TongTien - h2.PhiShip)) AS discount_total
-                                                         FROM 5SHUTTLE.HoaDon h2
-                                                         JOIN 5SHUTTLE.HoaDonCT hdct2 ON h2.Id = hdct2.IdHoaDon
-                                                         GROUP BY h2.Id, h2.TongTien, h2.PhiShip
-                                                     ) sub ON sub.hoaDonId = h.Id
-          AND h.NgayTao >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
+                    -- Doanh thu thực tế
+                    COALESCE(SUM(
+                        CASE WHEN h.TrangThai = 6 THEN h.TongTien - h.PhiShip END
+                    ), 0)
+                    - COALESCE(SUM(
+                        CASE WHEN h.TrangThai = 6 THEN ptrct.SoTienHoanTra END
+                    ), 0) AS tongTien,
+            
+                    -- Tổng sản phẩm bán (trừ trả)
+                    COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong END), 0)
+                      - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPham,
+            
+                    -- Tổng sản phẩm trả
+                    COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPhamTra,
+            
+                    -- Chỉ số đơn hàng
+                    COUNT(DISTINCT CASE WHEN h.TrangThai = 6 THEN h.Id END) AS tongDonThanhCong,
+                    COUNT(DISTINCT CASE WHEN h.TrangThai = 7 THEN h.Id END) AS tongDonHuy,
+                    COUNT(DISTINCT CASE WHEN h.TrangThai = 8 THEN h.Id END) AS tongDonTra
+            
+                FROM 5SHUTTLE.HoaDon h
+                JOIN 5SHUTTLE.HoaDonCT hdct
+                    ON h.Id = hdct.IdHoaDon
+                LEFT JOIN 5SHUTTLE.PhieuTraHang ptr
+                    ON ptr.IdHoaDon = h.Id
+                   AND ptr.TrangThai = 'APPROVED'
+                LEFT JOIN 5SHUTTLE.PhieuTraHangCT ptrct
+                    ON ptrct.IdPhieuTraHang = ptr.Id
+                   AND ptrct.IdHoaDonCT = hdct.Id
+          WHERE h.NgayTao >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
           AND h.NgayTao < DATE_ADD(DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY), INTERVAL 7 DAY);
     """, nativeQuery = true)
     OrderStatsProjection getStatsByCurrentWeek();
 
     @Query(value = """
         SELECT
-                                                         -- Doanh thu thực tế
-                                                         COALESCE(SUM(
-                                                             CASE WHEN hdct.TrangThai = 6 THEN
-                                                                 (hdct.SoLuong * hdct.GiaBan)                           -- giá gốc
-                                                                 - ( (hdct.SoLuong * hdct.GiaBan) / NULLIF(sub.gross_total,0) )  \s
-                                                                   * COALESCE(sub.discount_total, 0)                   -- phân bổ giảm giá
-                                                             END
-                                                         ), 0)
-                                                         - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6\s
-                                                                             THEN ptrct.SoLuongPheDuyet * hdct.GiaBan END), 0) AS tongTien,
-                                                     
-                                                         -- Tổng sản phẩm bán (trừ trả)
-                                                         COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong END), 0)
-                                                           - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPham,
-                                                     
-                                                         -- Tổng sản phẩm trả
-                                                         COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPhamTra,
-                                                     
-                                                         -- Chỉ số đơn hàng
-                                                     	COUNT(DISTINCT CASE WHEN h.TrangThai = 6 THEN h.Id END) AS tongDonThanhCong,
-                                                     	COUNT(DISTINCT CASE WHEN h.TrangThai = 7 THEN h.Id END) AS tongDonHuy,
-                                                     	COUNT(DISTINCT CASE WHEN h.TrangThai = 8 THEN h.Id END) AS tongDonTra
-                                                     
-                                                     FROM 5SHUTTLE.HoaDon h
-                                                     JOIN 5SHUTTLE.HoaDonCT hdct
-                                                         ON h.Id = hdct.IdHoaDon
-                                                     LEFT JOIN 5SHUTTLE.PhieuTraHang ptr
-                                                         ON ptr.IdHoaDon = h.Id
-                                                        AND ptr.TrangThai = 'APPROVED'
-                                                     LEFT JOIN 5SHUTTLE.PhieuTraHangCT ptrct
-                                                         ON ptrct.IdPhieuTraHang = ptr.Id
-                                                        AND ptrct.IdHoaDonCT = hdct.Id
-                                                     
-                                                     -- Subquery tính tổng gốc và giảm giá
-                                                     JOIN (
-                                                         SELECT\s
-                                                             h2.Id AS hoaDonId,
-                                                             SUM(hdct2.SoLuong * hdct2.GiaBan) AS gross_total,
-                                                             (SUM(hdct2.SoLuong * hdct2.GiaBan) - (h2.TongTien - h2.PhiShip)) AS discount_total
-                                                         FROM 5SHUTTLE.HoaDon h2
-                                                         JOIN 5SHUTTLE.HoaDonCT hdct2 ON h2.Id = hdct2.IdHoaDon
-                                                         GROUP BY h2.Id, h2.TongTien, h2.PhiShip
-                                                     ) sub ON sub.hoaDonId = h.Id
-          AND h.NgayTao >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                                                                                             -- Doanh thu thực tế
+                                                                                             COALESCE(SUM(
+                                                                                                 CASE WHEN h.TrangThai = 6 THEN h.TongTien - h.PhiShip END
+                                                                                             ), 0)
+                                                                                             - COALESCE(SUM(
+                                                                                                 CASE WHEN h.TrangThai = 6 THEN ptrct.SoTienHoanTra END
+                                                                                             ), 0) AS tongTien,
+            
+                                                                                             -- Tổng sản phẩm bán (trừ trả)
+                                                                                             COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong END), 0)
+                                                                                               - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPham,
+            
+                                                                                             -- Tổng sản phẩm trả
+                                                                                             COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPhamTra,
+            
+                                                                                             -- Chỉ số đơn hàng
+                                                                                             COUNT(DISTINCT CASE WHEN h.TrangThai = 6 THEN h.Id END) AS tongDonThanhCong,
+                                                                                             COUNT(DISTINCT CASE WHEN h.TrangThai = 7 THEN h.Id END) AS tongDonHuy,
+                                                                                             COUNT(DISTINCT CASE WHEN h.TrangThai = 8 THEN h.Id END) AS tongDonTra
+            
+                                                                                         FROM 5SHUTTLE.HoaDon h
+                                                                                         JOIN 5SHUTTLE.HoaDonCT hdct
+                                                                                             ON h.Id = hdct.IdHoaDon
+                                                                                         LEFT JOIN 5SHUTTLE.PhieuTraHang ptr
+                                                                                             ON ptr.IdHoaDon = h.Id
+                                                                                            AND ptr.TrangThai = 'APPROVED'
+                                                                                         LEFT JOIN 5SHUTTLE.PhieuTraHangCT ptrct
+                                                                                             ON ptrct.IdPhieuTraHang = ptr.Id
+                                                                                            AND ptrct.IdHoaDonCT = hdct.Id
+          WHERE h.NgayTao >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
           AND h.NgayTao < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01');
         
     """, nativeQuery = true)
@@ -168,99 +126,71 @@ public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
 
     @Query(value = """
         SELECT
-                                                         -- Doanh thu thực tế
-                                                         COALESCE(SUM(
-                                                             CASE WHEN hdct.TrangThai = 6 THEN
-                                                                 (hdct.SoLuong * hdct.GiaBan)                           -- giá gốc
-                                                                 - ( (hdct.SoLuong * hdct.GiaBan) / NULLIF(sub.gross_total,0) )  \s
-                                                                   * COALESCE(sub.discount_total, 0)                   -- phân bổ giảm giá
-                                                             END
-                                                         ), 0)
-                                                         - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6\s
-                                                                             THEN ptrct.SoLuongPheDuyet * hdct.GiaBan END), 0) AS tongTien,
-                                                     
-                                                         -- Tổng sản phẩm bán (trừ trả)
-                                                         COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong END), 0)
-                                                           - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPham,
-                                                     
-                                                         -- Tổng sản phẩm trả
-                                                         COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPhamTra,
-                                                     
-                                                         -- Chỉ số đơn hàng
-                                                     	COUNT(DISTINCT CASE WHEN h.TrangThai = 6 THEN h.Id END) AS tongDonThanhCong,
-                                                     	COUNT(DISTINCT CASE WHEN h.TrangThai = 7 THEN h.Id END) AS tongDonHuy,
-                                                     	COUNT(DISTINCT CASE WHEN h.TrangThai = 8 THEN h.Id END) AS tongDonTra
-                                                     
-                                                     FROM 5SHUTTLE.HoaDon h
-                                                     JOIN 5SHUTTLE.HoaDonCT hdct
-                                                         ON h.Id = hdct.IdHoaDon
-                                                     LEFT JOIN 5SHUTTLE.PhieuTraHang ptr
-                                                         ON ptr.IdHoaDon = h.Id
-                                                        AND ptr.TrangThai = 'APPROVED'
-                                                     LEFT JOIN 5SHUTTLE.PhieuTraHangCT ptrct
-                                                         ON ptrct.IdPhieuTraHang = ptr.Id
-                                                        AND ptrct.IdHoaDonCT = hdct.Id
-                                                     
-                                                     -- Subquery tính tổng gốc và giảm giá
-                                                     JOIN (
-                                                         SELECT\s
-                                                             h2.Id AS hoaDonId,
-                                                             SUM(hdct2.SoLuong * hdct2.GiaBan) AS gross_total,
-                                                             (SUM(hdct2.SoLuong * hdct2.GiaBan) - (h2.TongTien - h2.PhiShip)) AS discount_total
-                                                         FROM 5SHUTTLE.HoaDon h2
-                                                         JOIN 5SHUTTLE.HoaDonCT hdct2 ON h2.Id = hdct2.IdHoaDon
-                                                         GROUP BY h2.Id, h2.TongTien, h2.PhiShip
-                                                     ) sub ON sub.hoaDonId = h.Id
-          AND h.NgayTao >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                                                                                             -- Doanh thu thực tế
+                                                                                             COALESCE(SUM(
+                                                                                                 CASE WHEN h.TrangThai = 6 THEN h.TongTien - h.PhiShip END
+                                                                                             ), 0)
+                                                                                             - COALESCE(SUM(
+                                                                                                 CASE WHEN h.TrangThai = 6 THEN ptrct.SoTienHoanTra END
+                                                                                             ), 0) AS tongTien,
+            
+                                                                                             -- Tổng sản phẩm bán (trừ trả)
+                                                                                             COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong END), 0)
+                                                                                               - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPham,
+            
+                                                                                             -- Tổng sản phẩm trả
+                                                                                             COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPhamTra,
+            
+                                                                                             -- Chỉ số đơn hàng
+                                                                                             COUNT(DISTINCT CASE WHEN h.TrangThai = 6 THEN h.Id END) AS tongDonThanhCong,
+                                                                                             COUNT(DISTINCT CASE WHEN h.TrangThai = 7 THEN h.Id END) AS tongDonHuy,
+                                                                                             COUNT(DISTINCT CASE WHEN h.TrangThai = 8 THEN h.Id END) AS tongDonTra
+            
+                                                                                         FROM 5SHUTTLE.HoaDon h
+                                                                                         JOIN 5SHUTTLE.HoaDonCT hdct
+                                                                                             ON h.Id = hdct.IdHoaDon
+                                                                                         LEFT JOIN 5SHUTTLE.PhieuTraHang ptr
+                                                                                             ON ptr.IdHoaDon = h.Id
+                                                                                            AND ptr.TrangThai = 'APPROVED'
+                                                                                         LEFT JOIN 5SHUTTLE.PhieuTraHangCT ptrct
+                                                                                             ON ptrct.IdPhieuTraHang = ptr.Id
+                                                                                            AND ptrct.IdHoaDonCT = hdct.Id
+          WHERE h.NgayTao >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
           AND h.NgayTao < DATE_FORMAT(CURDATE() + INTERVAL 1 MONTH, '%Y-%m-01');
     """, nativeQuery = true)
     OrderStatsProjection getStatsByCurrentYear();
 
     @Query(value = """
         SELECT
-                                                         -- Doanh thu thực tế
-                                                         COALESCE(SUM(
-                                                             CASE WHEN hdct.TrangThai = 6 THEN
-                                                                 (hdct.SoLuong * hdct.GiaBan)                           -- giá gốc
-                                                                 - ( (hdct.SoLuong * hdct.GiaBan) / NULLIF(sub.gross_total,0) )  \s
-                                                                   * COALESCE(sub.discount_total, 0)                   -- phân bổ giảm giá
-                                                             END
-                                                         ), 0)
-                                                         - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6\s
-                                                                             THEN ptrct.SoLuongPheDuyet * hdct.GiaBan END), 0) AS tongTien,
-                                                     
-                                                         -- Tổng sản phẩm bán (trừ trả)
-                                                         COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong END), 0)
-                                                           - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPham,
-                                                     
-                                                         -- Tổng sản phẩm trả
-                                                         COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPhamTra,
-                                                     
-                                                         -- Chỉ số đơn hàng
-                                                     	COUNT(DISTINCT CASE WHEN h.TrangThai = 6 THEN h.Id END) AS tongDonThanhCong,
-                                                     	COUNT(DISTINCT CASE WHEN h.TrangThai = 7 THEN h.Id END) AS tongDonHuy,
-                                                     	COUNT(DISTINCT CASE WHEN h.TrangThai = 8 THEN h.Id END) AS tongDonTra
-                                                     
-                                                     FROM 5SHUTTLE.HoaDon h
-                                                     JOIN 5SHUTTLE.HoaDonCT hdct
-                                                         ON h.Id = hdct.IdHoaDon
-                                                     LEFT JOIN 5SHUTTLE.PhieuTraHang ptr
-                                                         ON ptr.IdHoaDon = h.Id
-                                                        AND ptr.TrangThai = 'APPROVED'
-                                                     LEFT JOIN 5SHUTTLE.PhieuTraHangCT ptrct
-                                                         ON ptrct.IdPhieuTraHang = ptr.Id
-                                                        AND ptrct.IdHoaDonCT = hdct.Id
-                                                     
-                                                     -- Subquery tính tổng gốc và giảm giá
-                                                     JOIN (
-                                                         SELECT\s
-                                                             h2.Id AS hoaDonId,
-                                                             SUM(hdct2.SoLuong * hdct2.GiaBan) AS gross_total,
-                                                             (SUM(hdct2.SoLuong * hdct2.GiaBan) - (h2.TongTien - h2.PhiShip)) AS discount_total
-                                                         FROM 5SHUTTLE.HoaDon h2
-                                                         JOIN 5SHUTTLE.HoaDonCT hdct2 ON h2.Id = hdct2.IdHoaDon
-                                                         GROUP BY h2.Id, h2.TongTien, h2.PhiShip
-                                                     ) sub ON sub.hoaDonId = h.Id
+                                                                                             -- Doanh thu thực tế
+                                                                                             COALESCE(SUM(
+                                                                                                 CASE WHEN h.TrangThai = 6 THEN h.TongTien - h.PhiShip END
+                                                                                             ), 0)
+                                                                                             - COALESCE(SUM(
+                                                                                                 CASE WHEN h.TrangThai = 6 THEN ptrct.SoTienHoanTra END
+                                                                                             ), 0) AS tongTien,
+            
+                                                                                             -- Tổng sản phẩm bán (trừ trả)
+                                                                                             COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN hdct.SoLuong END), 0)
+                                                                                               - COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPham,
+            
+                                                                                             -- Tổng sản phẩm trả
+                                                                                             COALESCE(SUM(CASE WHEN hdct.TrangThai = 6 THEN ptrct.SoLuongPheDuyet END), 0) AS tongSanPhamTra,
+            
+                                                                                             -- Chỉ số đơn hàng
+                                                                                             COUNT(DISTINCT CASE WHEN h.TrangThai = 6 THEN h.Id END) AS tongDonThanhCong,
+                                                                                             COUNT(DISTINCT CASE WHEN h.TrangThai = 7 THEN h.Id END) AS tongDonHuy,
+                                                                                             COUNT(DISTINCT CASE WHEN h.TrangThai = 8 THEN h.Id END) AS tongDonTra
+            
+                                                                                         FROM 5SHUTTLE.HoaDon h
+                                                                                         JOIN 5SHUTTLE.HoaDonCT hdct
+                                                                                             ON h.Id = hdct.IdHoaDon
+                                                                                         LEFT JOIN 5SHUTTLE.PhieuTraHang ptr
+                                                                                             ON ptr.IdHoaDon = h.Id
+                                                                                            AND ptr.TrangThai = 'APPROVED'
+                                                                                         LEFT JOIN 5SHUTTLE.PhieuTraHangCT ptrct
+                                                                                             ON ptrct.IdPhieuTraHang = ptr.Id
+                                                                                            AND ptrct.IdHoaDonCT = hdct.Id
           WHERE DATE(h.NgayTao) >= :fromDate
           AND DATE(h.NgayTao) <= :toDate
     """, nativeQuery = true)
