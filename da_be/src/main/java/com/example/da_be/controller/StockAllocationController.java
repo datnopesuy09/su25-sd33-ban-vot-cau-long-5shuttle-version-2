@@ -59,6 +59,44 @@ public class StockAllocationController {
     }
     
     /**
+     * Debug endpoint để kiểm tra stock allocation
+     */
+    @GetMapping("/debug/{sanPhamCTId}")
+    public ResponseEntity<?> debugStockAllocation(@PathVariable Integer sanPhamCTId) {
+        try {
+            Map<String, Object> debug = new HashMap<>();
+            
+            // Lấy thông tin cơ bản
+            debug.put("sanPhamCTId", sanPhamCTId);
+            debug.put("currentStock", getCurrentStock(sanPhamCTId));
+            debug.put("availableStock", stockAllocationService.getAvailableStock(sanPhamCTId));
+            
+            // Lấy chi tiết allocations
+            Map<String, Integer> summary = stockAllocationService.getStockAllocationSummary(sanPhamCTId);
+            debug.put("summary", summary);
+            
+            // Tính toán manual để verify
+            int totalReserved = summary.getOrDefault("totalReserved", 0);
+            int totalAllocated = summary.getOrDefault("totalAllocated", 0);
+            int totalConfirmed = summary.getOrDefault("totalConfirmed", 0);
+            int currentStock = getCurrentStock(sanPhamCTId);
+            int manualAvailable = currentStock - totalReserved - totalAllocated - totalConfirmed;
+            
+            debug.put("manualCalculation", Map.of(
+                "currentStock", currentStock,
+                "totalReserved", totalReserved,
+                "totalAllocated", totalAllocated,
+                "totalConfirmed", totalConfirmed,
+                "manualAvailable", manualAvailable
+            ));
+            
+            return ResponseEntity.ok(debug);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Lỗi: " + e.getMessage());
+        }
+    }
+
+    /**
      * Migration đơn hàng cũ
      */
     @PostMapping("/migrate-order/{hoaDonId}")

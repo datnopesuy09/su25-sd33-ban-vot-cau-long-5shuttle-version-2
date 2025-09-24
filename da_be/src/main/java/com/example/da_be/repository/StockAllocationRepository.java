@@ -44,10 +44,9 @@ public interface StockAllocationRepository extends JpaRepository<StockAllocation
     List<StockAllocation> findByHoaDonId(@Param("hoaDonId") Integer hoaDonId);
     
     /**
-     * Tính tổng số lượng allocated cho một sản phẩm
+     * Tính tổng số lượng allocated cho một sản phẩm (CHỈ TÍNH ALLOCATED + CONFIRMED)
      */
     @Query("SELECT COALESCE(SUM(CASE " +
-           "WHEN sa.trangThai = 'RESERVED' THEN sa.soLuongReserved " +
            "WHEN sa.trangThai = 'ALLOCATED' THEN sa.soLuongAllocated " +
            "WHEN sa.trangThai = 'CONFIRMED' THEN sa.soLuongConfirmed " +
            "ELSE 0 END), 0) " +

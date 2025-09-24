@@ -299,16 +299,21 @@ public class StockAllocationService {
     }
 
     /**
-     * 7. TÍNH STOCK KHẢ DỤNG
+     * 7. TÍNH STOCK KHẢ DỤNG (TÍNH CẢ RESERVED + ALLOCATED + CONFIRMED)
      */
     public int getAvailableStock(Integer sanPhamCTId) {
         SanPhamCT sanPhamCT = sanPhamCTRepository.findById(sanPhamCTId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm ID: " + sanPhamCTId));
         
         int totalStock = sanPhamCT.getSoLuong();
+        
+        // Tính tổng đang bị chiếm giữ (RESERVED + ALLOCATED + CONFIRMED)
+        Integer totalReserved = stockAllocationRepository.getTotalReservedBySanPhamCTId(sanPhamCTId);
         Integer totalAllocated = stockAllocationRepository.getTotalAllocatedBySanPhamCTId(sanPhamCTId);
         
-        return Math.max(0, totalStock - (totalAllocated != null ? totalAllocated : 0));
+        int totalOccupied = (totalReserved != null ? totalReserved : 0) + (totalAllocated != null ? totalAllocated : 0);
+        
+        return Math.max(0, totalStock - totalOccupied);
     }
 
     /**
@@ -395,7 +400,53 @@ public class StockAllocationService {
     }
 
     /**
-     * 10. CLEANUP ALLOCATIONS CŨ
+     * 10. CẬP NHẬT ALLOCATION KHI HOÀN HÀNG
+     */
+    @Transactional
+    public void updateAllocationForReturn(Integer hoaDonCTId, Integer returnQuantity) {
+        log.info("Cập nhật allocation cho hoàn hàng - HoaDonCT ID: {}, Số lượng hoàn: {}", hoaDonCTId, returnQuantity);
+        
+        HoaDonCT hoaDonCT = hoaDonCTRepository.findById(hoaDonCTId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy HoaDonCT ID: " + hoaDonCTId));
+        
+        Optional<StockAllocation> allocationOpt = stockAllocationRepository.findByHoaDonCT(hoaDonCT);
+        if (!allocationOpt.isPresent()) {
+            throw new RuntimeException("Không tìm thấy allocation cho HoaDonCT ID: " + hoaDonCTId);
+        }
+        
+        StockAllocation allocation = allocationOpt.get();
+        SanPhamCT sanPhamCT = allocation.getSanPhamCT();
+        
+        // Giảm số lượng allocation và hoàn stock
+        int newAllocatedQuantity = 0;
+        int restoreQuantity = returnQuantity;
+        
+        if (allocation.getTrangThai() == StockAllocation.AllocationStatus.ALLOCATED) {
+            newAllocatedQuantity = Math.max(0, allocation.getSoLuongAllocated() - returnQuantity);
+            allocation.setSoLuongAllocated(newAllocatedQuantity);
+        } else if (allocation.getTrangThai() == StockAllocation.AllocationStatus.CONFIRMED) {
+            newAllocatedQuantity = Math.max(0, allocation.getSoLuongConfirmed() - returnQuantity);
+            allocation.setSoLuongConfirmed(newAllocatedQuantity);
+            allocation.setSoLuongAllocated(newAllocatedQuantity); // Sync allocated với confirmed
+        }
+        
+        // Hoàn stock
+        sanPhamCT.setSoLuong(sanPhamCT.getSoLuong() + restoreQuantity);
+        sanPhamCTRepository.save(sanPhamCT);
+        
+        // Nếu allocation về 0, có thể chuyển thành CANCELLED
+        if (newAllocatedQuantity == 0) {
+            allocation.setTrangThai(StockAllocation.AllocationStatus.CANCELLED);
+        }
+        
+        stockAllocationRepository.save(allocation);
+        
+        log.info("Đã cập nhật allocation - Allocation mới: {}, Stock sau khi hoàn: {}", 
+                newAllocatedQuantity, sanPhamCT.getSoLuong());
+    }
+
+    /**
+     * 11. CLEANUP ALLOCATIONS CŨ
      */
     @Transactional
     public void cleanupOldAllocations() {
