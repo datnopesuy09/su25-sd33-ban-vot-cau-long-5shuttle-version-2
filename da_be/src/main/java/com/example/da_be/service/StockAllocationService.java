@@ -299,16 +299,17 @@ public class StockAllocationService {
     }
 
     /**
-     * 7. TÍNH STOCK KHẢ DỤNG
+     * 7. TÍNH STOCK KHẢ DỤNG - PHƯƠNG ÁN 1: BỎ RESERVATION HOÀN TOÀN
+     * Chỉ trả về số lượng thực tế trong kho, không tính reservation
+     * Admin sẽ validate khi xác nhận đơn hàng
      */
     public int getAvailableStock(Integer sanPhamCTId) {
         SanPhamCT sanPhamCT = sanPhamCTRepository.findById(sanPhamCTId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy sản phẩm ID: " + sanPhamCTId));
         
-        int totalStock = sanPhamCT.getSoLuong();
-        Integer totalAllocated = stockAllocationRepository.getTotalAllocatedBySanPhamCTId(sanPhamCTId);
-        
-        return Math.max(0, totalStock - (totalAllocated != null ? totalAllocated : 0));
+        // Trả về số lượng thực tế trong kho, bỏ qua reservation
+        // Vì admin sẽ validate khi xác nhận đơn hàng ở OrderProgress.jsx
+        return sanPhamCT.getSoLuong();
     }
 
     /**
@@ -395,7 +396,101 @@ public class StockAllocationService {
     }
 
     /**
-     * 10. CLEANUP ALLOCATIONS CŨ
+     * 10. CẬP NHẬT ALLOCATION KHI HOÀN HÀNG
+     */
+    @Transactional
+    public void updateAllocationForReturn(Integer hoaDonCTId, Integer returnQuantity) {
+        log.info("Cập nhật allocation cho hoàn hàng - HoaDonCT ID: {}, Số lượng hoàn: {}", hoaDonCTId, returnQuantity);
+        
+        HoaDonCT hoaDonCT = hoaDonCTRepository.findById(hoaDonCTId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy HoaDonCT ID: " + hoaDonCTId));
+        
+        Optional<StockAllocation> allocationOpt = stockAllocationRepository.findByHoaDonCT(hoaDonCT);
+        if (!allocationOpt.isPresent()) {
+            throw new RuntimeException("Không tìm thấy allocation cho HoaDonCT ID: " + hoaDonCTId);
+        }
+        
+        StockAllocation allocation = allocationOpt.get();
+        SanPhamCT sanPhamCT = allocation.getSanPhamCT();
+        
+        // Giảm số lượng allocation và hoàn stock
+        int newAllocatedQuantity = 0;
+        int restoreQuantity = returnQuantity;
+        
+        if (allocation.getTrangThai() == StockAllocation.AllocationStatus.ALLOCATED) {
+            newAllocatedQuantity = Math.max(0, allocation.getSoLuongAllocated() - returnQuantity);
+            allocation.setSoLuongAllocated(newAllocatedQuantity);
+        } else if (allocation.getTrangThai() == StockAllocation.AllocationStatus.CONFIRMED) {
+            newAllocatedQuantity = Math.max(0, allocation.getSoLuongConfirmed() - returnQuantity);
+            allocation.setSoLuongConfirmed(newAllocatedQuantity);
+            allocation.setSoLuongAllocated(newAllocatedQuantity); // Sync allocated với confirmed
+        }
+        
+        // Hoàn stock
+        sanPhamCT.setSoLuong(sanPhamCT.getSoLuong() + restoreQuantity);
+        sanPhamCTRepository.save(sanPhamCT);
+        
+        // Nếu allocation về 0, có thể chuyển thành CANCELLED
+        if (newAllocatedQuantity == 0) {
+            allocation.setTrangThai(StockAllocation.AllocationStatus.CANCELLED);
+        }
+        
+        stockAllocationRepository.save(allocation);
+        
+        log.info("Đã cập nhật allocation - Allocation mới: {}, Stock sau khi hoàn: {}", 
+                newAllocatedQuantity, sanPhamCT.getSoLuong());
+    }
+
+    /**
+     * VALIDATION CHO ADMIN KHI XÁC NHẬN ĐƠN HÀNG
+     * Kiểm tra xem có đủ hàng trong kho để xác nhận đơn hàng hay không
+     */
+    public boolean canConfirmOrder(Integer hoaDonId) {
+        log.info("Kiểm tra khả năng xác nhận đơn hàng ID: {}", hoaDonId);
+        
+        List<HoaDonCT> chiTiets = hoaDonCTRepository.findByHoaDonId(hoaDonId);
+        
+        for (HoaDonCT ct : chiTiets) {
+            int currentStock = ct.getSanPhamCT().getSoLuong();
+            int requiredQuantity = ct.getSoLuong();
+            
+            if (currentStock < requiredQuantity) {
+                log.warn("Không đủ hàng - Sản phẩm: {}, Cần: {}, Có: {}", 
+                        ct.getSanPhamCT().getSanPham().getTen(), requiredQuantity, currentStock);
+                return false;
+            }
+        }
+        
+        log.info("Đơn hàng {} có thể xác nhận", hoaDonId);
+        return true;
+    }
+    
+    /**
+     * LẤY CHI TIẾT THIẾU HÀNG CHO ĐƠN HÀNG (để hiển thị chi tiết lỗi)
+     */
+    public java.util.List<String> getStockShortageDetails(Integer hoaDonId) {
+        java.util.List<String> shortages = new java.util.ArrayList<>();
+        List<HoaDonCT> chiTiets = hoaDonCTRepository.findByHoaDonId(hoaDonId);
+        
+        for (HoaDonCT ct : chiTiets) {
+            int currentStock = ct.getSanPhamCT().getSoLuong();
+            int requiredQuantity = ct.getSoLuong();
+            
+            if (currentStock < requiredQuantity) {
+                String shortage = String.format("%s: cần %d, chỉ có %d (thiếu %d)", 
+                        ct.getSanPhamCT().getSanPham().getTen(), 
+                        requiredQuantity, 
+                        currentStock, 
+                        requiredQuantity - currentStock);
+                shortages.add(shortage);
+            }
+        }
+        
+        return shortages;
+    }
+
+    /**
+     * 11. CLEANUP ALLOCATIONS CŨ
      */
     @Transactional
     public void cleanupOldAllocations() {

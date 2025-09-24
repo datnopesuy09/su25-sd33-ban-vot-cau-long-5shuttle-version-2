@@ -171,36 +171,42 @@ function SpctDetail() {
     const handleUpdateProduct = async () => {
         if (!selectedVariant) return;
         
-        // Đếm số biến thể cùng màu
+        // Đếm số biến thể cùng màu để hiển thị thông tin
         const sameColorVariants = variants.filter(v => v.color === selectedVariant.color);
         const variantCount = sameColorVariants.length;
         
-        // Hiển thị modal xác nhận nếu có nhiều hơn 1 biến thể cùng màu
-        if (variantCount > 1) {
-            const confirmed = await Swal.fire({
-                title: 'Xác nhận cập nhật',
-                html: `
-                    <div class="text-left">
-                        <p class="mb-3">Bạn đang cập nhật <strong>${variantCount} biến thể</strong> cùng màu <strong>${selectedVariant.color}</strong>:</p>
-                        <ul class="list-disc list-inside text-sm text-gray-600 mb-3">
-                            ${sameColorVariants.map(v => `<li>${v.weight} - ${v.maSanPham}</li>`).join('')}
-                        </ul>
-                        <p class="text-orange-600 font-medium">⚠️ Tất cả thông tin sẽ được cập nhật giống nhau cho các biến thể này!</p>
+        // Hiển thị modal xác nhận với thông tin chi tiết
+        const confirmed = await Swal.fire({
+            title: 'Xác nhận cập nhật',
+            html: `
+                <div class="text-left">
+                    <p class="mb-3">Bạn đang cập nhật biến thể:</p>
+                    <div class="bg-gray-50 p-3 rounded-lg mb-3">
+                        <p><strong>Sản phẩm:</strong> ${selectedVariant.maSanPham}</p>
+                        <p><strong>Màu sắc:</strong> ${selectedVariant.color}</p>
+                        <p><strong>Trọng lượng:</strong> ${selectedVariant.weight}</p>
+                        <p><strong>Số lượng:</strong> ${selectedVariant.quantity}</p>
+                        <p><strong>Đơn giá:</strong> ${selectedVariant.price.toLocaleString('vi-VN')}đ</p>
                     </div>
-                `,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: `Cập nhật ${variantCount} biến thể`,
-                cancelButtonText: 'Hủy',
-                confirmButtonColor: '#3b82f6',
-                customClass: {
-                    container: 'swal-wide',
-                },
-            });
-            
-            if (!confirmed.isConfirmed) {
-                return;
-            }
+                    ${variantCount > 1 ? 
+                        `<p class="text-blue-600 font-medium">ℹ️ Thông tin chung (thương hiệu, chất liệu, v.v.) và ảnh sẽ được cập nhật cho tất cả ${variantCount} biến thể cùng màu ${selectedVariant.color}</p>
+                        <p class="text-green-600 font-medium mt-2">✅ Số lượng và giá chỉ cập nhật cho biến thể này</p>` 
+                        : ''
+                    }
+                </div>
+            `,
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonText: 'Xác nhận cập nhật',
+            cancelButtonText: 'Hủy',
+            confirmButtonColor: '#3b82f6',
+            customClass: {
+                container: 'swal-wide',
+            },
+        });
+        
+        if (!confirmed.isConfirmed) {
+            return;
         }
         
         setIsLoading(true);
@@ -219,19 +225,18 @@ function SpctDetail() {
                 hinhAnhUrls: selectedImages,
             };
     
-            // 👉 Cập nhật TẤT CẢ biến thể cùng màu
+            // 👉 Cập nhật CHỈ biến thể hiện tại
             const response = await axios.put(
-                `http://localhost:8080/api/san-pham-ct/update-by-color/${selectedVariant.id}`,
+                `http://localhost:8080/api/san-pham-ct/update-basic/${selectedVariant.id}`,
                 updateData
             );
     
-            const { updatedCount, color: updatedColor } = response.data;
-            toast.success(`Đã cập nhật ${updatedCount} biến thể màu ${updatedColor}`);
+            toast.success(`Đã cập nhật thành công biến thể ${selectedVariant.color} - ${selectedVariant.weight}`);
     
-            // Cập nhật TẤT CẢ biến thể cùng màu trong state local
+            // Cập nhật CHỈ biến thể hiện tại trong state local
             setVariants(prevVariants => 
                 prevVariants.map(variant => 
-                    variant.color === selectedVariant.color 
+                    variant.id === selectedVariant.id 
                         ? {
                             ...variant,
                             brand,
@@ -248,6 +253,27 @@ function SpctDetail() {
                         : variant
                 )
             );
+            
+            // Nếu có nhiều biến thể cùng màu, cập nhật thông tin chung cho tất cả (trừ số lượng và giá)
+            if (variantCount > 1) {
+                setVariants(prevVariants => 
+                    prevVariants.map(variant => 
+                        variant.color === selectedVariant.color && variant.id !== selectedVariant.id
+                            ? {
+                                ...variant,
+                                brand,
+                                material,
+                                balancePoint,
+                                hardness: stiff,
+                                status: status === 'Active' ? 'Active' : 'Inactive',
+                                hinhAnhUrls: selectedImages,
+                                image: selectedImages[0] || null,
+                                // GIỮ NGUYÊN số lượng và giá của từng variant
+                            }
+                            : variant
+                    )
+                );
+            }
     
             handleCloseModal();
         } catch (error) {
@@ -909,13 +935,13 @@ function SpctDetail() {
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-2">
                                     Hình ảnh sản phẩm
-                                    <span className="text-xs text-orange-600 ml-2">
-                                        (Ảnh sẽ được áp dụng cho tất cả biến thể màu {selectedVariant?.color})
+                                    <span className="text-xs text-blue-600 ml-2">
+                                        (Ảnh & thông tin chung sẽ được áp dụng cho tất cả biến thể màu {selectedVariant?.color})
                                     </span>
                                 </label>
                                 
-                                {/* Thông báo cập nhật theo nhóm màu */}
-                                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                {/* Thông báo cập nhật logic */}
+                                <div className="mb-3 p-3 bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg">
                                     <div className="flex items-start">
                                         <div className="flex-shrink-0">
                                             <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
@@ -924,16 +950,19 @@ function SpctDetail() {
                                         </div>
                                         <div className="ml-3">
                                             <h3 className="text-sm font-medium text-blue-800">
-                                                Cập nhật theo nhóm màu
+                                                Logic cập nhật thông minh
                                             </h3>
-                                            <div className="mt-1 text-sm text-blue-700">
-                                                <p>
-                                                    Thay đổi này sẽ áp dụng cho <strong>
+                                            <div className="mt-1 text-sm">
+                                                <p className="text-green-700 font-medium">
+                                                    ✅ Số lượng & giá: Chỉ cập nhật biến thể này ({selectedVariant?.color} - {selectedVariant?.weight})
+                                                </p>
+                                                <p className="text-blue-700 font-medium">
+                                                    ℹ️ Thông tin chung & ảnh: Cập nhật cho <strong>
                                                         {variants.filter(v => v.color === selectedVariant?.color).length} biến thể
                                                     </strong> cùng màu <strong>{selectedVariant?.color}</strong>
                                                 </p>
-                                                <p className="text-xs text-gray-600 mt-1">
-                                                    * Màu sắc và trọng lượng không thể thay đổi để tránh tạo duplicate
+                                                <p className="text-xs text-gray-600 mt-2">
+                                                    * Màu sắc và trọng lượng không thể thay đổi để tránh duplicate
                                                 </p>
                                             </div>
                                         </div>

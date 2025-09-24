@@ -44,38 +44,42 @@ public class EnhancedKhoHangService {
      */
     
     /**
-     * Kiểm tra và tạo reservation khi đặt hàng online
-     * KHÔNG TRỪ STOCK THỰC TẾ
+     * PHƯƠNG ÁN 1: BỎ RESERVATION HOÀN TOÀN
+     * Chỉ làm basic validation khi đặt hàng online
+     * Admin sẽ validate chi tiết khi xác nhận đơn hàng
      */
     @Transactional
     public void createOnlineOrderReservation(HoaDon hoaDon, List<HoaDonCT> hoaDonCTList) {
         try {
-            log.info("Tạo reservation cho đơn hàng online: {}", hoaDon.getMa());
+            log.info("Kiểm tra basic validation cho đơn hàng online: {} (không tạo reservation)", hoaDon.getMa());
             
             for (HoaDonCT hoaDonCT : hoaDonCTList) {
                 try {
-                    // Kiểm tra tồn kho có đủ không
+                    // Chỉ kiểm tra sản phẩm có tồn tại và active không
                     SanPhamCT sanPhamCT = hoaDonCT.getSanPhamCT();
-                    int availableStock = stockAllocationService.getAvailableStock(sanPhamCT.getId());
                     
-                    if (availableStock < hoaDonCT.getSoLuong()) {
-                        throw new RuntimeException("Sản phẩm " + sanPhamCT.getSanPham().getTen() + " chỉ còn " + availableStock + " sản phẩm");
+                    if (sanPhamCT == null) {
+                        throw new RuntimeException("Sản phẩm không tồn tại");
                     }
                     
-                    // Tạo reservation (chỉ ghi nhận, không trừ stock thực tế)
-                    stockAllocationService.createReservation(hoaDonCT, hoaDonCT.getSoLuong());
-                    log.info("Tạo reservation cho sản phẩm: {} - số lượng: {}", sanPhamCT.getSanPham().getTen(), hoaDonCT.getSoLuong());
+                    if (sanPhamCT.getTrangThai() != 1) {
+                        throw new RuntimeException("Sản phẩm " + sanPhamCT.getSanPham().getTen() + " hiện không khả dụng");
+                    }
+                    
+                    // KHÔNG TẠO RESERVATION - để admin validate sau
+                    log.info("Kiểm tra thành công cho sản phẩm: {} - số lượng: {}", 
+                            sanPhamCT.getSanPham().getTen(), hoaDonCT.getSoLuong());
                     
                 } catch (Exception e) {
-                    log.error("Lỗi khi tạo reservation cho HoaDonCT {}: {}", hoaDonCT.getId(), e.getMessage());
+                    log.error("Lỗi khi kiểm tra HoaDonCT {}: {}", hoaDonCT.getId(), e.getMessage());
                     throw new RuntimeException("Không thể đặt hàng sản phẩm " + hoaDonCT.getSanPhamCT().getSanPham().getTen() + ": " + e.getMessage());
                 }
             }
             
-            log.info("Tạo reservation thành công cho đơn hàng: {}", hoaDon.getMa());
+            log.info("Kiểm tra thành công cho đơn hàng: {} (admin sẽ validate stock khi xác nhận)", hoaDon.getMa());
             
         } catch (Exception e) {
-            log.error("Lỗi khi tạo reservation cho đơn hàng {}: {}", hoaDon.getMa(), e.getMessage());
+            log.error("Lỗi khi kiểm tra đơn hàng {}: {}", hoaDon.getMa(), e.getMessage());
             throw new RuntimeException("Không thể đặt hàng: " + e.getMessage());
         }
     }

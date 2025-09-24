@@ -6,7 +6,10 @@ import com.example.da_be.dto.response.HoanHangResponse;
 import com.example.da_be.entity.*;
 import com.example.da_be.repository.*;
 import com.example.da_be.service.HoanHangService;
+import com.example.da_be.service.StockAllocationService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -21,10 +24,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class HoanHangServiceImpl implements HoanHangService {
 
+    private static final Logger log = LoggerFactory.getLogger(HoanHangServiceImpl.class);
+    
     private final HoanHangRepository hoanHangRepository;
     private final HoaDonRepository hoaDonRepository;
     private final HoaDonCTRepository hoaDonCTRepository;
     private final SanPhamCTRepository sanPhamCTRepository;
+    private final StockAllocationService stockAllocationService;
 
     @Override
     @Transactional
@@ -69,14 +75,22 @@ public class HoanHangServiceImpl implements HoanHangService {
         }
         
         hoaDonCT.setSoLuong(soLuongMoi);
-        // Không cập nhật thanhTien vì HoaDonCT không có trường này
         hoaDonCTRepository.save(hoaDonCT);
         
-        // 2. Hoàn lại tồn kho
-        SanPhamCT sanPhamCT = hoaDonCT.getSanPhamCT();
-        Integer tonKhoMoi = sanPhamCT.getSoLuong() + request.getSoLuongHoan();
-        sanPhamCT.setSoLuong(tonKhoMoi);
-        sanPhamCTRepository.save(sanPhamCT);
+        // 2. Cập nhật Stock Allocation để giải phóng số lượng hoàn hàng
+        try {
+            // Tìm allocation hiện tại
+            stockAllocationService.updateAllocationForReturn(hoaDonCT.getId(), request.getSoLuongHoan());
+            log.info("Đã cập nhật stock allocation cho HoaDonCT: {} với số lượng hoàn: {}", 
+                    hoaDonCT.getId(), request.getSoLuongHoan());
+        } catch (Exception e) {
+            log.warn("Không tìm thấy allocation cho HoaDonCT: {} - sẽ chỉ cập nhật stock trực tiếp", hoaDonCT.getId());
+            // Fallback: chỉ cập nhật stock trực tiếp (cho đơn hàng cũ chưa có allocation)
+            SanPhamCT sanPhamCT = hoaDonCT.getSanPhamCT();
+            Integer tonKhoMoi = sanPhamCT.getSoLuong() + request.getSoLuongHoan();
+            sanPhamCT.setSoLuong(tonKhoMoi);
+            sanPhamCTRepository.save(sanPhamCT);
+        }
         
         // 3. Cập nhật tổng tiền hóa đơn
         BigDecimal tongTienHoanHang = getTotalReturnAmountByHoaDonId(hoaDon.getId().longValue());

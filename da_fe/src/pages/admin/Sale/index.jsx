@@ -241,15 +241,13 @@ function OfflineSale() {
         }
     }, [selectedBill]);
 
-    // Hàm resolvePrices tương tự như trong PaymentDetails.jsx
+    // Hàm resolvePrices - giaBan là đơn giá (unit price), không phải tổng tiền
     const resolvePrices = (item) => {
-        // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (giá tại thời điểm mua)
-        const qty = Number(item.soLuong) || 1;
-
-        // Giá đã lưu trong hóa đơn (giá tại thời điểm mua hàng)
+        // Ưu tiên sử dụng giá bán đã lưu trong hóa đơn chi tiết (đơn giá tại thời điểm mua)
+        
+        // Giá đã lưu trong hóa đơn (đơn giá tại thời điểm mua hàng)
         if (item.giaBan !== undefined && item.giaBan !== null) {
-            const savedTotalPrice = Number(item.giaBan);
-            const unitPrice = savedTotalPrice / qty;
+            const unitPrice = Number(item.giaBan); // giaBan là đơn giá, không phải total
 
             // Lấy giá gốc từ sản phẩm để tính phần trăm giảm giá
             const originalPrice = item.sanPhamCT?.donGia ?? item.sanPhamCT?.sanPham?.donGia ?? unitPrice;
@@ -280,8 +278,11 @@ function OfflineSale() {
     useEffect(() => {
         const newSubtotal = billDetails.reduce((total, orderDetail) => {
             const { unitPrice } = resolvePrices(orderDetail);
-            return total + unitPrice * (orderDetail.soLuong || 0);
+            const lineTotal = unitPrice * (orderDetail.soLuong || 0);
+            console.log(`Product: ${orderDetail.sanPhamCT?.sanPham?.ten}, UnitPrice: ${unitPrice}, Quantity: ${orderDetail.soLuong}, LineTotal: ${lineTotal}`);
+            return total + lineTotal;
         }, 0);
+        console.log(`Total Subtotal: ${newSubtotal}`);
         setSubtotal(newSubtotal);
     }, [billDetails]);
 
@@ -304,7 +305,8 @@ function OfflineSale() {
                     return {
                         ...item,
                         soLuong: newQuantity,
-                        giaBan: item.sanPhamCT.donGia * newQuantity,
+                        // giaBan là đơn giá (unit price), không nhân với số lượng
+                        // Total sẽ được tính trong component PaymentSummary
                     };
                 }
                 return item;
