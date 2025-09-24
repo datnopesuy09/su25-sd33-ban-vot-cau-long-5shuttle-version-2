@@ -575,6 +575,14 @@ const CheckOut = () => {
             return;
         }
 
+        // Validate store policy: do not allow orders with total >= 100,000,000 VND
+        // discountedPrice already includes shippingFee and promoDiscount (set in useEffect)
+        const MAX_ORDER_VALUE = 100000000; // 100 million VND
+        if (discountedPrice >= MAX_ORDER_VALUE) {
+            swal('Không thể đặt hàng', 'Do chính sách của cửa hàng chỉ cho phép mua đơn hàng dưới 100 triệu', 'warning');
+            return;
+        }
+
         let shippingInfo = null;
 
         if (showAddressForm) {

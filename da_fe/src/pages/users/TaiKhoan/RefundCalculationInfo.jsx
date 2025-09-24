@@ -39,7 +39,7 @@ const RefundCalculationInfo = ({ orderInfo, totalRefund, actualRefundAmount }) =
                 </Typography>
                 
                 <Typography variant="body2" sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-                    <span>Giảm giá từ voucher (tỷ lệ):</span>
+                    <span>Giảm giá từ voucher:</span>
                     <span style={{ color: '#f44336' }}>- {numeral(discountAmount).format('0,0')} ₫</span>
                 </Typography>
                 

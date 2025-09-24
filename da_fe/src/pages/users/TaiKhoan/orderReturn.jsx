@@ -139,7 +139,7 @@ export default function OrderReturn() {
         }
     };
 
-    // Tính số tiền hoàn trả có xét voucher
+    // Tính số tiền hoàn trả có xét voucher (áp dụng trực tiếp cho phần hàng được chọn)
     const calculateActualRefund = () => {
         if (!orderInfo || !hasSelected) {
             setActualRefundAmount(0);
@@ -147,46 +147,47 @@ export default function OrderReturn() {
         }
 
         const selectedProducts = products.filter((p) => p.selected);
-        let totalOriginalAmount = selectedProducts.reduce((sum, p) => sum + p.price * p.quantityReturn, 0);
+        const selectedAmount = selectedProducts.reduce((sum, p) => sum + p.price * p.quantityReturn, 0);
 
-        // Nếu đơn hàng có voucher, tính tỷ lệ giảm giá theo cấu hình voucher và subtotal của đơn hàng
-        if (orderInfo.voucher && Number(orderInfo.orderSubtotal) > 0) {
-            const discountRatio = getDiscountRatio(orderInfo.voucher, Number(orderInfo.orderSubtotal));
-            const actualRefund = totalOriginalAmount * (1 - discountRatio);
-            setActualRefundAmount(Math.max(0, actualRefund));
-        } else {
-            setActualRefundAmount(totalOriginalAmount);
+        // Không có voucher thì hoàn theo tổng giá trị chọn
+        if (!orderInfo.voucher) {
+            setActualRefundAmount(selectedAmount);
+            return;
         }
+
+        const discount = computeDiscountForSelected(
+            orderInfo.voucher,
+            selectedAmount,
+            Number(orderInfo.orderSubtotal || 0),
+        );
+
+        setActualRefundAmount(Math.max(0, selectedAmount - discount));
     };
 
-    // Helper function để tính tỷ lệ giảm giá
-    const getDiscountRatio = (voucher, orderSubtotal) => {
-        if (!voucher || !orderSubtotal || orderSubtotal <= 0) return 0;
+    // Helper: tính số tiền giảm giá áp cho phần hàng đã chọn
+    // - Voucher phần trăm: giảm = min(selectedAmount * %, giaTriMax nếu có)
+    // - Voucher số tiền cố định: phân bổ theo tỷ lệ selectedAmount/orderSubtotal trên tổng giảm của đơn
+    const computeDiscountForSelected = (voucher, selectedAmount, orderSubtotal) => {
+        if (!voucher || selectedAmount <= 0) return 0;
 
-        // Chuẩn hóa: FE dùng 0 = phần trăm, 1 = số tiền; BE có thể dùng 1 = %, 2 = số tiền
-        const type = voucher.kieuGiaTri;
-        let discountAmount = 0;
+        const type = voucher.kieuGiaTri; // 0: %, 1/2: số tiền (tùy BE)
+        const isPercent = type === 0 || voucher?.schema === 'percent';
+        const maxCap = Number(voucher.giaTriMax || voucher.giaTriToiDa || 0) || 0;
 
-        // Phần trăm
-        if (type === 0 || (type === 1 && voucher?.schema === 'percent')) {
-            discountAmount = orderSubtotal * (Number(voucher.giaTri || 0) / 100);
-            if (voucher.giaTriMax) {
-                discountAmount = Math.min(discountAmount, Number(voucher.giaTriMax));
-            }
+        if (isPercent) {
+            const percent = Number(voucher.giaTri || 0) / 100;
+            let discount = selectedAmount * percent;
+            if (maxCap > 0) discount = Math.min(discount, maxCap);
+            return Math.min(discount, selectedAmount);
         }
 
-        // Số tiền cố định (bao gồm cả trường hợp BE dùng 1/2)
-        if (type === 1 || type === 2) {
-            // Nếu thực sự là percent theo FE (type===1) thì nhánh percent ở trên đã xử lý khi schema='percent'.
-            // Ở đây xử lý số tiền cố định phổ biến: FE type 1, BE type 2
-            // Nếu có cả 2 nhánh chạy, lấy lớn hơn? Để an toàn, ưu tiên max giảm nhưng không vượt quá subtotal.
-            const fixed = Number(voucher.giaTri || 0);
-            discountAmount = Math.max(discountAmount, fixed);
-        }
-
-        // Không vượt quá tổng tiền hàng
-        discountAmount = Math.min(discountAmount, orderSubtotal);
-        return Math.min(discountAmount / orderSubtotal, 1);
+        // Số tiền cố định: dùng tổng giảm thực tế của đơn để phân bổ theo tỷ lệ giá trị được chọn
+        const fixedValue = Math.max(0, Number(voucher.giaTri || 0));
+        if (orderSubtotal <= 0) return 0;
+        // Tổng giảm thực tế áp cho đơn (không vượt quá subtotal)
+        const orderLevelDiscount = Math.min(fixedValue, orderSubtotal);
+        const ratio = Math.min(selectedAmount / orderSubtotal, 1);
+        return Math.min(orderLevelDiscount * ratio, selectedAmount);
     };
 
     // Cập nhật actual refund khi products thay đổi

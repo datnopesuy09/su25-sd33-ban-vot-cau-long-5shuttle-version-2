@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.http.ResponseEntity;
 
 @RestController
 @CrossOrigin(origins = "http://localhost:5173")
@@ -41,8 +42,21 @@ public class PhieuGiamGiaController {
     }
 
     @PutMapping("/update/{id}")
-    public PhieuGiamGia updatePhieuGiamGia(@PathVariable Integer id, @RequestBody PhieuGiamGiaRequest phieuGiamGiaRequest) throws ParseException {
-        return phieuGiamGiaService.updatePhieuGiamGia(id, phieuGiamGiaRequest);
+    public ResponseEntity<?> updatePhieuGiamGia(@PathVariable Integer id, @RequestBody PhieuGiamGiaRequest phieuGiamGiaRequest) {
+        try {
+            PhieuGiamGia result = phieuGiamGiaService.updatePhieuGiamGia(id, phieuGiamGiaRequest);
+            if (result != null) {
+                return ResponseEntity.ok(result);
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (ParseException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Lỗi định dạng ngày tháng"));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "Lỗi hệ thống"));
+        }
     }
     @GetMapping("/detail/{id}")
     public PhieuGiamGiaResponse getPhieuGiamGiaById(@PathVariable Integer id) {

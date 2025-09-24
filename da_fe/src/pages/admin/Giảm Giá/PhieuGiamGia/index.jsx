@@ -76,6 +76,7 @@ function PhieuGiamGia() {
         axios
             .get(`http://localhost:8080/api/phieu-giam-gia/search?${params.toString()}`)
             .then((response) => {
+                console.log('Voucher data received:', response.data.content);
                 setListVoucher(response.data.content);
                 setPageCount(response.data.totalPages);
                 setCurrentPage(response.data.currentPage);
@@ -88,6 +89,15 @@ function PhieuGiamGia() {
     useEffect(() => {
         loadVoucherSearch(searchVoucher, 0);
     }, [searchVoucher]);
+
+    // Auto-refresh để cập nhật trạng thái voucher mỗi 30 giây
+    useEffect(() => {
+        const interval = setInterval(() => {
+            loadVoucherSearch(searchVoucher, currentPage);
+        }, 30000); // 30 giây
+
+        return () => clearInterval(interval);
+    }, [searchVoucher, currentPage]);
 
     const formatCurrency = (money) => {
         return numeral(money).format('0,0') + ' ₫';
@@ -125,8 +135,7 @@ function PhieuGiamGia() {
                     })
                     .then(() => {
                         swal('Thành công!', 'Hủy phiếu giảm giá thành công', 'success');
-                        // loadVoucherSearch(searchVoucher, currentPage); // Gọi lại hàm loadVoucher để làm mới danh sách
-                        getAllVoucher(); // Gọi lại hàm để làm mới danh sách
+                        loadVoucherSearch(searchVoucher, currentPage); // Gọi lại hàm loadVoucher để làm mới danh sách
                     })
                     .catch((error) => {
                         console.error('Lỗi cập nhật:', error);
@@ -490,6 +499,23 @@ function PhieuGiamGia() {
                                     listVoucher.length > 0 &&
                                     listVoucher.map((item, index) => {
                                         const stt = currentPage * 5 + index + 1;
+                                        
+                                        // Tính toán trạng thái dựa trên thời gian hiện tại
+                                        const now = dayjs();
+                                        const ngayBatDau = dayjs(item.ngayBatDau);
+                                        const ngayKetThuc = dayjs(item.ngayKetThuc);
+                                        
+                                        let calculatedStatus = item.trangThai;
+                                        if (ngayBatDau.isAfter(now)) {
+                                            calculatedStatus = 0; // Sắp diễn ra
+                                        } else if (ngayKetThuc.isBefore(now)) {
+                                            calculatedStatus = 2; // Đã kết thúc
+                                        } else if (ngayBatDau.isSameOrBefore(now) && ngayKetThuc.isAfter(now)) {
+                                            calculatedStatus = 1; // Đang diễn ra
+                                        }
+                                        
+                                        console.log(`Voucher ${item.ma} - Trạng thái từ DB: ${item.trangThai}, Trạng thái tính toán: ${calculatedStatus}, Ngày bắt đầu: ${item.ngayBatDau}, Ngày kết thúc: ${item.ngayKetThuc}, Bây giờ: ${now.format('YYYY-MM-DD HH:mm:ss')}`);
+                                        
                                         return (
                                             <tr
                                                 key={`${index}`}
@@ -535,33 +561,33 @@ function PhieuGiamGia() {
                                                 <td className="px-6 py-4 whitespace-nowrap text-center">
                                                     <span
                                                         className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                                                            item.trangThai === 2
+                                                            calculatedStatus === 2
                                                                 ? 'bg-red-100 text-red-800 border border-red-200'
-                                                                : item.trangThai === 1
+                                                                : calculatedStatus === 1
                                                                   ? 'bg-green-100 text-green-800 border border-green-200'
                                                                   : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
                                                         }`}
                                                         onClick={
-                                                            item.trangThai === 2
+                                                            calculatedStatus === 2
                                                                 ? undefined
                                                                 : () => handelDeleteVoucher(item.id)
                                                         }
                                                         style={{
-                                                            cursor: item.trangThai === 2 ? 'not-allowed' : 'pointer',
+                                                            cursor: calculatedStatus === 2 ? 'not-allowed' : 'pointer',
                                                         }}
                                                     >
                                                         <span
                                                             className={`w-2 h-2 rounded-full mr-2 ${
-                                                                item.trangThai === 2
+                                                                calculatedStatus === 2
                                                                     ? 'bg-red-400'
-                                                                    : item.trangThai === 1
+                                                                    : calculatedStatus === 1
                                                                       ? 'bg-green-400'
                                                                       : 'bg-yellow-400'
                                                             }`}
                                                         ></span>
-                                                        {item.trangThai === 2
+                                                        {calculatedStatus === 2
                                                             ? 'Đã kết thúc'
-                                                            : item.trangThai === 1
+                                                            : calculatedStatus === 1
                                                               ? 'Đang diễn ra'
                                                               : 'Sắp diễn ra'}
                                                     </span>

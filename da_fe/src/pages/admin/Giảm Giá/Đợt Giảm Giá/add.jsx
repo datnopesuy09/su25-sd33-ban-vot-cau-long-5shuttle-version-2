@@ -925,6 +925,17 @@ function AddDotGiamGia() {
     const [listDoCung, setListDoCung] = useState([]);
 
     const [tenSanPhamSearch, setTenSanPhamSearch] = useState('');
+    
+    // Filter states for product details
+    const [filterSPCT, setFilterSPCT] = useState({
+        tenSearch: '',
+        idThuongHieuSearch: '',
+        idChatLieuSearch: '',
+        idMauSacSearch: '',
+        idTrongLuongSearch: '',
+        idDiemCanBangSearch: '',
+        idDoCungSearch: ''
+    });
 
     const [addKhuyenMai, setAddKhuyenMai] = useState({
         ten: '',
@@ -967,10 +978,54 @@ function AddDotGiamGia() {
         }
     }, [tenSanPhamSearch]);
 
+    // Fetch filtered product details
+    const fetchDataTableSPCT = useCallback(async () => {
+        if (selectedRowKeys.length === 0) {
+            setTableDataSPCT([]);
+            return;
+        }
+
+        try {
+            const params = {
+                id: selectedRowKeys,
+                tenSearch: filterSPCT.tenSearch || '',
+                idThuongHieuSearch: filterSPCT.idThuongHieuSearch || '',
+                idChatLieuSearch: filterSPCT.idChatLieuSearch || '',
+                idMauSacSearch: filterSPCT.idMauSacSearch || '',
+                idTrongLuongSearch: filterSPCT.idTrongLuongSearch || '',
+                idDiemCanBangSearch: filterSPCT.idDiemCanBangSearch || '',
+                idDoCungSearch: filterSPCT.idDoCungSearch || '',
+                currentPage: 0,
+                size: 1000 // Lấy tất cả để không bị giới hạn pagination
+            };
+
+            const res = await axios.get("http://localhost:8080/api/dot-giam-gia/getSanPhamCTBySanPham", {
+                params,
+                paramsSerializer: params => qs.stringify(params, { indices: false })
+            });
+            
+            console.log('API Response:', res.data);
+            
+            // API trả về pagination object với content array
+            const data = res.data.content || res.data;
+            const dataWithKey = Array.isArray(data) ? data.map(i => ({ ...i, key: i.id })) : [];
+            console.log('Processed data:', dataWithKey);
+            setTableDataSPCT(dataWithKey);
+        } catch (error) {
+            console.error("Lỗi lấy sản phẩm chi tiết", error);
+            swal("Lỗi!", "Không thể lấy dữ liệu sản phẩm chi tiết.", "error");
+        }
+    }, [selectedRowKeys, filterSPCT]);
+
     useEffect(() => {
         getAllTenKhuyenMai();
         fetchDataTableSanPham();
     }, [fetchDataTableSanPham]);
+
+    // Effect to fetch SPCT when filters change
+    useEffect(() => {
+        fetchDataTableSPCT();
+    }, [fetchDataTableSPCT]);
 
     // Handle checkbox Sản phẩm
     const handleCheckboxChangeSanPham = async (e, sanPham) => {
@@ -985,20 +1040,7 @@ function AddDotGiamGia() {
 
         setSelectedRowKeys(newSelectedKeys);
 
-        if (newSelectedKeys.length > 0) {
-            try {
-                const res = await axios.get("http://localhost:8080/api/dot-giam-gia/get-san-pham-chi-tiet-by-san-pham", {
-                    params: { id: newSelectedKeys },
-                    paramsSerializer: params => qs.stringify(params, { indices: false })
-                });
-                const flatten = res.data.flat().map(i => ({ ...i, key: i.id }));
-                setTableDataSPCT(flatten);
-            } catch (error) {
-                console.error("Lỗi lấy sản phẩm chi tiết", error);
-            }
-        } else {
-            setTableDataSPCT([]);
-        }
+        // The fetchDataTableSPCT will be called automatically via useEffect
     };
 
     const handleSelectAllSanPham = async (e) => {
@@ -1006,19 +1048,8 @@ function AddDotGiamGia() {
         if (isChecked) {
             const allIds = tableDataSanPham.map(sp => sp.id);
             setSelectedRowKeys(allIds);
-            try {
-                const res = await axios.get("http://localhost:8080/api/dot-giam-gia/get-san-pham-chi-tiet-by-san-pham", {
-                    params: { id: allIds },
-                    paramsSerializer: params => qs.stringify(params, { indices: false })
-                });
-                const flatten = res.data.flat().map(i => ({ ...i, key: i.id }));
-                setTableDataSPCT(flatten);
-            } catch (error) {
-                console.error("Lỗi khi chọn tất cả", error);
-            }
         } else {
             setSelectedRowKeys([]);
-            setTableDataSPCT([]);
         }
     };
 
@@ -1038,6 +1069,34 @@ function AddDotGiamGia() {
         } else {
             setSelectedRowsKeysSPCT([]);
         }
+    };
+
+    // Filter handlers for SPCT
+    const handleFilterChange = (filterType, value) => {
+        console.log('Filter change:', filterType, value);
+        setFilterSPCT(prev => ({
+            ...prev,
+            [filterType]: value
+        }));
+    };
+
+    const handleSearchChange = (value) => {
+        setFilterSPCT(prev => ({
+            ...prev,
+            tenSearch: value
+        }));
+    };
+
+    const clearAllFilters = () => {
+        setFilterSPCT({
+            tenSearch: '',
+            idThuongHieuSearch: '',
+            idChatLieuSearch: '',
+            idMauSacSearch: '',
+            idTrongLuongSearch: '',
+            idDiemCanBangSearch: '',
+            idDoCungSearch: ''
+        });
     };
 
     // Validate
@@ -1102,7 +1161,27 @@ function AddDotGiamGia() {
         return check
     }
 
-    const onSubmit = () => {
+    // Kiểm tra trùng lặp khuyến mãi
+    const checkPromotionOverlap = async (finalKhuyenMai) => {
+        try {
+            const response = await axios.post('http://localhost:8080/api/dot-giam-gia/check-overlap', {
+                idSanPhamCT: finalKhuyenMai.idProductDetail,
+                tgBatDau: finalKhuyenMai.tgBatDau,
+                tgKetThuc: finalKhuyenMai.tgKetThuc
+            });
+            
+            if (response.data.hasOverlap) {
+                swal("Cảnh báo!", response.data.overlapDetails, "warning");
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.error("Lỗi kiểm tra trùng lặp:", error);
+            return true; // Nếu lỗi thì vẫn cho phép tiếp tục
+        }
+    };
+
+    const onSubmit = async () => {
         const check = validate()
         if (check < 1) {
             const finalKhuyenMai = {
@@ -1110,6 +1189,13 @@ function AddDotGiamGia() {
                 loai: selectedRowsKeysSPCT.length === 0 ? false : true,
                 idProductDetail: selectedRowsKeysSPCT
             };
+
+            // Kiểm tra trùng lặp trước khi hiển thị xác nhận
+            const canProceed = await checkPromotionOverlap(finalKhuyenMai);
+            if (!canProceed) {
+                return;
+            }
+
             swal({
                 title: "Xác nhận thêm mới đợt giảm giá?",
                 text: "Bạn có chắc chắn muốn thêm mới đợt giảm giá không?",
@@ -1126,7 +1212,8 @@ function AddDotGiamGia() {
                         })
                         .catch((error) => {
                             console.error("Lỗi thêm mới:", error);
-                            swal("Thất bại!", "Thêm mới đợt giảm giá thất bại!", "error");
+                            const errorMessage = error.response?.data?.message || error.response?.data || error.message || "Thêm mới đợt giảm giá thất bại!";
+                            swal("Thất bại!", errorMessage, "error");
                         });
                 }
             });
@@ -1352,7 +1439,7 @@ function AddDotGiamGia() {
                                     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                                         <div className="overflow-auto max-h-[400px]">
                                             <table className="min-w-full divide-y divide-gray-200">
-                                                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                                                <thead className="bg-gradient-to-r from-gray-50 to-gray-100 sticky top-0 z-10">
                                                     <tr>
                                                         <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                                         <input
@@ -1446,6 +1533,8 @@ function AddDotGiamGia() {
                                         <input
                                             type="text"
                                             placeholder="Tìm kiếm sản phẩm chi tiết theo tên..."
+                                            value={filterSPCT.tenSearch}
+                                            onChange={(e) => handleSearchChange(e.target.value)}
                                             className="w-full pl-4 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 text-gray-700 placeholder-gray-400"
                                         />
                                         <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
@@ -1468,89 +1557,183 @@ function AddDotGiamGia() {
                             </div>
 
                             {/* Filter Section */}
-                            <div className="mt-4 flex flex-wrap gap-4">
-                                <div className="flex items-center space-x-2">
-                                    <label className="text-sm text-gray-700 whitespace-nowrap">Thương hiệu:</label>
-                                    <select
-                                        className="w-32 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                                    >
-                                        <option value="">Tất cả thương hiệu</option>
-                                        {listThuongHieu.map((th) => (
-                                            <option key={th.id} value={th.id}>
-                                                {th.ten}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                            <div className="mt-6">
+                                <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                                            <svg className="w-5 h-5 mr-2 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.207A1 1 0 013 6.5V4z" />
+                                            </svg>
+                                            Bộ lọc sản phẩm
+                                        </h3>
+                                        <button
+                                            onClick={clearAllFilters}
+                                            className="px-4 py-2 text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 border border-gray-300 rounded-lg transition-all duration-200 flex items-center shadow-sm hover:shadow-md"
+                                        >
+                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
+                                            Xóa bộ lọc
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                                        {/* Thương hiệu */}
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Thương hiệu
+                                            </label>
+                                            <div className="relative">
+                                                <select
+                                                    value={filterSPCT.idThuongHieuSearch}
+                                                    onChange={(e) => handleFilterChange('idThuongHieuSearch', e.target.value)}
+                                                    className="w-full appearance-none bg-white border border-gray-300 rounded-lg px-4 py-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+                                                >
+                                                    <option value="">Tất cả thương hiệu</option>
+                                                    {listThuongHieu.map((th) => (
+                                                        <option key={th.id} value={th.id}>
+                                                            {th.ten}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                <div className="flex items-center space-x-2">
-                                    <label className="text-sm text-gray-700 whitespace-nowrap">Màu sắc:</label>
-                                    <select
-                                        className="w-32 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                                    >
-                                        <option value="">Tất cả màu sắc</option>
-                                        {listMauSac.map((ms) => (
-                                            <option key={ms.id} value={ms.id}>
-                                                {ms.ten}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                        {/* Màu sắc */}
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Màu sắc
+                                            </label>
+                                            <div className="relative">
+                                                <select
+                                                    value={filterSPCT.idMauSacSearch}
+                                                    onChange={(e) => handleFilterChange('idMauSacSearch', e.target.value)}
+                                                    className="w-full appearance-none bg-white border border-gray-300 rounded-lg px-4 py-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+                                                >
+                                                    <option value="">Tất cả màu sắc</option>
+                                                    {listMauSac.map((ms) => (
+                                                        <option key={ms.id} value={ms.id}>
+                                                            {ms.ten}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                <div className="flex items-center space-x-2">
-                                    <label className="text-sm text-gray-700 whitespace-nowrap">Chất liệu:</label>
-                                    <select
-                                        className="w-32 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                                    >
-                                        <option value="">Tất cả chất liệu</option>
-                                        {listChatLieu.map((cl) => (
-                                            <option key={cl.id} value={cl.id}>
-                                                {cl.ten}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                        {/* Chất liệu */}
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Chất liệu
+                                            </label>
+                                            <div className="relative">
+                                                <select
+                                                    value={filterSPCT.idChatLieuSearch}
+                                                    onChange={(e) => handleFilterChange('idChatLieuSearch', e.target.value)}
+                                                    className="w-full appearance-none bg-white border border-gray-300 rounded-lg px-4 py-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+                                                >
+                                                    <option value="">Tất cả chất liệu</option>
+                                                    {listChatLieu.map((cl) => (
+                                                        <option key={cl.id} value={cl.id}>
+                                                            {cl.ten}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                <div className="flex items-center space-x-2">
-                                    <label className="text-sm text-gray-700 whitespace-nowrap">Trọng lượng:</label>
-                                    <select
-                                        className="w-32 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                                    >
-                                        <option value="">Tất cả trọng lượng</option>
-                                        {listTrongLuong.map((tl) => (
-                                            <option key={tl.id} value={tl.id}>
-                                                {tl.ten}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                        {/* Trọng lượng */}
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Trọng lượng
+                                            </label>
+                                            <div className="relative">
+                                                <select
+                                                    value={filterSPCT.idTrongLuongSearch}
+                                                    onChange={(e) => handleFilterChange('idTrongLuongSearch', e.target.value)}
+                                                    className="w-full appearance-none bg-white border border-gray-300 rounded-lg px-4 py-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+                                                >
+                                                    <option value="">Tất cả trọng lượng</option>
+                                                    {listTrongLuong.map((tl) => (
+                                                        <option key={tl.id} value={tl.id}>
+                                                            {tl.ten}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                <div className="flex items-center space-x-2">
-                                    <label className="text-sm text-gray-700 whitespace-nowrap">Điểm cân bằng:</label>
-                                    <select
-                                        className="w-32 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                                    >
-                                        <option value="">Tất cả điểm cân bằng</option>
-                                        {listDiemCanBang.map((dcb) => (
-                                            <option key={dcb.id} value={dcb.id}>
-                                                {dcb.ten}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                                        {/* Điểm cân bằng */}
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Điểm cân bằng
+                                            </label>
+                                            <div className="relative">
+                                                <select
+                                                    value={filterSPCT.idDiemCanBangSearch}
+                                                    onChange={(e) => handleFilterChange('idDiemCanBangSearch', e.target.value)}
+                                                    className="w-full appearance-none bg-white border border-gray-300 rounded-lg px-4 py-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+                                                >
+                                                    <option value="">Tất cả điểm cân bằng</option>
+                                                    {listDiemCanBang.map((dcb) => (
+                                                        <option key={dcb.id} value={dcb.id}>
+                                                            {dcb.ten}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                                <div className="flex items-center space-x-2">
-                                    <label className="text-sm text-gray-700 whitespace-nowrap">Độ cứng:</label>
-                                    <select
-                                        className="w-32 text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                                    >
-                                        <option value="">Tất cả độ cứng</option>
-                                        {listDoCung.map((dc) => (
-                                            <option key={dc.id} value={dc.id}>
-                                                {dc.ten}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        {/* Độ cứng */}
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Độ cứng
+                                            </label>
+                                            <div className="relative">
+                                                <select
+                                                    value={filterSPCT.idDoCungSearch}
+                                                    onChange={(e) => handleFilterChange('idDoCungSearch', e.target.value)}
+                                                    className="w-full appearance-none bg-white border border-gray-300 rounded-lg px-4 py-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+                                                >
+                                                    <option value="">Tất cả độ cứng</option>
+                                                    {listDoCung.map((dc) => (
+                                                        <option key={dc.id} value={dc.id}>
+                                                            {dc.ten}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

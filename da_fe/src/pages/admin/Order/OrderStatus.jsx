@@ -1216,6 +1216,35 @@ function OrderStatus() {
         }
     };
 
+    // Client-side validation: ensure no order detail requests more than available stock
+    const validateQuantitiesBeforeConfirm = () => {
+        if (!Array.isArray(orderDetailDatas) || orderDetailDatas.length === 0) return true;
+
+        const offending = orderDetailDatas
+            .map((item) => {
+                const requested = Number(item.soLuong || 0);
+                const available = Number(item.sanPhamCT?.soLuong || 0);
+                if (requested > available) {
+                    const name = item.sanPhamCT?.ten || item.sanPhamCT?.sanPham?.ten || `Sản phẩm #${item.id}`;
+                    return `${name} (yêu cầu: ${requested}, tồn kho: ${available})`;
+                }
+                return null;
+            })
+            .filter(Boolean);
+
+        if (offending.length > 0) {
+            const text = `Không thể xác nhận đơn hàng. Các sản phẩm sau vượt quá tồn kho:\n\n${offending.join('\n')}`;
+            swal({
+                title: 'Tồn kho không đủ',
+                text,
+                icon: 'warning',
+                button: 'Đã hiểu',
+            });
+            return false;
+        }
+        return true;
+    };
+
     // Function để quay lại trạng thái trước
     const revertOrderStatus = async (description = '') => {
         const previousStatus = getPreviousStatus(currentOrderStatus);
@@ -1316,6 +1345,8 @@ function OrderStatus() {
 
             // Xử lý trạng thái 1 -> 2 (Chờ xác nhận -> Đã xác nhận) đặc biệt
             if (newStatus === 2 && currentOrderStatus === 1) {
+                // Validate quantities before confirming
+                if (!validateQuantitiesBeforeConfirm()) return;
                 // Gọi API xác nhận đơn hàng mới
                 console.log('Confirming order with new API');
                 confirmOrder(description || 'Xác nhận đơn hàng');
@@ -1352,6 +1383,8 @@ function OrderStatus() {
 
             // Xử lý trạng thái 1 đặc biệt
             if (currentOrderStatus === 1) {
+                // Validate quantities before confirming (old logic)
+                if (!validateQuantitiesBeforeConfirm()) return;
                 // Gọi API xác nhận đơn hàng mới
                 console.log('Confirming order with new API (old logic)');
                 confirmOrder(description || 'Xác nhận đơn hàng');

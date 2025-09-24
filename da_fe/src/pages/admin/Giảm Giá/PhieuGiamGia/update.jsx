@@ -152,7 +152,7 @@ function UpdatePhieuGiamGia() {
             errors.ma = 'Mã không được dài hơn 30 ký tự';
         } else if (voucherDetail.ma.length < 5) {
             errors.ma = 'Mã không được bé hơn 5 ký tự';
-        } else if (prevMaValue !== voucherDetail.ma && listMa.includes(voucherDetail.ma.toLocaleLowerCase)) {
+        } else if (prevMaValue !== voucherDetail.ma && listMa.includes(voucherDetail.ma.toLocaleLowerCase())) {
             errors.ma = 'Mã đã tồn tại';
         } else if (specialCharsRegex.test(voucherDetail.ma)) {
             errors.ma = 'Mã không được chứa ký tự đặc biệt';
@@ -300,7 +300,20 @@ function UpdatePhieuGiamGia() {
                         })
                         .catch((error) => {
                             console.error('Lỗi cập nhật:', error);
-                            swal('Thất bại!', 'Cập nhật phiếu giảm giá thất bại!', 'error');
+                            
+                            // Xử lý lỗi từ backend
+                            if (error.response && error.response.data && error.response.data.error) {
+                                const errorMessage = error.response.data.error;
+                                if (errorMessage.includes('đã được sử dụng')) {
+                                    swal('Không thể cập nhật!', 
+                                         'Phiếu giảm giá này đã được sử dụng trong các hóa đơn. Việc cập nhật sẽ làm sai lệch dữ liệu hóa đơn!', 
+                                         'warning');
+                                } else {
+                                    swal('Thất bại!', errorMessage, 'error');
+                                }
+                            } else {
+                                swal('Thất bại!', 'Cập nhật phiếu giảm giá thất bại!', 'error');
+                            }
                         });
                 }
             });
