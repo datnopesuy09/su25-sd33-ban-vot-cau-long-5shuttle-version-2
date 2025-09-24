@@ -261,7 +261,7 @@ public interface ThongKeRepository extends JpaRepository<HoaDon, Integer> {
                                                          JOIN 5SHUTTLE.HoaDonCT hdct2 ON h2.Id = hdct2.IdHoaDon
                                                          GROUP BY h2.Id, h2.TongTien, h2.PhiShip
                                                      ) sub ON sub.hoaDonId = h.Id
-          AND DATE(h.NgayTao) >= :fromDate
+          WHERE DATE(h.NgayTao) >= :fromDate
           AND DATE(h.NgayTao) <= :toDate
     """, nativeQuery = true)
     OrderStatsProjection getStatsByDateRange(@Param("fromDate") Date fromDate, @Param("toDate") Date toDate);

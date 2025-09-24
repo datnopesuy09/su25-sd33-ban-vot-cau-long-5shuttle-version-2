@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -34,6 +33,7 @@ function EditCustomer() {
     const [addressErrors, setAddressErrors] = useState({});
     const [initialEmail, setInitialEmail] = useState('');
     const [isProvincesLoaded, setIsProvincesLoaded] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
     const checkMail = async (email) => {
         try {
@@ -183,7 +183,6 @@ function EditCustomer() {
             errors.diaChiCuThe = '';
         }
 
-        // Validate loai nếu cần (mặc định 0, nhưng cho update/add, có thể optional nếu BE không yêu cầu)
         if (address.loai === null || address.loai === undefined) {
             errors.loai = '*Loại địa chỉ không hợp lệ';
             check++;
@@ -191,7 +190,6 @@ function EditCustomer() {
             errors.loai = '';
         }
 
-        // isMacDinh optional, set mặc định nếu thiếu
         if (address.isMacDinh === null || address.isMacDinh === undefined) {
             address.isMacDinh = false;
         }
@@ -209,14 +207,17 @@ function EditCustomer() {
                 },
             });
             const data = await response.json();
+            console.log('Dữ liệu provinces từ GHN:', data);
             if (data.data) {
                 setProvinces(data.data);
                 setIsProvincesLoaded(true);
             } else {
                 console.error('Dữ liệu không hợp lệ:', data);
+                setIsProvincesLoaded(false);
             }
         } catch (error) {
             console.error('Lỗi tải tỉnh:', error);
+            setIsProvincesLoaded(false);
             Swal.fire({
                 icon: 'error',
                 title: 'Lỗi!',
@@ -225,16 +226,11 @@ function EditCustomer() {
         }
     };
 
-    useEffect(() => {
-        fetchProvinces();
-    }, []);
-
     const fetchDistricts = async (provinceId) => {
         if (!provinceId) {
             console.error('provinceId is required but not provided');
             return [];
         }
-
         try {
             const response = await fetch(
                 `https://online-gateway.ghn.vn/shiip/public-api/master-data/district?province_id=${provinceId}`,
@@ -246,13 +242,11 @@ function EditCustomer() {
                 },
             );
             const data = await response.json();
+            console.log(`Districts for province ${provinceId}:`, data.data);
             if (data && data.data) {
-                console.log(`Districts for province ${provinceId}:`, data.data);
-                setDistricts(data.data);
                 return data.data;
             } else {
-                console.error('Invalid response districts data: ', data);
-                setDistricts([]);
+                console.error('Invalid response districts data:', data);
                 return [];
             }
         } catch (error) {
@@ -277,13 +271,11 @@ function EditCustomer() {
                 },
             );
             const data = await response.json();
+            console.log(`Wards for district ${districtId}:`, data.data);
             if (data && data.data) {
-                console.log(`Wards for district ${districtId}:`, data.data);
-                setWards(data.data);
                 return data.data;
             } else {
                 console.error('Invalid response wards data:', data);
-                setWards([]);
                 return [];
             }
         } catch (error) {
@@ -291,6 +283,10 @@ function EditCustomer() {
             return [];
         }
     };
+
+    useEffect(() => {
+        fetchProvinces();
+    }, []);
 
     useEffect(() => {
         if (selectedProvince) {
@@ -306,9 +302,8 @@ function EditCustomer() {
                     }
                 })
                 .catch((error) => {
-                    console.error('Lỗi tải huyện: ', error);
+                    console.error('Lỗi tải huyện:', error);
                 });
-
             setSelectedDistrict('');
             setWards([]);
         } else {
@@ -339,6 +334,7 @@ function EditCustomer() {
     const loadData = async (id) => {
         try {
             const response = await axios.get(`http://localhost:8080/khach-hang/${id}`);
+            console.log('Dữ liệu từ API khach-hang:', response.data);
             const customerData = response.data.result;
             setFormData({
                 hoTen: customerData.hoTen || '',
@@ -355,10 +351,8 @@ function EditCustomer() {
                 console.log('Danh sách địa chỉ từ backend:', customerData.diaChi);
                 const addresses = await Promise.all(
                     customerData.diaChi.map(async (address) => {
-                        console.log('Tìm province cho tinh:', address.tinh);
+                        console.log('Processing address:', address);
                         const province = provinces.find((prov) => prov.ProvinceName === address.tinh);
-                        let districts = [];
-                        let wards = [];
                         let addressData = {
                             id: address.id,
                             ten: address.ten || '',
@@ -368,28 +362,25 @@ function EditCustomer() {
                             idXa: '',
                             diaChiCuThe: address.diaChiCuThe || '',
                             loai: address.loai ?? 0,
+                            isMacDinh: address.isMacDinh || false,
                             districts: [],
                             wards: [],
                         };
 
                         if (province) {
-                            console.log(
-                                `Found province: ${province.ProvinceName} (ID: ${province.ProvinceID}) for tinh: ${address.tinh}`,
-                            );
+                            console.log(`Found province: ${province.ProvinceName} (ID: ${province.ProvinceID})`);
                             addressData.idTinh = province.ProvinceID;
-                            districts = await fetchDistricts(province.ProvinceID);
+                            const districts = await fetchDistricts(province.ProvinceID);
+                            addressData.districts = districts;
                             const district = districts.find((dist) => dist.DistrictName === address.huyen);
                             if (district) {
-                                console.log(
-                                    `Found district: ${district.DistrictName} (ID: ${district.DistrictID}) for huyen: ${address.huyen}`,
-                                );
+                                console.log(`Found district: ${district.DistrictName} (ID: ${district.DistrictID})`);
                                 addressData.idHuyen = district.DistrictID;
-                                wards = await fetchWards(district.DistrictID);
+                                const wards = await fetchWards(district.DistrictID);
+                                addressData.wards = wards;
                                 const ward = wards.find((w) => w.WardName === address.xa);
                                 if (ward) {
-                                    console.log(
-                                        `Found ward: ${ward.WardName} (code: ${ward.WardCode}) for xa: ${address.xa}`,
-                                    );
+                                    console.log(`Found ward: ${ward.WardName} (code: ${ward.WardCode})`);
                                     addressData.idXa = ward.WardCode;
                                 } else {
                                     console.warn(`No ward found for xa: ${address.xa}`);
@@ -397,8 +388,6 @@ function EditCustomer() {
                             } else {
                                 console.warn(`No district found for huyen: ${address.huyen}`);
                             }
-                            addressData.districts = districts;
-                            addressData.wards = wards;
                         } else {
                             console.warn(`No province found for tinh: ${address.tinh}`);
                         }
@@ -406,10 +395,10 @@ function EditCustomer() {
                         return addressData;
                     }),
                 );
-
+                console.log('Final addresses:', addresses);
                 setDiaChi(addresses);
             } else {
-                console.warn(`No addresses found or invalid diaChi for customer ID: ${id}`);
+                console.warn('No addresses found or invalid diaChi');
                 setDiaChi([]);
             }
         } catch (error) {
@@ -428,8 +417,8 @@ function EditCustomer() {
             idXa: '',
             diaChiCuThe: '',
             isMacDinh: false,
-            loai: 0, // Đảm bảo loai luôn có (0 cho địa chỉ thường)
-            idTaiKhoan: id, // Đảm bảo idTaiKhoan luôn có để BE associate (cho add)
+            loai: 0,
+            idTaiKhoan: id,
             districts: [],
             wards: [],
         };
@@ -453,8 +442,6 @@ function EditCustomer() {
             reader.readAsDataURL(file);
         }
     };
-
-    const [isLoading, setIsLoading] = useState(false);
 
     const handleUpdateCustomer = async (e) => {
         e.preventDefault();
@@ -510,7 +497,7 @@ function EditCustomer() {
 
                     await swal('Thành công!', 'Sửa khách hàng thành công!', 'success');
                     setIsLoading(false);
-                    window.location.href = '/admin/tai-khoan/khach-hang';
+                    navigate('/admin/tai-khoan/khach-hang');
                 } catch (error) {
                     setIsLoading(false);
                     console.error('Lỗi cập nhật:', error);
@@ -548,7 +535,6 @@ function EditCustomer() {
         });
     };
 
-    // SỬA CHÍNH: Endpoint update mới /khach-hang/update-address; Body thêm idKhachHang và id; Check code === 0 cho update
     const onUpdateDiaChi = (diaChiaa, index) => {
         const { errors, check } = validateAddress(diaChiaa);
         setAddressErrors((prevErrors) => ({
@@ -557,7 +543,7 @@ function EditCustomer() {
         }));
 
         if (check > 0) {
-            console.log('Validation failed, check:', check, 'errors:', errors); // Debug validation
+            console.log('Validation failed, check:', check, 'errors:', errors);
             return;
         }
 
@@ -575,13 +561,11 @@ function EditCustomer() {
             return;
         }
 
-        // THAY ĐỔI: Body khác nhau cho add vs update theo spec
         let updatedDiaChi;
         if (diaChiaa.id) {
-            // CHO UPDATE: Theo spec, thêm idKhachHang và id, loại bỏ loai/idTaiKhoan
             updatedDiaChi = {
-                idKhachHang: parseInt(id), // id của khách hàng
-                id: diaChiaa.id, // id của địa chỉ
+                idKhachHang: parseInt(id),
+                id: diaChiaa.id,
                 ten: diaChiaa.ten,
                 sdt: diaChiaa.sdt,
                 tinh: Province.ProvinceName,
@@ -591,7 +575,6 @@ function EditCustomer() {
                 isMacDinh: diaChiaa.isMacDinh || false,
             };
         } else {
-            // CHO ADD: Giữ nguyên như trước (loai và idTaiKhoan nếu BE cần)
             updatedDiaChi = {
                 ten: diaChiaa.ten,
                 sdt: diaChiaa.sdt,
@@ -604,7 +587,7 @@ function EditCustomer() {
                 idTaiKhoan: id,
             };
         }
-        console.log('Data sending to BE:', updatedDiaChi); // Debug body gửi đi
+        console.log('Data sending to BE:', updatedDiaChi);
 
         swal({
             title: title,
@@ -616,11 +599,10 @@ function EditCustomer() {
             },
         }).then((willConfirm) => {
             if (willConfirm) {
-                // THAY ĐỔI: Endpoint update mới
                 const apiUrl = diaChiaa.id
-                    ? `http://localhost:8080/khach-hang/update-address` // MỚI: Endpoint update theo spec
+                    ? `http://localhost:8080/khach-hang/update-address`
                     : `http://localhost:8080/khach-hang/${id}`;
-                const apiMethod = diaChiaa.id ? axios.put : axios.post; // PUT cho update
+                const apiMethod = diaChiaa.id ? axios.put : axios.post;
 
                 apiMethod(apiUrl, updatedDiaChi, {
                     headers: {
@@ -628,17 +610,13 @@ function EditCustomer() {
                     },
                 })
                     .then((response) => {
-                        console.log('Full response from BE:', response); // DEBUG: Log toàn bộ response
-                        console.log('Response status:', response.status);
-                        console.log('Response data:', response.data);
-
-                        // THAY ĐỔI: Check code khác nhau cho add vs update
+                        console.log('Full response from BE:', response);
                         const isSuccess =
                             response.status === 200 ||
                             response.status === 201 ||
                             (response.data &&
-                                ((diaChiaa.id && response.data.code === 0) || // Update: code 0
-                                    (!diaChiaa.id && response.data.code === 1000))); // Add: code 1000
+                                ((diaChiaa.id && response.data.code === 0) ||
+                                    (!diaChiaa.id && response.data.code === 1000)));
                         if (isSuccess) {
                             loadData(id);
                             const successMessage = diaChiaa.id
@@ -647,16 +625,15 @@ function EditCustomer() {
                             swal('Thành công!', successMessage, 'success');
                             if (!diaChiaa.id) setIsAddingDiaChi(false);
                         } else {
-                            console.error('Unexpected response structure:', response.data); // DEBUG
+                            console.error('Unexpected response structure:', response.data);
                             throw new Error('API trả về response không mong đợi');
                         }
                     })
                     .catch((error) => {
-                        console.log('Full error object:', error); // DEBUG: Log error chi tiết
-                        console.log('Error response (if any):', error.response?.data); // DEBUG: Lỗi từ BE
-
+                        console.log('Full error object:', error);
+                        console.log('Error response (if any):', error.response?.data);
                         const errorMessage = diaChiaa.id ? 'Cập nhật địa chỉ thất bại!' : 'Thêm địa chỉ thất bại!';
-                        const backendError = error.response?.data?.message || errorMessage; // Lấy message từ BE nếu có
+                        const backendError = error.response?.data?.message || errorMessage;
                         console.error('Lỗi:', error);
                         swal('Thất bại!', backendError, 'error');
                     });
@@ -685,483 +662,463 @@ function EditCustomer() {
 
     useEffect(() => {
         if (isProvincesLoaded) {
+            console.log('Provinces loaded, calling loadData...');
             loadData(id);
         }
     }, [id, isProvincesLoaded]);
 
     return (
-        <div>
-            <div className="font-bold text-sm">
-                <span className="cursor-pointer" onClick={() => navigate('/admin/tai-khoan/khach-hang')}>
+        <div className="p-4">
+            <div className="font-bold text-sm mb-4">
+                <span
+                    className="cursor-pointer text-blue-600 hover:underline"
+                    onClick={() => navigate('/admin/tai-khoan/khach-hang')}
+                >
                     Khách hàng
                 </span>
                 <span className="text-gray-400 ml-2">/ Chỉnh sửa khách hàng</span>
             </div>
-            <div className="bg-white p-4 rounded-md shadow-lg">
-                <div className="flex">
-                    <div className="w-1/4 pr-4">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-8">Thông tin khách hàng</h2>
-                        <hr />
-                        <div className="col-span-2 mt-4">
-                            <label className="block text-sm font-medium text-gray-700">Họ Và Tên</label>
-                            <input
-                                type="text"
-                                name="hoTen"
-                                value={formData.hoTen}
-                                placeholder="Nhập họ và tên"
-                                className={`w-full p-3 border-2 border-gray-400 rounded outline-blue-500 ${formErrors.hoTen ? 'border-red-500 hover:border-red-600 outline-red-500' : ''}`}
-                                onChange={(e) => {
-                                    handleInputChange(e);
-                                    setFormErrors({ ...formErrors, hoTen: '' });
-                                }}
-                            />
-                            {formErrors.hoTen && (
-                                <p className="text-sm" style={{ color: 'red' }}>
-                                    {formErrors.hoTen}
-                                </p>
-                            )}
-                        </div>
-                        <div className="col-span-2 mt-4">
-                            <label className="block text-sm font-medium text-gray-700">Email</label>
-                            <input
-                                type="email"
-                                name="email"
-                                value={formData.email}
-                                placeholder="Nhập email"
-                                className={`w-full p-3 border-2 border-gray-400 rounded outline-blue-500 ${formErrors.email ? 'border-red-500 hover:border-red-600 outline-red-500' : ''}`}
-                                onChange={(e) => {
-                                    handleInputChange(e);
-                                    setFormErrors({ ...formErrors, email: '' });
-                                }}
-                            />
-                            {formErrors.email && (
-                                <p className="text-sm" style={{ color: 'red' }}>
-                                    {formErrors.email}
-                                </p>
-                            )}
-                        </div>
-                        <div className="col-span-2 mt-4">
-                            <label className="block text-sm font-medium text-gray-700">Số Điện Thoại</label>
-                            <input
-                                type="text"
-                                name="sdt"
-                                value={formData.sdt}
-                                placeholder="Nhập số điện thoại"
-                                className={`w-full p-3 border-2 border-gray-400 rounded outline-blue-500 ${formErrors.sdt ? 'border-red-500 hover:border-red-600 outline-red-500' : ''}`}
-                                onChange={(e) => {
-                                    handleInputChange(e);
-                                    setFormErrors({ ...formErrors, sdt: '' });
-                                }}
-                            />
-                            {formErrors.sdt && (
-                                <p className="text-sm" style={{ color: 'red' }}>
-                                    {formErrors.sdt}
-                                </p>
-                            )}
-                        </div>
-                        <div className="col-span-2 mt-4">
-                            <label className="block text-sm font-medium text-gray-700">Ngày sinh</label>
-                            <input
-                                type="date"
-                                name="ngaySinh"
-                                value={formData.ngaySinh}
-                                className={`w-full p-3 border-2 border-gray-400 rounded outline-blue-500 ${formErrors.ngaySinh ? 'border-red-500 hover:border-red-600 outline-red-500' : ''}`}
-                                onChange={(e) => {
-                                    handleInputChange(e);
-                                    setFormErrors({ ...formErrors, ngaySinh: '' });
-                                }}
-                            />
-                            {formErrors.ngaySinh && (
-                                <p className="text-sm" style={{ color: 'red' }}>
-                                    {formErrors.ngaySinh}
-                                </p>
-                            )}
-                        </div>
-                        <div className="mt-4">
-                            <label className="block text-sm font-medium text-gray-700">Giới tính</label>
-                            <div className="flex items-center gap-4">
-                                <label className="flex items-center">
-                                    <input
-                                        type="radio"
-                                        name="gioiTinh"
-                                        value={0}
-                                        checked={formData.gioiTinh === 0}
-                                        onChange={(e) => {
-                                            setFormData({
-                                                ...formData,
-                                                gioiTinh: parseInt(e.target.value),
-                                            });
-                                            setFormErrors({ ...formErrors, gioiTinh: '' });
-                                        }}
-                                        className="mr-2 outline-blue-500"
-                                    />
-                                    Nam
-                                </label>
-                                <label className="flex items-center">
-                                    <input
-                                        type="radio"
-                                        name="gioiTinh"
-                                        value={1}
-                                        checked={formData.gioiTinh === 1}
-                                        onChange={(e) => {
-                                            setFormData({
-                                                ...formData,
-                                                gioiTinh: parseInt(e.target.value),
-                                            });
-                                            setFormErrors({ ...formErrors, gioiTinh: '' });
-                                        }}
-                                        className="mr-2"
-                                    />
-                                    Nữ
-                                </label>
+            <div className="bg-white p-6 rounded-lg shadow-lg">
+                <div className="flex flex-col md:flex-row gap-8">
+                    <div className="w-full md:w-1/3">
+                        <h2 className="text-xl font-semibold text-gray-800 mb-6">Thông tin khách hàng</h2>
+                        <hr className="mb-6" />
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Họ và Tên</label>
+                                <input
+                                    type="text"
+                                    name="hoTen"
+                                    value={formData.hoTen}
+                                    placeholder="Nhập họ và tên"
+                                    className={`w-full p-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                        formErrors.hoTen ? 'border-red-500' : 'border-gray-300'
+                                    }`}
+                                    onChange={(e) => {
+                                        handleInputChange(e);
+                                        setFormErrors({ ...formErrors, hoTen: '' });
+                                    }}
+                                />
+                                {formErrors.hoTen && <p className="text-sm text-red-500">{formErrors.hoTen}</p>}
                             </div>
-                            {formErrors.gioiTinh && (
-                                <p className="text-sm" style={{ color: 'red' }}>
-                                    {formErrors.gioiTinh}
-                                </p>
-                            )}
-                        </div>
-                        <div className="mt-4">
-                            <label className="block text-sm font-medium text-gray-700">Loại khách hàng</label>
-                            <select
-                                name="userType"
-                                value={formData.userType}
-                                onChange={(e) => {
-                                    handleInputChange(e);
-                                    setFormErrors({ ...formErrors, userType: '' });
-                                }}
-                                className={`w-full p-3 border-2 border-gray-400 rounded outline-blue-500 ${formErrors.userType ? 'border-red-500 hover:border-red-600 outline-red-500' : ''}`}
-                            >
-                                <option value="">Chọn loại khách hàng</option>
-                                <option value="CA_NHAN">Cá Nhân</option>
-                                <option value="DOANH_NGHIEP">Doanh Nghiệp</option>
-                                <option value="VIP">VIP</option>
-                            </select>
-                            {formErrors.userType && (
-                                <p className="text-sm" style={{ color: 'red' }}>
-                                    {formErrors.userType}
-                                </p>
-                            )}
-                        </div>
-                        <div className="mt-4">
-                            <label className="block text-sm font-medium text-gray-700">Trạng thái</label>
-                            <div className="flex items-center gap-4">
-                                <label className="flex items-center">
-                                    <input
-                                        type="radio"
-                                        name="trangThai"
-                                        value={1}
-                                        checked={formData.trangThai === 1}
-                                        onChange={(e) => {
-                                            setFormData({
-                                                ...formData,
-                                                trangThai: parseInt(e.target.value),
-                                            });
-                                            setFormErrors({ ...formErrors, trangThai: '' });
-                                        }}
-                                        className="mr-2 outline-blue-500"
-                                    />
-                                    Hoạt động
-                                </label>
-                                <label className="flex items-center">
-                                    <input
-                                        type="radio"
-                                        name="trangThai"
-                                        value={0}
-                                        checked={formData.trangThai === 0}
-                                        onChange={(e) => {
-                                            setFormData({
-                                                ...formData,
-                                                trangThai: parseInt(e.target.value),
-                                            });
-                                            setFormErrors({ ...formErrors, trangThai: '' });
-                                        }}
-                                        className="mr-2"
-                                    />
-                                    Không hoạt động
-                                </label>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Email</label>
+                                <input
+                                    type="email"
+                                    name="email"
+                                    value={formData.email}
+                                    placeholder="Nhập email"
+                                    className={`w-full p-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                        formErrors.email ? 'border-red-500' : 'border-gray-300'
+                                    }`}
+                                    onChange={(e) => {
+                                        handleInputChange(e);
+                                        setFormErrors({ ...formErrors, email: '' });
+                                    }}
+                                />
+                                {formErrors.email && <p className="text-sm text-red-500">{formErrors.email}</p>}
                             </div>
-                            {formErrors.trangThai && (
-                                <p className="text-sm" style={{ color: 'red' }}>
-                                    {formErrors.trangThai}
-                                </p>
-                            )}
-                        </div>
-                        <div className="mt-5 flex">
-                            <button
-                                onClick={handleUpdateCustomer}
-                                className="bg-[#2f19ae] text-white px-8 py-3 rounded-sm shadow-md hover:bg-blue-700 transition duration-300"
-                            >
-                                Cập nhật
-                            </button>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Số Điện Thoại</label>
+                                <input
+                                    type="text"
+                                    name="sdt"
+                                    value={formData.sdt}
+                                    placeholder="Nhập số điện thoại"
+                                    className={`w-full p-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                        formErrors.sdt ? 'border-red-500' : 'border-gray-300'
+                                    }`}
+                                    onChange={(e) => {
+                                        handleInputChange(e);
+                                        setFormErrors({ ...formErrors, sdt: '' });
+                                    }}
+                                />
+                                {formErrors.sdt && <p className="text-sm text-red-500">{formErrors.sdt}</p>}
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Ngày sinh</label>
+                                <input
+                                    type="date"
+                                    name="ngaySinh"
+                                    value={formData.ngaySinh}
+                                    className={`w-full p-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                        formErrors.ngaySinh ? 'border-red-500' : 'border-gray-300'
+                                    }`}
+                                    onChange={(e) => {
+                                        handleInputChange(e);
+                                        setFormErrors({ ...formErrors, ngaySinh: '' });
+                                    }}
+                                />
+                                {formErrors.ngaySinh && <p className="text-sm text-red-500">{formErrors.ngaySinh}</p>}
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Giới tính</label>
+                                <div className="flex items-center gap-4">
+                                    <label className="flex items-center">
+                                        <input
+                                            type="radio"
+                                            name="gioiTinh"
+                                            value={0}
+                                            checked={formData.gioiTinh === 0}
+                                            onChange={(e) => {
+                                                setFormData({ ...formData, gioiTinh: parseInt(e.target.value) });
+                                                setFormErrors({ ...formErrors, gioiTinh: '' });
+                                            }}
+                                            className="mr-2 focus:ring-blue-500"
+                                        />
+                                        Nam
+                                    </label>
+                                    <label className="flex items-center">
+                                        <input
+                                            type="radio"
+                                            name="gioiTinh"
+                                            value={1}
+                                            checked={formData.gioiTinh === 1}
+                                            onChange={(e) => {
+                                                setFormData({ ...formData, gioiTinh: parseInt(e.target.value) });
+                                                setFormErrors({ ...formErrors, gioiTinh: '' });
+                                            }}
+                                            className="mr-2 focus:ring-blue-500"
+                                        />
+                                        Nữ
+                                    </label>
+                                </div>
+                                {formErrors.gioiTinh && <p className="text-sm text-red-500">{formErrors.gioiTinh}</p>}
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Loại khách hàng</label>
+                                <select
+                                    name="userType"
+                                    value={formData.userType}
+                                    onChange={(e) => {
+                                        handleInputChange(e);
+                                        setFormErrors({ ...formErrors, userType: '' });
+                                    }}
+                                    className={`w-full p-3 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                        formErrors.userType ? 'border-red-500' : 'border-gray-300'
+                                    }`}
+                                >
+                                    <option value="">Chọn loại khách hàng</option>
+                                    <option value="CA_NHAN">Cá Nhân</option>
+                                    <option value="DOANH_NGHIEP">Doanh Nghiệp</option>
+                                    <option value="VIP">VIP</option>
+                                </select>
+                                {formErrors.userType && <p className="text-sm text-red-500">{formErrors.userType}</p>}
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Trạng thái</label>
+                                <div className="flex items-center gap-4">
+                                    <label className="flex items-center">
+                                        <input
+                                            type="radio"
+                                            name="trangThai"
+                                            value={1}
+                                            checked={formData.trangThai === 1}
+                                            onChange={(e) => {
+                                                setFormData({ ...formData, trangThai: parseInt(e.target.value) });
+                                                setFormErrors({ ...formErrors, trangThai: '' });
+                                            }}
+                                            className="mr-2 focus:ring-blue-500"
+                                        />
+                                        Hoạt động
+                                    </label>
+                                    <label className="flex items-center">
+                                        <input
+                                            type="radio"
+                                            name="trangThai"
+                                            value={0}
+                                            checked={formData.trangThai === 0}
+                                            onChange={(e) => {
+                                                setFormData({ ...formData, trangThai: parseInt(e.target.value) });
+                                                setFormErrors({ ...formErrors, trangThai: '' });
+                                            }}
+                                            className="mr-2 focus:ring-blue-500"
+                                        />
+                                        Không hoạt động
+                                    </label>
+                                </div>
+                                {formErrors.trangThai && <p className="text-sm text-red-500">{formErrors.trangThai}</p>}
+                            </div>
+                            <div className="mt-6">
+                                <button
+                                    onClick={handleUpdateCustomer}
+                                    className="bg-blue-600 text-white px-8 py-3 rounded-lg shadow-md hover:bg-blue-700 transition duration-300"
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? 'Đang cập nhật...' : 'Cập nhật'}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="w-3/4 pl-8">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-8">Danh sách địa chỉ</h2>
-                        <hr />
+                    <div className="w-full md:w-2/3">
+                        <h2 className="text-xl font-semibold text-gray-800 mb-6">Danh sách địa chỉ</h2>
+                        <hr className="mb-6" />
                         {diaChi.length > 0 ? (
-                            diaChi.map((item, index) => (
-                                <div key={index} className="mb-4 mt-6 border border-gray-300 rounded-sm shadow-md">
-                                    <div className="p-4 rounded-t-lg">
-                                        <div className="flex items-center justify-between">
+                            diaChi.map((item, index) => {
+                                console.log('Rendering address:', item);
+                                return (
+                                    <div
+                                        key={item.id || `new-${index}`}
+                                        className="mb-6 border border-gray-300 rounded-lg shadow-md"
+                                    >
+                                        <div className="p-4 bg-gray-50 rounded-t-lg">
                                             <span className="text-xs font-semibold">Địa chỉ {index + 1}</span>
                                         </div>
-                                    </div>
-
-                                    <div className="p-4">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="col-span-1">
-                                                <label className="block text-sm font-medium text-gray-700">Tên</label>
+                                        <div className="p-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Tên
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        className={`w-full p-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                                            addressErrors[index]?.ten
+                                                                ? 'border-red-500'
+                                                                : 'border-gray-300'
+                                                        }`}
+                                                        value={item.ten || ''}
+                                                        onChange={(e) => {
+                                                            const updatedDiaChi = [...diaChi];
+                                                            updatedDiaChi[index].ten = e.target.value;
+                                                            setDiaChi(updatedDiaChi);
+                                                            setAddressErrors((prevErrors) => ({
+                                                                ...prevErrors,
+                                                                [index]: { ...prevErrors[index], ten: '' },
+                                                            }));
+                                                        }}
+                                                    />
+                                                    {addressErrors[index]?.ten && (
+                                                        <p className="text-sm text-red-500">
+                                                            {addressErrors[index].ten}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Số điện thoại
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        className={`w-full p-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                                            addressErrors[index]?.sdt
+                                                                ? 'border-red-500'
+                                                                : 'border-gray-300'
+                                                        }`}
+                                                        value={item.sdt || ''}
+                                                        onChange={(e) => {
+                                                            const updatedDiaChi = [...diaChi];
+                                                            updatedDiaChi[index].sdt = e.target.value;
+                                                            setDiaChi(updatedDiaChi);
+                                                            setAddressErrors((prevErrors) => ({
+                                                                ...prevErrors,
+                                                                [index]: { ...prevErrors[index], sdt: '' },
+                                                            }));
+                                                        }}
+                                                    />
+                                                    {addressErrors[index]?.sdt && (
+                                                        <p className="text-sm text-red-500">
+                                                            {addressErrors[index].sdt}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Tỉnh/thành phố
+                                                    </label>
+                                                    <select
+                                                        className={`w-full p-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                                            addressErrors[index]?.idTinh
+                                                                ? 'border-red-500'
+                                                                : 'border-gray-300'
+                                                        }`}
+                                                        value={item.idTinh || ''}
+                                                        onChange={async (e) => {
+                                                            const updatedDiaChi = [...diaChi];
+                                                            updatedDiaChi[index].idTinh = e.target.value;
+                                                            updatedDiaChi[index].idHuyen = '';
+                                                            updatedDiaChi[index].idXa = '';
+                                                            const districts = await fetchDistricts(e.target.value);
+                                                            updatedDiaChi[index].districts = districts;
+                                                            updatedDiaChi[index].wards = [];
+                                                            setDiaChi(updatedDiaChi);
+                                                            setAddressErrors((prevErrors) => ({
+                                                                ...prevErrors,
+                                                                [index]: { ...prevErrors[index], idTinh: '' },
+                                                            }));
+                                                        }}
+                                                    >
+                                                        <option value="">Chọn tỉnh/thành phố</option>
+                                                        {provinces.map((province) => (
+                                                            <option
+                                                                key={province.ProvinceID}
+                                                                value={province.ProvinceID}
+                                                            >
+                                                                {province.ProvinceName}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    {addressErrors[index]?.idTinh && (
+                                                        <p className="text-sm text-red-500">
+                                                            {addressErrors[index].idTinh}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Quận/huyện
+                                                    </label>
+                                                    <select
+                                                        className={`w-full p-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                                            addressErrors[index]?.idHuyen
+                                                                ? 'border-red-500'
+                                                                : 'border-gray-300'
+                                                        }`}
+                                                        value={item.idHuyen || ''}
+                                                        onChange={async (e) => {
+                                                            const updatedDiaChi = [...diaChi];
+                                                            updatedDiaChi[index].idHuyen = e.target.value;
+                                                            updatedDiaChi[index].idXa = '';
+                                                            const wards = await fetchWards(e.target.value);
+                                                            updatedDiaChi[index].wards = wards;
+                                                            setDiaChi(updatedDiaChi);
+                                                            setAddressErrors((prevErrors) => ({
+                                                                ...prevErrors,
+                                                                [index]: { ...prevErrors[index], idHuyen: '' },
+                                                            }));
+                                                        }}
+                                                        disabled={!item.idTinh}
+                                                    >
+                                                        <option value="">Chọn quận/huyện</option>
+                                                        {item.districts.map((district) => (
+                                                            <option
+                                                                key={district.DistrictID}
+                                                                value={district.DistrictID}
+                                                            >
+                                                                {district.DistrictName}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    {addressErrors[index]?.idHuyen && (
+                                                        <p className="text-sm text-red-500">
+                                                            {addressErrors[index].idHuyen}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">
+                                                        Xã/phường/thị trấn
+                                                    </label>
+                                                    <select
+                                                        className={`w-full p-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                                            addressErrors[index]?.idXa
+                                                                ? 'border-red-500'
+                                                                : 'border-gray-300'
+                                                        }`}
+                                                        value={item.idXa || ''}
+                                                        onChange={(e) => {
+                                                            const updatedDiaChi = [...diaChi];
+                                                            updatedDiaChi[index].idXa = e.target.value;
+                                                            setDiaChi(updatedDiaChi);
+                                                            setAddressErrors((prevErrors) => ({
+                                                                ...prevErrors,
+                                                                [index]: { ...prevErrors[index], idXa: '' },
+                                                            }));
+                                                        }}
+                                                        disabled={!item.idHuyen}
+                                                    >
+                                                        <option value="">Chọn xã/phường</option>
+                                                        {item.wards.map((ward) => (
+                                                            <option key={ward.WardCode} value={ward.WardCode}>
+                                                                {ward.WardName}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    {addressErrors[index]?.idXa && (
+                                                        <p className="text-sm text-red-500">
+                                                            {addressErrors[index].idXa}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="mt-4">
+                                                <label className="block text-sm font-medium text-gray-700">
+                                                    Địa chỉ cụ thể
+                                                </label>
                                                 <input
                                                     type="text"
-                                                    className={`w-full p-2 border border-gray-300 rounded text-sm outline-blue-500 ${
-                                                        addressErrors[index]?.ten
-                                                            ? 'border-red-500 hover:border-red-600 outline-red-500'
-                                                            : ''
+                                                    className={`w-full p-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                                        addressErrors[index]?.diaChiCuThe
+                                                            ? 'border-red-500'
+                                                            : 'border-gray-300'
                                                     }`}
-                                                    value={item.ten || ''}
+                                                    value={item.diaChiCuThe || ''}
                                                     onChange={(e) => {
                                                         const updatedDiaChi = [...diaChi];
-                                                        updatedDiaChi[index].ten = e.target.value;
+                                                        updatedDiaChi[index].diaChiCuThe = e.target.value;
                                                         setDiaChi(updatedDiaChi);
                                                         setAddressErrors((prevErrors) => ({
                                                             ...prevErrors,
-                                                            [index]: { ...prevErrors[index], ten: '' },
+                                                            [index]: { ...prevErrors[index], diaChiCuThe: '' },
                                                         }));
                                                     }}
                                                 />
-                                                {addressErrors[index]?.ten && (
-                                                    <p className="text-sm" style={{ color: 'red' }}>
-                                                        {addressErrors[index].ten}
+                                                {addressErrors[index]?.diaChiCuThe && (
+                                                    <p className="text-sm text-red-500">
+                                                        {addressErrors[index].diaChiCuThe}
                                                     </p>
                                                 )}
                                             </div>
-                                            <div className="col-span-1">
-                                                <label className="block text-sm font-medium text-gray-700">
-                                                    Số điện thoại
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    className={`w-full p-2 border border-gray-300 rounded text-sm outline-blue-500 ${
-                                                        addressErrors[index]?.sdt
-                                                            ? 'border-red-500 hover:border-red-600 outline-red-500'
-                                                            : ''
-                                                    }`}
-                                                    value={item.sdt || ''}
-                                                    onChange={(e) => {
-                                                        const updatedDiaChi = [...diaChi];
-                                                        updatedDiaChi[index].sdt = e.target.value;
-                                                        setDiaChi(updatedDiaChi);
-                                                        setAddressErrors((prevErrors) => ({
-                                                            ...prevErrors,
-                                                            [index]: { ...prevErrors[index], sdt: '' },
-                                                        }));
-                                                    }}
-                                                />
-                                                {addressErrors[index]?.sdt && (
-                                                    <p className="text-sm" style={{ color: 'red' }}>
-                                                        {addressErrors[index].sdt}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700">
-                                                    Tỉnh/thành phố
-                                                </label>
-                                                <select
-                                                    className={`w-full p-2 border border-gray-300 rounded text-sm outline-blue-500 ${
-                                                        addressErrors[index]?.idTinh
-                                                            ? 'border-red-500 hover:border-red-600 outline-red-500'
-                                                            : ''
-                                                    }`}
-                                                    value={item.idTinh || ''}
-                                                    onChange={async (e) => {
-                                                        const updatedDiaChi = [...diaChi];
-                                                        updatedDiaChi[index].idTinh = e.target.value;
-                                                        updatedDiaChi[index].idHuyen = '';
-                                                        updatedDiaChi[index].idXa = '';
-                                                        const districts = await fetchDistricts(e.target.value);
-                                                        updatedDiaChi[index].districts = districts;
-                                                        updatedDiaChi[index].wards = [];
-                                                        setDiaChi(updatedDiaChi);
-                                                        setAddressErrors((prevErrors) => ({
-                                                            ...prevErrors,
-                                                            [index]: { ...prevErrors[index], idTinh: '' },
-                                                        }));
-                                                    }}
-                                                >
-                                                    <option value="">Chọn tỉnh/thành phố</option>
-                                                    {provinces.map((province) => (
-                                                        <option key={province.code} value={province.code}>
-                                                            {province.name}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                                {addressErrors[index]?.idTinh && (
-                                                    <p className="text-sm" style={{ color: 'red' }}>
-                                                        {addressErrors[index].idTinh}
-                                                    </p>
-                                                )}
-                                            </div>
-
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700">
-                                                    Quận/huyện
-                                                </label>
-                                                <select
-                                                    className={`w-full p-2 border border-gray-300 rounded text-sm outline-blue-500 ${
-                                                        addressErrors[index]?.idHuyen
-                                                            ? 'border-red-500 hover:border-red-600 outline-red-500'
-                                                            : ''
-                                                    }`}
-                                                    value={item.idHuyen || ''}
-                                                    onChange={async (e) => {
-                                                        const updatedDiaChi = [...diaChi];
-                                                        updatedDiaChi[index].idHuyen = e.target.value;
-                                                        updatedDiaChi[index].idXa = '';
-                                                        const wards = await fetchWards(e.target.value);
-                                                        updatedDiaChi[index].wards = wards;
-                                                        setDiaChi(updatedDiaChi);
-                                                        setAddressErrors((prevErrors) => ({
-                                                            ...prevErrors,
-                                                            [index]: { ...prevErrors[index], idHuyen: '' },
-                                                        }));
-                                                    }}
-                                                    disabled={!item.idTinh}
-                                                >
-                                                    <option value="">Chọn quận/huyện</option>
-                                                    {item.districts &&
-                                                        item.districts.map((district) => (
-                                                            <option key={district.code} value={district.code}>
-                                                                {district.name}
-                                                            </option>
-                                                        ))}
-                                                </select>
-                                                {addressErrors[index]?.idHuyen && (
-                                                    <p className="text-sm" style={{ color: 'red' }}>
-                                                        {addressErrors[index].idHuyen}
-                                                    </p>
-                                                )}
-                                            </div>
-
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700">
-                                                    Xã/phường/thị trấn
-                                                </label>
-                                                <select
-                                                    className={`w-full p-2 border border-gray-300 rounded text-sm outline-blue-500 ${
-                                                        addressErrors[index]?.idXa
-                                                            ? 'border-red-500 hover:border-red-600 outline-red-500'
-                                                            : ''
-                                                    }`}
-                                                    value={item.idXa || ''}
-                                                    onChange={(e) => {
-                                                        const updatedDiaChi = [...diaChi];
-                                                        updatedDiaChi[index].idXa = e.target.value;
-                                                        setDiaChi(updatedDiaChi);
-                                                        setAddressErrors((prevErrors) => ({
-                                                            ...prevErrors,
-                                                            [index]: { ...prevErrors[index], idXa: '' },
-                                                        }));
-                                                    }}
-                                                    disabled={!item.idHuyen}
-                                                >
-                                                    <option value="">Chọn xã/phường</option>
-                                                    {item.wards &&
-                                                        item.wards.map((ward) => (
-                                                            <option key={ward.code} value={ward.code}>
-                                                                {ward.name}
-                                                            </option>
-                                                        ))}
-                                                </select>
-                                                {addressErrors[index]?.idXa && (
-                                                    <p className="text-sm" style={{ color: 'red' }}>
-                                                        {addressErrors[index].idXa}
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-4">
-                                            <label className="block text-sm font-medium text-gray-700">
-                                                Địa chỉ cụ thể
-                                            </label>
-                                            <input
-                                                type="text"
-                                                className={`w-full p-2 border border-gray-300 rounded text-sm outline-blue-500 ${
-                                                    addressErrors[index]?.diaChiCuThe
-                                                        ? 'border-red-500 hover:border-red-600 outline-red-500'
-                                                        : ''
-                                                }`}
-                                                value={item.diaChiCuThe || ''}
-                                                onChange={(e) => {
-                                                    const updatedDiaChi = [...diaChi];
-                                                    updatedDiaChi[index].diaChiCuThe = e.target.value;
-                                                    setDiaChi(updatedDiaChi);
-                                                    setAddressErrors((prevErrors) => ({
-                                                        ...prevErrors,
-                                                        [index]: { ...prevErrors[index], diaChiCuThe: '' },
-                                                    }));
-                                                }}
-                                            />
-                                            {addressErrors[index]?.diaChiCuThe && (
-                                                <p className="text-sm" style={{ color: 'red' }}>
-                                                    {addressErrors[index].diaChiCuThe}
-                                                </p>
+                                            {addressErrors[index]?.loai && (
+                                                <p className="text-sm text-red-500">{addressErrors[index].loai}</p>
                                             )}
-                                        </div>
-                                        {addressErrors[index]?.loai && (
-                                            <p className="text-sm" style={{ color: 'red' }}>
-                                                {addressErrors[index].loai}
-                                            </p>
-                                        )}
-                                        <div className="mt-4 flex justify-between w-full">
-                                            <div className="flex items-center">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={item.isMacDinh || false}
-                                                    onChange={(e) => {
-                                                        const updatedDiaChi = [...diaChi];
-                                                        updatedDiaChi[index].isMacDinh = e.target.checked;
-                                                        setDiaChi(updatedDiaChi);
-                                                    }}
-                                                    className="mr-2"
-                                                />
-                                                <label className="text-sm">Đặt làm mặc định</label>
-                                            </div>
-                                            <div className="flex justify-end">
-                                                {item.id === null ? (
-                                                    <button
-                                                        onClick={() => onUpdateDiaChi(item, index)}
-                                                        className="ml-4 text-green-500 hover:text-green-600"
-                                                    >
-                                                        <AddIcon />
-                                                    </button>
-                                                ) : (
-                                                    <button
-                                                        onClick={() => onUpdateDiaChi(item, index)}
-                                                        className="ml-4 text-blue-500 hover:text-blue-600"
-                                                    >
-                                                        <EditIcon />
-                                                    </button>
-                                                )}
-                                                {item.loai !== 1 && item.id !== null ? (
-                                                    <button
-                                                        onClick={() => deleteDiaChi(item.id)}
-                                                        className="ml-4 text-red-500 hover:text-red-600"
-                                                    >
-                                                        <DeleteIcon />
-                                                    </button>
-                                                ) : null}
+                                            <div className="mt-4 flex justify-between items-center">
+                                                <div className="flex items-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={item.isMacDinh || false}
+                                                        onChange={(e) => {
+                                                            const updatedDiaChi = [...diaChi];
+                                                            updatedDiaChi[index].isMacDinh = e.target.checked;
+                                                            setDiaChi(updatedDiaChi);
+                                                        }}
+                                                        className="mr-2 focus:ring-blue-500"
+                                                    />
+                                                    <label className="text-sm">Đặt làm mặc định</label>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    {item.id === null ? (
+                                                        <button
+                                                            onClick={() => onUpdateDiaChi(item, index)}
+                                                            className="text-green-500 hover:text-green-600"
+                                                        >
+                                                            <AddIcon />
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => onUpdateDiaChi(item, index)}
+                                                            className="text-blue-500 hover:text-blue-600"
+                                                        >
+                                                            <EditIcon />
+                                                        </button>
+                                                    )}
+                                                    {item.loai !== 1 && item.id !== null && (
+                                                        <button
+                                                            onClick={() => deleteDiaChi(item.id)}
+                                                            className="text-red-500 hover:text-red-600"
+                                                        >
+                                                            <DeleteIcon />
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))
+                                );
+                            })
                         ) : (
                             <p className="text-sm text-gray-500 text-center mt-4">Chưa có địa chỉ nào</p>
                         )}
@@ -1169,7 +1126,7 @@ function EditCustomer() {
                             {!isAddingDiaChi && (
                                 <button
                                     onClick={createDiaChi}
-                                    className="px-4 py-1 bg-white text-amber-400 border border-amber-400 font-medium rounded-sm shadow-sm hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-opacity-50 transition-all duration-200"
+                                    className="px-4 py-2 bg-white text-amber-400 border border-amber-400 rounded-lg shadow-sm hover:bg-amber-50 focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all duration-200"
                                 >
                                     Thêm địa chỉ
                                 </button>

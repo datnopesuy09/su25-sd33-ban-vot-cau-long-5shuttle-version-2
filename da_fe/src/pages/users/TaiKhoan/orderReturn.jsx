@@ -52,9 +52,9 @@ export default function OrderReturn() {
             const first = result[0] || null;
             const hoaDon = first?.hoaDon || null;
             // Tính tổng tiền hàng (subtotal) trước voucher: sum(giaBan * soLuong)
-            const orderSubtotal = result.reduce((sum, it) => sum + (Number(it.giaBan || 0) * Number(it.soLuong || 0)), 0);
+            const orderSubtotal = result.reduce((sum, it) => sum + Number(it.giaBan || 0) * Number(it.soLuong || 0), 0);
             setOrderInfo(hoaDon ? { voucher: hoaDon.voucher, tongTien: hoaDon.tongTien, orderSubtotal } : null);
-            
+
             const items = res.data.result.map((item) => ({
                 id: item.id,
                 name:
@@ -66,7 +66,7 @@ export default function OrderReturn() {
                     ' - ' +
                     item.sanPhamCT?.chatLieu.ten,
                 image: item.hinhAnhUrl,
-                price: item.giaBan / item.soLuong,
+                price: item.giaBan,
                 quantity: item.soLuong,
                 quantityReturn: 0,
                 selected: false,
@@ -146,8 +146,8 @@ export default function OrderReturn() {
             return;
         }
 
-        const selectedProducts = products.filter(p => p.selected);
-        let totalOriginalAmount = selectedProducts.reduce((sum, p) => sum + (p.price * p.quantityReturn), 0);
+        const selectedProducts = products.filter((p) => p.selected);
+        let totalOriginalAmount = selectedProducts.reduce((sum, p) => sum + p.price * p.quantityReturn, 0);
 
         // Nếu đơn hàng có voucher, tính tỷ lệ giảm giá theo cấu hình voucher và subtotal của đơn hàng
         if (orderInfo.voucher && Number(orderInfo.orderSubtotal) > 0) {
@@ -168,7 +168,7 @@ export default function OrderReturn() {
         let discountAmount = 0;
 
         // Phần trăm
-        if (type === 0 || type === 1 && voucher?.schema === 'percent') {
+        if (type === 0 || (type === 1 && voucher?.schema === 'percent')) {
             discountAmount = orderSubtotal * (Number(voucher.giaTri || 0) / 100);
             if (voucher.giaTriMax) {
                 discountAmount = Math.min(discountAmount, Number(voucher.giaTriMax));
@@ -238,7 +238,7 @@ export default function OrderReturn() {
                                 />
                             </TableCell>
                             <TableCell sx={{ width: '400px' }}>Sản phẩm</TableCell>
-                            <TableCell align="center" sx={{ width: '160px' }}>
+                            <TableCell align="center" sx={{ width: '180px' }}>
                                 Số lượng
                             </TableCell>
                             <TableCell align="center" sx={{ width: '180px' }}>
@@ -288,7 +288,7 @@ export default function OrderReturn() {
                                         value={prod.quantityReturn}
                                         onChange={(e) => changeQuantity(prod, Number(e.target.value))}
                                         variant="standard"
-                                        sx={{ width: 40 }}
+                                        sx={{ width: 60 }}
                                         inputProps={{ inputMode: 'numeric' }}
                                         InputProps={{
                                             endAdornment: (
@@ -389,7 +389,7 @@ export default function OrderReturn() {
             </Paper>
 
             {hasSelected && (
-                <RefundCalculationInfo 
+                <RefundCalculationInfo
                     orderInfo={orderInfo}
                     totalRefund={totalRefund}
                     actualRefundAmount={actualRefundAmount}
@@ -408,7 +408,8 @@ export default function OrderReturn() {
             >
                 <div>
                     <Typography variant="body2" color="text.secondary">
-                        Tổng giá trị sản phẩm trả: <span style={{ color: '#666' }}>{numeral(totalRefund).format('0,0')} ₫</span>
+                        Tổng giá trị sản phẩm trả:{' '}
+                        <span style={{ color: '#666' }}>{numeral(totalRefund).format('0,0')} ₫</span>
                     </Typography>
                     {orderInfo?.voucher && (
                         <Typography variant="body2" color="warning.main" sx={{ mt: 0.5 }}>
@@ -416,7 +417,8 @@ export default function OrderReturn() {
                         </Typography>
                     )}
                     <Typography fontWeight="bold" sx={{ mt: 1 }}>
-                        Số tiền hoàn trả thực tế: <span style={{ color: 'red' }}>{numeral(actualRefundAmount).format('0,0')} ₫</span>
+                        Số tiền hoàn trả thực tế:{' '}
+                        <span style={{ color: 'red' }}>{numeral(actualRefundAmount).format('0,0')} ₫</span>
                     </Typography>
                 </div>
                 <Stack direction="row" spacing={1}>

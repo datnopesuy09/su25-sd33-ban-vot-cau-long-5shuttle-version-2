@@ -30,6 +30,7 @@ public enum ErrorCode {
     PRODUCT_ID_NOT_EXISTS(1013, "Product does not exist", HttpStatus.NOT_FOUND),
     RETURN_EXISTS(1014, "Hóa đơn này đã được tạo phiếu trả hàng, không thể tạo thêm.", HttpStatus.BAD_REQUEST),
     PRODUCT_NAME_EXISTS(1015, "Tên sản phẩm đã tồn tại", HttpStatus.BAD_REQUEST),
+    RETURN_ID_NOT_EXISTS(1016, "Return does not exist", HttpStatus.NOT_FOUND),
     ;
 
 //    ErrorCode(int code, String message, HttpStatus httpStatus) {
