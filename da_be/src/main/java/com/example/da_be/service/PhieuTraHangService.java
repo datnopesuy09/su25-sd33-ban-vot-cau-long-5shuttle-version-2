@@ -231,7 +231,6 @@ public class PhieuTraHangService {
                 phieuTraHangChiTiet.setTrangThai(TrangThaiTra.APPROVED);
                 phieuTraHangChiTiet.setSoLuongNhapKho(chiTietRequest.getSoLuongNhapKho());
                 phieuTraHangChiTiet.setSoLuongHong(chiTietRequest.getSoLuongHong());
-                hoaDonCT.setTrangThai(8);
                 
                 // Thêm vào danh sách để tính toán giá hoàn trả
                 approvedItems.add(phieuTraHangChiTiet);
