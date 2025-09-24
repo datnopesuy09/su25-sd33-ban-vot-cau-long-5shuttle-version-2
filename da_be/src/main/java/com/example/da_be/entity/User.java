@@ -50,6 +50,9 @@ public class User {
     @Column(name = "CCCD") // Ánh xạ đến cột "CCCD"
     String cccd;
 
+    @Column(name = "UserType") // Ánh xạ đến cột "UserType" 
+    Integer userType; // 0=ADMIN, 1=STAFF, 2=USER
+
     @Column(name = "TrangThai") // Ánh xạ đến cột "TrangThai"
     Integer trangThai;
 

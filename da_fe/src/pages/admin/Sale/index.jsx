@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import AddIcon from '@mui/icons-material/Add';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import CloseIcon from '@mui/icons-material/Close';
+import PersonIcon from '@mui/icons-material/Person';
 import swal from 'sweetalert';
 import axios from 'axios';
 import SockJS from 'sockjs-client';
@@ -9,6 +10,7 @@ import { Stomp } from '@stomp/stompjs';
 import ProductModal from './ProductModal';
 import ProductList from '../Order/ProductList';
 import PaymentSummary from './PaymentSummary';
+import CustomerModal from './CustomerModal';
 
 function OfflineSale() {
     const [bills, setBills] = useState([]);
@@ -22,6 +24,11 @@ function OfflineSale() {
     const [importQuantity, setImportQuantity] = useState(1);
     const [selectedProductId, setSelectedProductId] = useState(null);
     const [stompClient, setStompClient] = useState(null);
+
+    // Customer management states
+    const [showCustomerModal, setShowCustomerModal] = useState(false);
+    const [selectedCustomer, setSelectedCustomer] = useState(null);
+    const [billCustomers, setBillCustomers] = useState({}); // Store customer for each bill
 
     useEffect(() => {
         fetchBills();
@@ -98,6 +105,38 @@ function OfflineSale() {
         setSelectedBill(bill);
         fetchBillDetails(bill.id);
         fetchPreOrders(bill.id);
+        // Set selected customer from billCustomers
+        setSelectedCustomer(billCustomers[bill.id] || null);
+    };
+
+    // Customer management functions
+    const handleCustomerModal = () => {
+        setShowCustomerModal(true);
+    };
+
+    const handleCloseCustomerModal = () => {
+        setShowCustomerModal(false);
+    };
+
+    const handleCustomerSelect = (customer) => {
+        setSelectedCustomer(customer);
+        if (selectedBill) {
+            setBillCustomers((prev) => ({
+                ...prev,
+                [selectedBill.id]: customer,
+            }));
+        }
+    };
+
+    const handleRemoveCustomer = () => {
+        setSelectedCustomer(null);
+        if (selectedBill) {
+            setBillCustomers((prev) => {
+                const newBillCustomers = { ...prev };
+                delete newBillCustomers[selectedBill.id];
+                return newBillCustomers;
+            });
+        }
     };
 
     const handleConfirmAddProduct = async (selectedProduct, quantity) => {
@@ -421,12 +460,60 @@ function OfflineSale() {
 
                     {selectedBill && (
                         <div className="flex-1 flex flex-col overflow-hidden">
+                            {/* Customer Information Section */}
+                            <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-lg font-semibold text-gray-700 flex items-center">
+                                        <PersonIcon className="mr-2" />
+                                        Thông tin khách hàng
+                                    </h3>
+                                    <div className="flex space-x-2">
+                                        <button
+                                            className="bg-green-600 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700 transition-colors flex items-center"
+                                            onClick={handleCustomerModal}
+                                        >
+                                            <PersonIcon className="mr-1" fontSize="small" />
+                                            {selectedCustomer ? 'Đổi khách hàng' : 'Chọn khách hàng'}
+                                        </button>
+                                        {selectedCustomer && (
+                                            <button
+                                                className="bg-red-600 text-white px-4 py-2 rounded-md text-sm hover:bg-red-700 transition-colors"
+                                                onClick={handleRemoveCustomer}
+                                            >
+                                                Bỏ chọn
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                                {selectedCustomer ? (
+                                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                                        <div>
+                                            <span className="font-medium text-gray-600">Tên khách hàng:</span>
+                                            <p className="text-gray-800">{selectedCustomer.hoTen}</p>
+                                        </div>
+                                        <div>
+                                            <span className="font-medium text-gray-600">Số điện thoại:</span>
+                                            <p className="text-gray-800">{selectedCustomer.sdt}</p>
+                                        </div>
+                                        <div>
+                                            <span className="font-medium text-gray-600">Email:</span>
+                                            <p className="text-gray-800">{selectedCustomer.email || 'Không có'}</p>
+                                        </div>
+                                        <div>
+                                            <span className="font-medium text-gray-600">Mã KH:</span>
+                                            <p className="text-gray-800">{selectedCustomer.ma}</p>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="mt-3 text-gray-500 text-center py-4">
+                                        Chưa chọn khách hàng - Khách vãng lai
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="flex justify-between items-center mb-4">
                                 <h2 className="text-xl font-bold text-blue-700">Sản phẩm</h2>
                                 <div className="flex space-x-3">
-                                    {/* <button className="border border-blue-600 text-blue-600 px-4 py-2 rounded-md text-sm hover:bg-blue-50 transition-colors">
-                                        QUÉT QR SẢN PHẨM
-                                    </button> */}
                                     <button
                                         className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 transition-colors"
                                         onClick={handleProductModal}
@@ -502,6 +589,7 @@ function OfflineSale() {
                     selectedBill={selectedBill}
                     setSelectedBill={setSelectedBill}
                     updateBills={updateBills}
+                    selectedCustomer={selectedCustomer}
                 />
             )}
 
@@ -513,6 +601,13 @@ function OfflineSale() {
                 handleConfirmAddProduct={handleConfirmAddProduct}
                 fetchProducts={fetchProducts}
                 currentOrderDetails={billDetails}
+            />
+
+            <CustomerModal
+                showCustomerModal={showCustomerModal}
+                handleCloseCustomerModal={handleCloseCustomerModal}
+                onCustomerSelect={handleCustomerSelect}
+                selectedCustomer={selectedCustomer}
             />
 
             {showImportModal && (

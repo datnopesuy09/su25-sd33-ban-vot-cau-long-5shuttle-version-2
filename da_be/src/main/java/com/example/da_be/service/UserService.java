@@ -174,4 +174,91 @@ UserService {
         return hoaDonMapper.toHoaDonResponse(hoaDon);
     }
 
+    // Admin methods for customer management
+    public List<User> getAllCustomers() {
+        return userRepository.findByUserTypeAndTrangThai(2, 1); // 2 = USER
+    }
+
+    public User createCustomer(User user) {
+        // Check if email exists
+        if (userRepository.existsByEmail(user.getEmail())) {
+            throw new RuntimeException("Email đã tồn tại");
+        }
+        
+        // Check if phone exists
+        if (userRepository.existsBySdt(user.getSdt())) {
+            throw new RuntimeException("Số điện thoại đã tồn tại");
+        }
+
+        // Set default values
+        if (user.getUserType() == null) {
+            user.setUserType(2); // 2 = USER
+        }
+        if (user.getTrangThai() == null) {
+            user.setTrangThai(1);
+        }
+        if (user.getMatKhau() == null || user.getMatKhau().isEmpty()) {
+            user.setMatKhau(passwordEncoder.encode("123456")); // Default password
+        } else {
+            user.setMatKhau(passwordEncoder.encode(user.getMatKhau()));
+        }
+
+        return userRepository.save(user);
+    }
+
+    public User updateCustomer(Integer id, User user) {
+        User existingUser = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Check email uniqueness (exclude current user)
+        if (user.getEmail() != null && !user.getEmail().equals(existingUser.getEmail())) {
+            if (userRepository.existsByEmail(user.getEmail())) {
+                throw new RuntimeException("Email đã tồn tại");
+            }
+            existingUser.setEmail(user.getEmail());
+        }
+
+        // Check phone uniqueness (exclude current user)
+        if (user.getSdt() != null && !user.getSdt().equals(existingUser.getSdt())) {
+            if (userRepository.existsBySdt(user.getSdt())) {
+                throw new RuntimeException("Số điện thoại đã tồn tại");
+            }
+            existingUser.setSdt(user.getSdt());
+        }
+
+        // Update other fields
+        if (user.getHoTen() != null) {
+            existingUser.setHoTen(user.getHoTen());
+        }
+        if (user.getNgaySinh() != null) {
+            existingUser.setNgaySinh(user.getNgaySinh());
+        }
+        if (user.getGioiTinh() != null) {
+            existingUser.setGioiTinh(user.getGioiTinh());
+        }
+        if (user.getCccd() != null) {
+            existingUser.setCccd(user.getCccd());
+        }
+
+        return userRepository.save(existingUser);
+    }
+
+    public void deleteCustomer(Integer id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        // Set status to inactive instead of deleting
+        user.setTrangThai(0);
+        userRepository.save(user);
+    }
+
+    public User getCustomerById(Integer id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+    }
+
+    public List<User> searchCustomers(String keyword) {
+        return userRepository.findByUserTypeAndTrangThaiAndSearchKeyword(2, 1, "%" + keyword + "%"); // 2 = USER
+    }
+
 }
