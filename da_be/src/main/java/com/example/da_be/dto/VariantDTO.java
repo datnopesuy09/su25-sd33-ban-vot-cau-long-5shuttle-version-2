@@ -7,6 +7,8 @@ public class VariantDTO {
     private String maSanPham;
     private String mauSacTen;
     private String trongLuongTen;
+    private Integer mauSacId;
+    private Integer trongLuongId;
     private Double donGia;
     private Integer soLuong;
     private List<String> hinhAnhUrls;
@@ -46,6 +48,22 @@ public class VariantDTO {
 
     public void setTrongLuongTen(String trongLuongTen) {
         this.trongLuongTen = trongLuongTen;
+    }
+
+    public Integer getMauSacId() {
+        return mauSacId;
+    }
+
+    public void setMauSacId(Integer mauSacId) {
+        this.mauSacId = mauSacId;
+    }
+
+    public Integer getTrongLuongId() {
+        return trongLuongId;
+    }
+
+    public void setTrongLuongId(Integer trongLuongId) {
+        this.trongLuongId = trongLuongId;
     }
 
     public Double getDonGia() {

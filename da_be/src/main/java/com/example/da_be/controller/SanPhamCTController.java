@@ -149,6 +149,133 @@ public class SanPhamCTController {
         }
     }
 
+    @PutMapping("/update-by-color/{id}")
+    @Transactional
+    public ResponseEntity<?> updateVariantsByColor(
+            @PathVariable int id,
+            @RequestBody Map<String, Object> payload
+    ) {
+        try {
+            SanPhamCT existingSanPhamCT = sanPhamCTRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Sản phẩm không tồn tại"));
+
+            // Tìm tất cả biến thể cùng màu
+            List<SanPhamCT> sameColorVariants = 
+                sanPhamCTRepository.findBySanPhamAndMauSac(
+                    existingSanPhamCT.getSanPham(), 
+                    existingSanPhamCT.getMauSac()
+                );
+            
+            System.out.println("=== CẬP NHẬT TẤT CẢ BIẾN THỂ CÙNG MÀU ===");
+            System.out.println("Số biến thể cùng màu: " + sameColorVariants.size());
+
+            // Cập nhật tất cả biến thể cùng màu
+            for (SanPhamCT variant : sameColorVariants) {
+                System.out.println("Đang cập nhật biến thể ID: " + variant.getId());
+
+                // ====== Các trường cơ bản ======
+                if (payload.containsKey("soLuong")) {
+                    variant.setSoLuong(Integer.parseInt(payload.get("soLuong").toString()));
+                }
+                if (payload.containsKey("donGia")) {
+                    variant.setDonGia(Double.parseDouble(payload.get("donGia").toString()));
+                }
+                if (payload.containsKey("trangThai")) {
+                    String status = payload.get("trangThai").toString();
+                    variant.setTrangThai("Active".equalsIgnoreCase(status) ? 1 : 0);
+                }
+                if (payload.containsKey("moTa")) {
+                    variant.setMoTa(payload.get("moTa").toString());
+                }
+
+                // ====== Các quan hệ (lookup theo tên) ======
+                if (payload.containsKey("brand")) {
+                    String brand = payload.get("brand").toString();
+                    variant.setThuongHieu(
+                            thuongHieuRepository.findByTen(brand).orElse(null)
+                    );
+                }
+                if (payload.containsKey("material")) {
+                    String material = payload.get("material").toString();
+                    variant.setChatLieu(
+                            chatLieuRepository.findByTen(material).orElse(null)
+                    );
+                }
+                if (payload.containsKey("balancePoint")) {
+                    String balancePoint = payload.get("balancePoint").toString();
+                    variant.setDiemCanBang(
+                            diemCanBangRepository.findByTen(balancePoint).orElse(null)
+                    );
+                }
+                if (payload.containsKey("hardness")) {
+                    String hardness = payload.get("hardness").toString();
+                    variant.setDoCung(
+                            doCungRepository.findByTen(hardness).orElse(null)
+                    );
+                }
+                // KHÔNG cập nhật màu sắc và trọng lượng vì chúng là thuộc tính phân biệt biến thể
+                // Màu sắc và trọng lượng phải được giữ nguyên để tránh tạo ra duplicate
+
+                // ====== Xử lý ảnh ======
+                if (payload.containsKey("hinhAnhUrls")) {
+                    @SuppressWarnings("unchecked")
+                    List<String> hinhAnhUrls = (List<String>) payload.get("hinhAnhUrls");
+
+                    // Xóa tất cả ảnh cũ
+                    List<HinhAnh> existingHinhAnhs = variant.getHinhAnh();
+                    if (existingHinhAnhs != null && !existingHinhAnhs.isEmpty()) {
+                        for (HinhAnh hinhAnh : existingHinhAnhs) {
+                            try {
+                                hinhAnhRepository.deleteById(hinhAnh.getId());
+                            } catch (Exception e) {
+                                System.err.println("Lỗi khi xóa ảnh ID " + hinhAnh.getId() + ": " + e.getMessage());
+                            }
+                        }
+                        variant.getHinhAnh().clear();
+                    }
+
+                    // Thêm ảnh mới
+                    if (hinhAnhUrls != null && !hinhAnhUrls.isEmpty()) {
+                        for (String url : hinhAnhUrls) {
+                            try {
+                                HinhAnh newHinhAnh = new HinhAnh();
+                                newHinhAnh.setLink(url);
+                                newHinhAnh.setTrangThai(1);
+                                newHinhAnh.setSanPhamCT(variant);
+                                HinhAnh savedHinhAnh = hinhAnhRepository.save(newHinhAnh);
+                                variant.getHinhAnh().add(savedHinhAnh);
+                            } catch (Exception e) {
+                                System.err.println("Lỗi khi thêm ảnh URL " + url + ": " + e.getMessage());
+                            }
+                        }
+                    }
+                }
+
+                // Lưu biến thể
+                sanPhamCTRepository.save(variant);
+            }
+
+            // Cập nhật trạng thái sản phẩm cha
+            sanPhamCTService.updateParentProductStatus(existingSanPhamCT.getSanPham().getId());
+
+            System.out.println("=== HOÀN THÀNH CẬP NHẬT TẤT CẢ BIẾN THỂ CÙNG MÀU ===");
+
+            return ResponseEntity.ok(Map.of(
+                "message", "Đã cập nhật " + sameColorVariants.size() + " biến thể cùng màu",
+                "updatedCount", sameColorVariants.size(),
+                "color", existingSanPhamCT.getMauSac() != null ? existingSanPhamCT.getMauSac().getTen() : "Unknown"
+            ));
+
+        } catch (ResourceNotFoundException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (NumberFormatException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Dữ liệu không hợp lệ: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Có lỗi xảy ra: " + e.getMessage());
+        }
+    }
+
     @PutMapping("/update-basic/{id}")
     @Transactional
     public ResponseEntity<?> updateBasicInfo(
